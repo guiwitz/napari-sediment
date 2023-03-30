@@ -14,7 +14,6 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget, QComboBox,
                             QCheckBox)
 from qtpy.QtCore import Qt
 
-import napari
 import numpy as np
 import pystripe
 from spectral import open_image
