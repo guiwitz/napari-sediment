@@ -36,7 +36,9 @@ def compute_average_in_roi(file_path, channel_indices, roi, white_path=None):
         #print(f'channel: {ch}')
 
         #print('compute')
-        data, _ = read_spectral(file_path, bands=[ch],
+        data, _ = read_spectral(
+            file_path,
+            bands=[ch],
             row_bounds=(roi[0][0], roi[0][1]),
             col_bounds=(roi[1][0], roi[1][1]),
             )
@@ -48,3 +50,22 @@ def compute_average_in_roi(file_path, channel_indices, roi, white_path=None):
         #print('done')
 
     return data_av
+
+def get_rgb_channels(wavelengths, rgb=[640, 545, 460]):
+    """Get indices of channels closest to RGB wavelengths.
+
+    Parameters
+    ----------
+    wavelengths : list of float
+        List of wavelengths.
+    rgb : list of float, optional
+        List of RGB wavelengths. Default is [640, 545, 460].
+
+    Returns
+    -------
+    rgb_ch : list of int
+        List of indices of channels closest to RGB wavelengths.
+    """
+
+    rgb_ch = [np.argmin(np.abs(np.array(wavelengths).astype(float) - x)) for x in rgb]
+    return rgb_ch
