@@ -8,10 +8,9 @@ Replace code below according to your needs.
 """
 from typing import TYPE_CHECKING
 from pathlib import Path
-from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget, QComboBox,
-                            QTabWidget, QGroupBox, QHBoxLayout, QGridLayout,
+from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QListWidget, QAbstractItemView,
-                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox, QSlider,)
+                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
@@ -19,31 +18,33 @@ import numpy as np
 import pystripe
 from spectral import open_image
 from skimage.measure import points_in_poly
+import skimage
+from scipy.ndimage import binary_fill_holes
+import yaml
 
 from napari_matplotlib.base import NapariMPLWidget
 
-from napari_guitils.gui_widgets import FolderList
-from napari_guitils.gui_structures import VHGroup, create_tabs, TabSet
+from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
 from .sediproc import (compute_average_in_roi, white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers)
 from .imchannels import ImChannels
 from .io import save_mask, load_mask
+from .classifier import Classifier
+from .parameters import Param
 
 if TYPE_CHECKING:
     import napari
 
 
 class SedimentWidget(QWidget):
-    # your QWidget.__init__ can optionally request the napari viewer instance
-    # in one of two ways:
-    # 1. use a parameter called `napari_viewer`, as done here
-    # 2. use a type annotation of 'napari.viewer.Viewer' for any parameter
+    
     def __init__(self, napari_viewer):
         super().__init__()
         
         self.viewer = napari_viewer
+        self.params = Param()
         self.current_image_name = None
         self.channel_indices = None
         self.metadata = None
@@ -56,11 +57,17 @@ class SedimentWidget(QWidget):
         self.rgb_ch = None
         self.rgb_names = None
         self.viewer2 = None
+        self.pixclass = None
+        self.export_folder = None
+        self.mainroi_min_col = None
+        self.mainroi_max_col = None
+        self.mainroi_min_row = None
+        self.mainroi_max_row = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['Main', 'Processing', 'Mask', 'Plotting','Options']
+        self.tab_names = ['Main', 'Processing', 'Mask', 'ROI', 'Export', 'Plotting','Options']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
@@ -110,6 +117,9 @@ class SedimentWidget(QWidget):
         self._create_options_tab()
         self._create_processing_tab()
         self._create_mask_tab()
+        self._create_roi_tab()
+        self._create_export_tab()
+
         self.add_connections()
 
     def new_view(self):
@@ -139,39 +149,110 @@ class SedimentWidget(QWidget):
             
         self.tabs.widget(self.tab_names.index('Mask')).layout().setAlignment(Qt.AlignTop)
         
-        self.mask_export_group = VHGroup('Mask export', orientation='G')
-        self.mask_creation_group = VHGroup('Mask processing', orientation='G')
-        self.tabs.add_named_tab('Mask', self.mask_export_group.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_creation_group.gbox)
+        
+        self.mask_group_border = VHGroup('Mask processing', orientation='G')
+        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
+        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
+        self.mask_group_phasor = VHGroup('Phasor Threshold', orientation='G')
+        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
+        self.mask_group_combine = VHGroup('Combine', orientation='G')
+        self.tabs.add_named_tab('Mask', self.mask_group_border.gbox)
+        self.tabs.add_named_tab('Mask', self.mask_group_manual.gbox)
+        self.tabs.add_named_tab('Mask', self.mask_group_auto.gbox)
+        self.tabs.add_named_tab('Mask', self.mask_group_phasor.gbox)
+        self.tabs.add_named_tab('Mask', self.mask_group_ml.gbox)
+        self.tabs.add_named_tab('Mask', self.mask_group_combine.gbox)
 
-        self.btn_save_mask = QPushButton("Save mask")
-        self.mask_export_group.glayout.addWidget(self.btn_save_mask)
-        self.btn_load_mask = QPushButton("Load mask")
-        self.mask_export_group.glayout.addWidget(self.btn_load_mask)
-
-        # add horizontal slider for thresholding
+        # border
         self.btn_border_mask = QPushButton("Border mask")
-        self.mask_creation_group.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
-        self.spin_mask_threshold = QDoubleRangeSlider(Qt.Horizontal)#QDoubleSpinBox()
-        self.spin_mask_threshold.setRange(0, 1)
-        self.spin_mask_threshold.setSingleStep(0.01)
-        self.spin_mask_threshold.setSliderPosition([0, 1])
-        self.mask_creation_group.glayout.addWidget(QLabel("Threshold value"), 1, 0, 1, 1)
-        self.mask_creation_group.glayout.addWidget(self.spin_mask_threshold, 1, 1, 1, 1)
+        self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
+
+        # manual
+        self.slider_mask_threshold = QDoubleRangeSlider(Qt.Horizontal)
+        self.slider_mask_threshold.setRange(0, 1)
+        self.slider_mask_threshold.setSingleStep(0.01)
+        self.slider_mask_threshold.setSliderPosition([0, 1])
+        self.mask_group_manual.glayout.addWidget(QLabel("Threshold value"), 0, 0, 1, 1)
+        self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 0, 1, 1, 1)
         self.btn_update_mask = QPushButton("Manual Threshold mask")
-        self.mask_creation_group.glayout.addWidget(self.btn_update_mask, 2, 0, 1, 2)
+        self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 1, 0, 1, 2)
+        
+        # auto
         self.btn_automated_mask = QPushButton("Automated mask")
-        self.mask_creation_group.glayout.addWidget(self.btn_automated_mask, 3, 0, 1, 1)
+        self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 1)
         self.spin_automated_mask_width = QDoubleSpinBox()
         self.spin_automated_mask_width.setRange(0.1, 10)
         self.spin_automated_mask_width.setSingleStep(0.1)
-        self.mask_creation_group.glayout.addWidget(self.spin_automated_mask_width, 3, 1, 1, 1)
-        self.btn_compute_phaseor = QPushButton("Compute Phasor")
-        self.mask_creation_group.glayout.addWidget(self.btn_compute_phaseor, 4, 0, 1, 2)
+        self.mask_group_auto.glayout.addWidget(QLabel('Distr. Width'), 1, 0, 1, 1)
+        self.mask_group_auto.glayout.addWidget(self.spin_automated_mask_width, 1, 1, 1, 1)
+
+        # phasor
+        self.btn_compute_phasor = QPushButton("Compute Phasor")
+        self.mask_group_phasor.glayout.addWidget(self.btn_compute_phasor, 0, 0, 1, 2)
         self.btn_select_by_phasor = QPushButton("Phasor mask")
-        self.mask_creation_group.glayout.addWidget(self.btn_select_by_phasor, 5, 0, 1, 2)
+        self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
+
+        # ml
+        self.btn_add_annotation_layer = QPushButton("Add annotation layer")
+        self.mask_group_ml.glayout.addWidget(self.btn_add_annotation_layer, 0, 0, 1, 2)
+        self.check_smoothing = QCheckBox('Gaussian smoothing')
+        self.check_smoothing.setChecked(False)
+        self.mask_group_ml.glayout.addWidget(self.check_smoothing, 1, 0, 1, 1)
+        self.spin_gaussian_smoothing = QDoubleSpinBox()
+        self.spin_gaussian_smoothing.setRange(0.1, 10)
+        self.spin_gaussian_smoothing.setSingleStep(0.1)
+        self.spin_gaussian_smoothing.setValue(3)
+        self.mask_group_ml.glayout.addWidget(self.spin_gaussian_smoothing, 1, 1, 1, 1)
+        self.btn_reset_mlmodel = QPushButton("Reset/Initialize ML model")
+        self.mask_group_ml.glayout.addWidget(self.btn_reset_mlmodel, 2, 0, 1, 2)
+        self.btn_ml_mask = QPushButton("Pixel Classifier mask")
+        self.mask_group_ml.glayout.addWidget(self.btn_ml_mask, 3, 0, 1, 2)
+        
+        # combine
         self.btn_combine_masks = QPushButton("Combine masks")
-        self.mask_creation_group.glayout.addWidget(self.btn_combine_masks, 6, 0, 1, 2)
+        self.mask_group_combine.glayout.addWidget(self.btn_combine_masks, 0, 0, 1, 2)
+        self.btn_clean_mask = QPushButton("Clean mask")
+        self.mask_group_combine.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
+        
+    def _create_roi_tab(self):
+
+        self.tabs.widget(self.tab_names.index('ROI')).layout().setAlignment(Qt.AlignTop)
+
+        self.roi_group = VHGroup('ROI definition', orientation='G')
+        self.tabs.add_named_tab('ROI', self.roi_group.gbox)
+        self.btn_add_main_roi = QPushButton("Add main ROI")
+        self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
+        self.btn_add_sub_roi = QPushButton("Add analysis ROI")
+        self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
+        self.spin_roi_width = QSpinBox()
+        self.spin_roi_width.setRange(1, 1000)
+        self.spin_roi_width.setValue(20)
+        self.roi_group.glayout.addWidget(QLabel('ROI width'), 2, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_roi_width, 2, 1, 1, 1)
+
+    def _create_export_tab(self):
+
+        self.tabs.widget(self.tab_names.index('Export')).layout().setAlignment(Qt.AlignTop)
+
+        # io
+        self.mask_group_export = VHGroup('Mask export', orientation='G')
+        self.tabs.add_named_tab('Export', self.mask_group_export.gbox)
+        self.btn_save_mask = QPushButton("Save mask")
+        self.mask_group_export.glayout.addWidget(self.btn_save_mask)
+        self.btn_load_mask = QPushButton("Load mask")
+        self.mask_group_export.glayout.addWidget(self.btn_load_mask)
+        
+        self.mask_group_capture = VHGroup('Captures', orientation='G')
+        self.tabs.add_named_tab('Export', self.mask_group_capture.gbox)
+        self.btn_snapshot = QPushButton("Snapshot")
+        self.mask_group_capture.glayout.addWidget(self.btn_snapshot)
+
+        self.mask_group_project = VHGroup('Project', orientation='G')
+        self.tabs.add_named_tab('Export', self.mask_group_project.gbox)
+        self.btn_export = QPushButton("Export")
+        self.mask_group_project.glayout.addWidget(self.btn_export)
+        self.btn_import = QPushButton("Import")
+        self.mask_group_project.glayout.addWidget(self.btn_import)
         
 
     def _create_options_tab(self):
@@ -203,9 +284,11 @@ class SedimentWidget(QWidget):
     def add_connections(self):
         """Add callbacks"""
 
-        self.btn_select_export_folder.clicked.connect(self._on_click_select_file_folder)
+        self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_select_imhdr_file.clicked.connect(self._on_click_select_imhdr)
         self.qlist_channels.itemClicked.connect(self._on_change_channel_selection)
+        self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
+        self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_white_correct.clicked.connect(self._on_click_white_correct)
         self.btn_RGBwhite_correct.clicked.connect(self._on_click_white_correct)
@@ -214,24 +297,39 @@ class SedimentWidget(QWidget):
         self.btn_compute_index.clicked.connect(self._compute_index)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
+        
+        # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
         self.btn_update_mask.clicked.connect(self._on_click_update_mask)
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
-        self.btn_compute_phaseor.clicked.connect(self._on_click_compute_phasor)
+        self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
         self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
+        self.btn_add_annotation_layer.clicked.connect(self._on_click_add_annotation_layer)
+        self.btn_reset_mlmodel.clicked.connect(self._on_initialize_model)
+        self.btn_ml_mask.clicked.connect(self._on_click_ml_mask)
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
+        self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
+
+        # ROI
+        self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
+
+        # capture
         self.btn_save_mask.clicked.connect(self._on_click_save_mask)
         self.btn_load_mask.clicked.connect(self._on_click_load_mask)
-        self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
-        self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
-
+        self.btn_snapshot.clicked.connect(self._on_click_snapshot)
+        self.btn_export.clicked.connect(self.export_project)
+        self.btn_import.clicked.connect(self.import_project)
+        
+        # mouse
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
+        self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
 
-    def _on_click_select_file_folder(self):
+    def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
 
         self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        self.export_path_display.setText(self.export_folder.as_posix())
 
     def _on_select_file(self):
         
@@ -349,7 +447,7 @@ class SedimentWidget(QWidget):
 
         self._on_click_RGB()
 
-        self._add_roi()
+        self._add_roi_layer()
         self._add_mask()
 
     def _on_click_use_crop(self):
@@ -367,11 +465,62 @@ class SedimentWidget(QWidget):
         self._on_change_channel_selection()
 
 
-    def _add_roi(self):
+    def _add_roi_layer(self):
+         
+         self.roi_layer = self.viewer.add_shapes(
+             ndim = 2,
+             name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
+         
          self.roi_layer = self.viewer.add_shapes(
              ndim = 2,
              name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
          
+    def _on_click_add_main_roi(self):
+
+        if 'clean-mask' in self.viewer.layers:
+            mask = self.viewer.layers['clean-mask'].data.copy()
+        else:
+            if 'complete-mask' not in self.viewer.layers:
+                self._on_click_combine_masks()
+            mask = self.viewer.layers['complete-mask'].data.copy() 
+
+        bounds_col = np.where(mask.min(axis=0)==0)
+        bounds_row = np.where(mask.min(axis=1)==0)
+
+        self.set_main_roi_bounds(min_col=bounds_col[0][0], max_col=bounds_col[0][-1], min_row=bounds_row[0][0], max_row=bounds_row[0][-1])
+
+        new_roi = [
+            [self.mainroi_min_row,self.mainroi_min_col],
+            [self.mainroi_max_row,self.mainroi_min_col],
+            [self.mainroi_max_row,self.mainroi_max_col],
+            [self.mainroi_min_row,self.mainroi_max_col]]
+        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b', edge_width=10)
+
+    def set_main_roi_bounds(self, min_col, max_col, min_row, max_row):
+            
+        self.mainroi_min_col = min_col
+        self.mainroi_max_col = max_col
+        self.mainroi_min_row = min_row
+        self.mainroi_max_row = max_row
+
+    def _add_analysis_roi(self, viewer, event):
+        """Add roi to layer"""
+
+        cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+        if self.mainroi_min_row is None:
+            min_row = 0
+            max_row = self.imagechannels.nrows
+        else:
+            min_row = self.mainroi_min_row
+            max_row = self.mainroi_max_row
+        new_roi = [
+            [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
+            [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
+            [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
+            [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
+        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
+
+
     def _add_mask(self):
         self.mask_layer = self.viewer.add_labels(
             np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8),
@@ -449,8 +598,8 @@ class SedimentWidget(QWidget):
                     self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
             
             im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
-            self.spin_mask_threshold.setRange(im.min(), im.max())
-            self.spin_mask_threshold.setSliderPosition([im.min(), im.max()])
+            self.slider_mask_threshold.setRange(im.min(), im.max())
+            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
     def _on_click_remove_borders(self):
         """Remove borders from image"""
@@ -477,16 +626,16 @@ class SedimentWidget(QWidget):
         else:
             pix_selected = np.ravel(im)
         med_val, std_val = fit_1dgaussian_without_outliers(data=pix_selected[::5])
-        self.spin_mask_threshold.setRange(im.min(), im.max())
+        self.slider_mask_threshold.setRange(im.min(), im.max())
         fact = self.spin_automated_mask_width.value()
-        self.spin_mask_threshold.setSliderPosition([med_val - fact*std_val,med_val + fact*std_val])
+        self.slider_mask_threshold.setSliderPosition([med_val - fact*std_val,med_val + fact*std_val])
         self._on_click_update_mask()
     
     def _on_click_update_mask(self):
         """Update mask based on current threshold"""
         
         data = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
-        mask = ((data < self.spin_mask_threshold.value()[0]) | (data > self.spin_mask_threshold.value()[1])).astype(np.uint8)
+        mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         self.viewer.layers['mask'].data = mask
         self.viewer.layers['mask'].refresh()
 
@@ -530,6 +679,54 @@ class SedimentWidget(QWidget):
         else:
             self.viewer.add_labels(in_out_image, name='phasor-mask')
 
+    def _on_click_add_annotation_layer(self):
+        """Add annotation layer to viewer"""
+
+        if 'annotations' in self.viewer.layers:
+            print('Annotations layer already exists')
+            return
+        self.viewer.add_labels(np.zeros_like(self.viewer.layers['mask'].data), name='annotations', opacity=0.5)
+
+    def _on_initialize_model(self):
+
+        if 'annotations' not in self.viewer.layers:
+            raise ValueError('No annotation layer found')
+        
+        reduce_fact = 4
+        data = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
+        annotations = self.viewer.layers['annotations'].data[::reduce_fact,::reduce_fact]
+        if self.check_smoothing.isChecked():
+            data = skimage.filters.gaussian(data, sigma=self.spin_gaussian_smoothing.value(), preserve_range=True)[:, ::4, ::4]
+        else:
+            data = data[:, ::reduce_fact, ::reduce_fact]
+        self.pixclass = Classifier(data=data, annotations=annotations)
+        #self.pixclass.load_model(model_type='resnet50')
+        self.pixclass.load_model(model_type='vgg16')
+        
+        self.pixclass.compute_multiscale_features()
+
+    def _on_click_ml_mask(self):
+
+        if 'annotations' not in self.viewer.layers:
+            raise ValueError('No annotation layer found')
+        
+        if self.pixclass is None:
+            self._on_initialize_model()
+
+        reduce_fact = 4
+        annotations = self.viewer.layers['annotations'].data[::reduce_fact,::reduce_fact]
+        self.pixclass.annotations = annotations
+        self.pixclass.extract_annotated_features()
+        self.pixclass.train_model()
+        pred = self.pixclass.predict()
+        pred = (pred == 1).astype(np.uint8)
+        predict_upscale = skimage.transform.resize(
+            pred, self.viewer.layers['annotations'].data.shape, order=0)
+        if 'ml-mask' in self.viewer.layers:
+            self.viewer.layers['ml-mask'].data = predict_upscale
+        else:
+            self.viewer.add_labels((predict_upscale==1).astype(np.uint8), name='ml-mask')
+
     def _on_click_combine_masks(self):
         """Combine masks from border removel, phasor and thresholding"""
 
@@ -538,15 +735,34 @@ class SedimentWidget(QWidget):
             mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
         if 'border-mask' in self.viewer.layers:
             mask_complete = mask_complete + self.viewer.layers['border-mask'].data
+        if 'ml-mask' in self.viewer.layers:
+            mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
         
+        mask_complete = (mask_complete>0).astype(np.uint8)
+
         if 'complete-mask' in self.viewer.layers:
             self.viewer.layers['complete-mask'].data = mask_complete
         else:
             self.viewer.add_labels(mask_complete, name='complete-mask')
 
+    def _on_click_clean_mask(self):
+        
+        if 'complete-mask' not in self.viewer.layers:
+            self._on_click_combine_masks()
+        mask = self.viewer.layers['complete-mask'].data == 0
+        mask_lab = skimage.morphology.label(mask)
+        mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
+        final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
+        mask_filled = binary_fill_holes(final_mask)
+        mask_filled = (mask_filled == 0).astype(np.uint8)
+        self.viewer.add_labels(mask_filled, name='clean-mask')
+
     def _on_click_save_mask(self):
         """Save mask to file"""
-            
+
+        if self.export_folder is None: 
+            self._on_click_select_export_folder()
+
         if 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
         else:
@@ -562,6 +778,14 @@ class SedimentWidget(QWidget):
             self.viewer.layers['mask'].data = mask
         else:
             self.viewer.add_labels(mask, name='mask')
+
+    def _on_click_snapshot(self):
+        """Save snapshot of viewer"""
+
+        if self.export_folder is None: 
+            self._on_click_select_export_folder()
+
+        self.viewer.screenshot(str(self.export_folder.joinpath('snapshot.png')))
 
     def get_mask_path(self):
 
@@ -586,8 +810,8 @@ class SedimentWidget(QWidget):
                 blending='additive')
 
         im = np.sum(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)  
-        self.spin_mask_threshold.setRange(im.min(), im.max())
-        self.spin_mask_threshold.setValue([im.min(), im.max()])
+        self.slider_mask_threshold.setRange(im.min(), im.max())
+        self.slider_mask_threshold.setValue([im.min(), im.max()])
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
@@ -626,6 +850,77 @@ class SedimentWidget(QWidget):
             self.scan_plot.axes.plot(spectral_pixel)
             
             self.scan_plot.canvas.figure.canvas.draw()
+
+    def save_params(self):
+        """Save parameters"""
+        
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
+        mainroi = [[x.item() for x in y] for y in mainroi]
+
+        rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
+        rois = [[x.item() for x in y] for y in rois]
+
+        self.params.project_path = self.export_folder
+        self.params.file_path = self.imhdr_path
+        self.params.white_path = self.white_file_path
+        self.params.dark_path = self.dark_file_path
+        self.params.main_roi = mainroi
+        self.params.rois = rois
+        self.params.save_parameters()
+
+    def load_params(self):
+        
+        self.params = Param(project_path=self.export_folder)
+
+        if not self.params.project_path.joinpath('Parameters.yml').exists():
+            raise FileNotFoundError(f"Project {self.params.project_path} does not exist")
+
+        with open(self.params.project_path.joinpath('Parameters.yml')) as file:
+            documents = yaml.full_load(file)
+        for k in documents.keys():
+            setattr(self.params, k, documents[k])
+
+    def export_project(self):
+        """Export data"""
+
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        self.save_params()
+
+        self._on_click_save_mask()
+
+    def import_project(self):
+        
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        self.load_params()
+
+        self.imhdr_path = Path(self.params.file_path)
+        self.white_file_path = Path(self.params.white_path)
+        self.dark_file_path = Path(self.params.dark_path)
+
+        self._on_select_file()
+        self._on_click_load_mask()
+
+        mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
+        rois = [np.array(x).reshape(4,2) for x in self.params.rois]
+        self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b', edge_width=10)
+        self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
+
+        self.set_main_roi_bounds(
+            min_col=mainroi[:,1].min(),
+            max_col=mainroi[:,1].max(),
+            min_row=mainroi[:,0].min(),
+            max_row=mainroi[:,0].max()
+        )
+
+        
+
 
 
 class SpectralPlotter(NapariMPLWidget):
