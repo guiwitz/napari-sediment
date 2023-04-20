@@ -22,17 +22,16 @@ import skimage
 from scipy.ndimage import binary_fill_holes
 import yaml
 
-from napari_matplotlib.base import NapariMPLWidget
-
 from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
 from .sediproc import (compute_average_in_roi, white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask
+from .io import save_mask, load_mask, load_params_yml
 from .classifier import Classifier
 from .parameters import Param
+from .spectralplot import SpectralPlotter
 
 if TYPE_CHECKING:
     import napari
@@ -875,13 +874,7 @@ class SedimentWidget(QWidget):
         
         self.params = Param(project_path=self.export_folder)
 
-        if not self.params.project_path.joinpath('Parameters.yml').exists():
-            raise FileNotFoundError(f"Project {self.params.project_path} does not exist")
-
-        with open(self.params.project_path.joinpath('Parameters.yml')) as file:
-            documents = yaml.full_load(file)
-        for k in documents.keys():
-            setattr(self.params, k, documents[k])
+        self.params = load_params_yml(self.params)
 
     def export_project(self):
         """Export data"""
@@ -918,31 +911,3 @@ class SedimentWidget(QWidget):
             min_row=mainroi[:,0].min(),
             max_row=mainroi[:,0].max()
         )
-
-        
-
-
-
-class SpectralPlotter(NapariMPLWidget):
-    """Subclass of napari_matplotlib NapariMPLWidget for voxel position based time series plotting.
-    This widget contains a matplotlib figure canvas for plot visualisation and the matplotlib toolbar for easy option
-    controls. The widget is not meant for direct docking to the napari viewer.
-    Plot visualisation is triggered by moving the mouse cursor over the voxels of an image layer while holding the shift
-    key. The first dimension is handled as time. This widget needs a napari viewer instance and a LayerSelector instance
-    to work properly.
-    Attributes:
-        axes : matplotlib.axes.Axes
-        selector : napari_time_series_plotter.LayerSelector
-        cursor_pos : tuple of current mouse cursor position in the napari viewer
-    """
-    def __init__(self, napari_viewer, options=None):
-        super().__init__(napari_viewer)
-        self.axes = self.canvas.figure.subplots()
-        self.cursor_pos = np.array([])
-       
-
-    def clear(self):
-        """
-        Clear the canvas.
-        """
-        self.axes.clear()

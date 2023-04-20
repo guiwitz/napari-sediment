@@ -1,4 +1,5 @@
 import tifffile
+import yaml
 
 def save_mask(mask, filename):
    
@@ -8,3 +9,15 @@ def load_mask(filename):
     
     mask = tifffile.imread(filename)
     return mask
+
+def load_params_yml(params):
+    
+    if not params.project_path.joinpath('Parameters.yml').exists():
+        raise FileNotFoundError(f"Project {params.project_path} does not exist")
+
+    with open(params.project_path.joinpath('Parameters.yml')) as file:
+        documents = yaml.full_load(file)
+    for k in documents.keys():
+        setattr(params, k, documents[k])
+
+    return params

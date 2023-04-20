@@ -8,6 +8,9 @@ contributions:
     - id: napari-sediment.make_qwidget
       python_name: napari_sediment.sediment_widget:SedimentWidget
       title: Make Sediment QWidget
+    - id: napari-sediment.make_hyperwidget
+      python_name: napari_sediment.hyperanalysis_widget:HyperAnalysisWidget
+      title: Make Hyperanalysis QWidget
   readers:
     - command: napari-sediment.get_reader
       accepts_directories: false
@@ -15,3 +18,5 @@ contributions:
   widgets:
     - command: napari-sediment.make_qwidget
       display_name: Sediment
+    - command: napari-sediment.make_hyperwidget
+      display_name: HyperAnalysis
