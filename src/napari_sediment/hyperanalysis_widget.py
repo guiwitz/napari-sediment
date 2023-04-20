@@ -15,6 +15,7 @@ from .imchannels import ImChannels
 from .sediproc import white_dark_correct
 from ._reader import read_spectral
 from .spectralplot import SpectralPlotter
+from .channel_widget import ChannelWidget
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 
@@ -52,8 +53,7 @@ class HyperAnalysisWidget(QWidget):
         self.tabs.add_named_tab('Main', self.main_group.gbox)
 
         self.main_group.glayout.addWidget(QLabel('Channels to load'), 0, 0, 1, 2)
-        self.qlist_channels = QListWidget()
-        self.qlist_channels.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.qlist_channels = ChannelWidget(self)
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.btn_select_all = QPushButton("Select all")
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 1)
@@ -113,7 +113,6 @@ class HyperAnalysisWidget(QWidget):
 
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
-        self.qlist_channels.itemClicked.connect(self._on_change_channel_selection)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.btn_white_correct.clicked.connect(self._on_click_white_correct)
         self.btn_mnfr.clicked.connect(self._on_click_mnfr)
@@ -148,54 +147,11 @@ class HyperAnalysisWidget(QWidget):
         self.col_bounds = [self.rois[0][:,1].min(), self.rois[0][:,1].max()]
 
         self.imagechannels = ImChannels(self.imhdr_path)
-        self._update_channel_list()
-
-    def _update_channel_list(self):
-        """Update channel list"""
-
-        # clear existing items
-        self.qlist_channels.clear()
-
-        # add new items
-        for channel in self.imagechannels.channel_names:
-            self.qlist_channels.addItem(channel)
-
-
-    def _on_change_channel_selection(self):
-        """Load images upon of change in channel selection.
-        Considers crop bounds.
-        """
-
-        # get selected channels
-        selected_channels = [item.text() for item in self.qlist_channels.selectedItems()]
-        new_channel_indices = [self.imagechannels.channel_names.index(channel) for channel in selected_channels]
-
-        roi = np.concatenate([self.row_bounds, self.col_bounds])
-        
-        self.imagechannels.read_channels(
-            channels=new_channel_indices, 
-            roi=roi)
-
-        new_cube = self.imagechannels.get_image_cube(
-            channels=new_channel_indices,
-            roi=roi)
-
-        self.channel_indices = new_channel_indices
-
-        if 'imcube' in self.viewer.layers:
-            self.viewer.layers['imcube'].data = new_cube
-            #self.viewer.layers['imcube'].translate = (0, self.row_bounds[0], self.col_bounds[0])
-        else:
-            self.viewer.add_image(
-                new_cube,
-                name='imcube',
-                rgb=False, 
-                #translate=(0, self.row_bounds[0], self.col_bounds[0])
-                )#, colormap='gray', blending='additive')
+        self.qlist_channels._update_channel_list()
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
-        self._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection()
 
     def _on_click_white_correct(self, event):
         """White correct image"""
