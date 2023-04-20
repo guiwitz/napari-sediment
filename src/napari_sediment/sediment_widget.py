@@ -32,6 +32,7 @@ from .io import save_mask, load_mask, load_params_yml
 from .classifier import Classifier
 from .parameters import Param
 from .spectralplot import SpectralPlotter
+from .channel_widget import ChannelWidget
 
 if TYPE_CHECKING:
     import napari
@@ -90,23 +91,17 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('Main', self.main_group.gbox)
 
         self.main_group.glayout.addWidget(QLabel('Channels to load'), 0, 0, 1, 2)
-        self.qlist_channels = QListWidget()
-        self.qlist_channels.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.qlist_channels = ChannelWidget(self)
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
-        
-        self.main_group.glayout.addWidget(QLabel('Channels to analyze'), 2, 0, 1, 2)
-        self.qlist_channels_analyze = QListWidget()
-        self.qlist_channels_analyze.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.main_group.glayout.addWidget(self.qlist_channels_analyze, 3,0,1,2)
 
         self.btn_RGB = QPushButton('Load RGB')
-        self.main_group.glayout.addWidget(self.btn_RGB, 4, 0, 1, 2)
+        self.main_group.glayout.addWidget(self.btn_RGB, 3, 0, 1, 2)
 
         self.btn_select_all = QPushButton('Select all')
-        self.main_group.glayout.addWidget(self.btn_select_all, 5, 0, 1, 2)
+        self.main_group.glayout.addWidget(self.btn_select_all, 4, 0, 1, 2)
 
         self.btn_new_view = QPushButton('New view')
-        self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
+        self.main_group.glayout.addWidget(self.btn_new_view, 5, 0, 1, 2)
         self.btn_new_view.clicked.connect(self.new_view)
 
         # Plot tab
@@ -136,8 +131,6 @@ class SedimentWidget(QWidget):
         self.process_group.glayout.addWidget(self.btn_destripe)
         self.btn_white_correct = QPushButton("White correct")
         self.process_group.glayout.addWidget(self.btn_white_correct)
-        self.btn_compute_index = QPushButton("Index")
-        self.process_group.glayout.addWidget(self.btn_compute_index)
 
         self.processRGB_group = VHGroup('Process RGB', orientation='G')
         self.tabs.add_named_tab('Processing', self.processRGB_group.gbox)
@@ -285,7 +278,6 @@ class SedimentWidget(QWidget):
 
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_select_imhdr_file.clicked.connect(self._on_click_select_imhdr)
-        self.qlist_channels.itemClicked.connect(self._on_change_channel_selection)
         self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
@@ -293,7 +285,6 @@ class SedimentWidget(QWidget):
         self.btn_RGBwhite_correct.clicked.connect(self._on_click_white_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
-        self.btn_compute_index.clicked.connect(self._compute_index)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         
@@ -364,53 +355,6 @@ class SedimentWidget(QWidget):
         self.dark_file_path = self.imhdr_path.parent.joinpath('DARKREF_' + self.imhdr_path.name)
         
 
-    def _update_channel_list(self):
-        """Update channel list"""
-
-        # clear existing items
-        self.qlist_channels.clear()
-        self.qlist_channels_analyze.clear()
-
-        # add new items
-        for channel in self.imagechannels.channel_names:
-            self.qlist_channels.addItem(channel)
-            self.qlist_channels_analyze.addItem(channel)
-
-    def _on_change_channel_selection(self):
-        """Load images upon of change in channel selection.
-        Considers crop bounds.
-        """
-
-        # get selected channels
-        selected_channels = [item.text() for item in self.qlist_channels.selectedItems()]
-        new_channel_indices = [self.imagechannels.channel_names.index(channel) for channel in selected_channels]
-
-        if self.check_use_crop.isChecked():
-            roi = np.concatenate([self.row_bounds, self.col_bounds])
-        else:
-            roi = None
-
-        self.imagechannels.read_channels(
-            channels=new_channel_indices, 
-            roi=roi)
-
-        new_cube = self.imagechannels.get_image_cube(
-            channels=new_channel_indices,
-            roi=roi)
-
-        self.channel_indices = new_channel_indices
-
-        if 'imcube' in self.viewer.layers:
-            self.viewer.layers['imcube'].data = new_cube
-            self.viewer.layers['imcube'].translate = (0, self.row_bounds[0], self.col_bounds[0])
-        else:
-            self.viewer.add_image(
-                new_cube,
-                name='imcube',
-                rgb=False, 
-                translate=(0, self.row_bounds[0], self.col_bounds[0]))#, colormap='gray', blending='additive')
-
-
     def open_file(self):
         """Open file in napari"""
 
@@ -442,7 +386,7 @@ class SedimentWidget(QWidget):
         self.row_bounds = [0, self.imagechannels.nrows]
         self.col_bounds = [0, self.imagechannels.ncols]
         
-        self._update_channel_list()
+        self.qlist_channels._update_channel_list()
 
         self._on_click_RGB()
 
@@ -461,7 +405,7 @@ class SedimentWidget(QWidget):
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
         
-        self._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection()
 
 
     def _add_roi_layer(self):
@@ -525,7 +469,7 @@ class SedimentWidget(QWidget):
             np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8),
             name='mask')
         
-    def _compute_index(self):
+    '''def _compute_index(self):
         """Compute index"""
 
         # get selected channels
@@ -545,7 +489,7 @@ class SedimentWidget(QWidget):
             roi=((selected_roi[0][0], selected_roi[2][0]),(selected_roi[0][1], selected_roi[1][1])),
             white_path=white_path,
         )
-        self.image_indices = data_av
+        self.image_indices = data_av'''
 
     def _on_click_destripe(self):
         """Destripe image"""
@@ -798,7 +742,7 @@ class SedimentWidget(QWidget):
         self.rgb_names = [self.imagechannels.channel_names[x] for x in self.rgb_ch]
 
         [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
-        self._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection()
 
         cmap = ['red', 'green', 'blue']
         for c, cmap in zip(self.rgb_ch, cmap):
@@ -814,7 +758,7 @@ class SedimentWidget(QWidget):
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
-        self._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection()
 
 
     def _get_channel_name_from_index(self, index):
