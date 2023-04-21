@@ -47,7 +47,6 @@ class ImChannels:
         self.channel_array = [None] * len(self.channel_names)
         self.channel_array[0] = data[:,:,0]
         self.metadata = metadata
-        print(f'datashape: {data.shape}')
         self.nrows = data.shape[0]
         self.ncols = data.shape[1]
 
@@ -129,6 +128,10 @@ class ImChannels:
         if roi is None:
             data = np.stack([self.channel_array[c] for c in channels], axis=0)
         else:
+            full = [0, self.nrows, 0, self.ncols]
+            for ind, r in enumerate(roi):
+                if r is None:
+                    roi[ind] = full[ind]
             data = np.zeros(
                 shape=(len(channels), roi[1]-roi[0], roi[3]-roi[2]),
                 dtype=self.channel_array[channels[0]].dtype)
