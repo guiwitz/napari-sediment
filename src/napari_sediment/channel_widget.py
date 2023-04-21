@@ -5,9 +5,12 @@ from qtpy.QtCore import Qt
 import numpy as np
 
 class ChannelWidget(QListWidget):
-    """Widget to handle channel selection and display. Works only if parent widget
-    has an attribute called imagechannels, which is an instance of ImageChannels. For
-    example with the SedimentWidget widget."""
+    """Widget to handle channel selection and display. Works only i parent widget
+    has:
+    - an attribute called imagechannels, which is an instance of ImageChannels. For
+    example with the SedimentWidget widget.
+    - an attribute called row_bounds and col_bounds, which are the current crop
+    bounds."""
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -41,13 +44,13 @@ class ChannelWidget(QListWidget):
 
         if 'imcube' in self.parent.viewer.layers:
             self.parent.viewer.layers['imcube'].data = new_cube
-            #self.viewer.layers['imcube'].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
+            self.parent.viewer.layers['imcube'].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
         else:
             self.parent.viewer.add_image(
                 new_cube,
                 name='imcube',
                 rgb=False, 
-                #translate=(0, self.row_bounds[0], self.col_bounds[0])
+                translate=(0, self.parent.row_bounds[0], self.parent.col_bounds[0])
                 )
             
     def _update_channel_list(self):
