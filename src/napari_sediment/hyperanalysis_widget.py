@@ -14,7 +14,7 @@ from .io import load_params_yml
 from .imchannels import ImChannels
 from .sediproc import white_dark_correct
 from ._reader import read_spectral
-from .spectralplot import SpectralPlotter
+from .spectralplot import SpectralPlotter, SelectRange
 from .channel_widget import ChannelWidget
 from napari_guitils.gui_structures import TabSet, VHGroup
 
@@ -64,6 +64,7 @@ class HyperAnalysisWidget(QWidget):
 
         # eigen tab
         self.eigen_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.eigen_sel = SelectRange(parent=None, ax=self.eigen_plot.axes)
         self.tabs.add_named_tab('Eigenvalues', self.eigen_plot)
         self.coef_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('Eigenvalues', self.coef_plot)
