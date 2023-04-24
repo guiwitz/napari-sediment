@@ -8,6 +8,7 @@ Replace code below according to your needs.
 """
 from typing import TYPE_CHECKING
 from pathlib import Path
+import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QListWidget, QAbstractItemView,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
@@ -33,9 +34,7 @@ from .classifier import Classifier
 from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
-
-if TYPE_CHECKING:
-    import napari
+import napari
 
 
 class SedimentWidget(QWidget):
@@ -350,10 +349,15 @@ class SedimentWidget(QWidget):
         self.imhdr_path = Path(imhdr_path)
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
 
-        # define default B/W files
-        self.white_file_path = self.imhdr_path.parent.joinpath('WHITEREF_' + self.imhdr_path.name)
-        self.dark_file_path = self.imhdr_path.parent.joinpath('DARKREF_' + self.imhdr_path.name)
-        
+        try:
+            name_parts = self.imhdr_path.name.split('_')
+            refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
+            self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
+            self.dark_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
+        except:
+            # raise a warning that file was not found
+            warnings.warn('White and dark reference files not found. Please select manually.')
+
 
     def open_file(self):
         """Open file in napari"""
@@ -405,18 +409,28 @@ class SedimentWidget(QWidget):
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
         
+        layers = ['mask', 'clean-mask', 
+                  'complete-mask', 'border-mask', 
+                  'ml-mask', 'main-roi', 'rois']
+        for l in layers:
+            if l in self.viewer.layers:
+                if isinstance(self.viewer.layers[l], napari.layers.labels.labels.Labels):
+                    self.viewer.layers[l].data = self.viewer.layers[l].data[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+                self.translate_layer(l)
+        
         self.qlist_channels._on_change_channel_selection()
 
 
     def _add_roi_layer(self):
-         
-         self.roi_layer = self.viewer.add_shapes(
-             ndim = 2,
-             name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
-         
-         self.roi_layer = self.viewer.add_shapes(
-             ndim = 2,
-             name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
+        """Add ROI layers to napari viewer"""
+
+        self.roi_layer = self.viewer.add_shapes(
+            ndim = 2,
+            name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
+        
+        self.roi_layer = self.viewer.add_shapes(
+            ndim = 2,
+            name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
          
     def _on_click_add_main_roi(self):
 
@@ -437,6 +451,7 @@ class SedimentWidget(QWidget):
             [self.mainroi_max_row,self.mainroi_min_col],
             [self.mainroi_max_row,self.mainroi_max_col],
             [self.mainroi_min_row,self.mainroi_max_col]]
+        self.viewer.layers['main-roi'].data = []
         self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b', edge_width=10)
 
     def set_main_roi_bounds(self, min_col, max_col, min_row, max_row):
@@ -517,7 +532,6 @@ class SedimentWidget(QWidget):
             if self.check_use_crop.isChecked():
                 white_data = white_data[:,self.col_bounds[0]:self.col_bounds[1],:]
                 dark_data = dark_data[:,self.col_bounds[0]:self.col_bounds[1],:]
-            #data = np.moveaxis(self.viewer.layers['imcube'].data.copy(), 0,1)
 
             im_corr = white_dark_correct(self.viewer.layers['imcube'].data, white_data, dark_data)
 
@@ -540,14 +554,25 @@ class SedimentWidget(QWidget):
                     self.viewer.layers[ch_name].contrast_limits_range = (self.viewer.layers[ch_name].data.min(), self.viewer.layers[ch_name].data.max())
                     self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
             
-            im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
-            self.slider_mask_threshold.setRange(im.min(), im.max())
-            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
+            self._update_threshold_limits()
+
+    def get_RGB_cropped(self):
+        """Get RGB image cropped"""
+
+        im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
+        return im[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+
+    def translate_layer(self, mask_name):
+        """Translate mask"""
+
+        self.viewer.layers[mask_name].translate = (self.row_bounds[0], self.col_bounds[0])
+
 
     def _on_click_remove_borders(self):
         """Remove borders from image"""
         
-        im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
+        im = self.get_RGB_cropped()
+
         first_row, last_row = remove_top_bottom(im)
         first_col, last_col = remove_left_right(im)
         if 'border-mask' in self.viewer.layers:
@@ -558,28 +583,41 @@ class SedimentWidget(QWidget):
         self.viewer.layers['border-mask'].data[last_row::,:] = 1
         self.viewer.layers['border-mask'].data[:, 0:first_col] = 1
         self.viewer.layers['border-mask'].data[:, last_col::] = 1
+        self.translate_layer('border-mask')
         self.viewer.layers['border-mask'].refresh()
+
+    def _update_threshold_limits(self):
+        
+        im = self.get_RGB_cropped()
+        self.slider_mask_threshold.setRange(im.min(), im.max())
+        self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
     def _on_click_automated_threshold(self):
         """Automatically set threshold for mask based on mean RGB pixel intensity"""
 
-        im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
+        im = self.get_RGB_cropped()
         if 'border-mask' in self.viewer.layers:
             pix_selected = im[self.viewer.layers['border-mask'].data == 0]
         else:
             pix_selected = np.ravel(im)
         med_val, std_val = fit_1dgaussian_without_outliers(data=pix_selected[::5])
-        self.slider_mask_threshold.setRange(im.min(), im.max())
+        #self.slider_mask_threshold.setRange(im.min(), im.max())
         fact = self.spin_automated_mask_width.value()
-        self.slider_mask_threshold.setSliderPosition([med_val - fact*std_val,med_val + fact*std_val])
+        self.slider_mask_threshold.setSliderPosition(
+            [
+                np.max([med_val - fact*std_val, self.slider_mask_threshold.minimum()]),
+                np.min([med_val + fact*std_val, self.slider_mask_threshold.maximum()])
+             ]
+        ),
         self._on_click_update_mask()
     
     def _on_click_update_mask(self):
         """Update mask based on current threshold"""
         
-        data = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
+        data = self.get_RGB_cropped()
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         self.viewer.layers['mask'].data = mask
+        self.translate_layer('mask')
         self.viewer.layers['mask'].refresh()
 
     def _on_click_compute_phasor(self):
@@ -687,6 +725,7 @@ class SedimentWidget(QWidget):
             self.viewer.layers['complete-mask'].data = mask_complete
         else:
             self.viewer.add_labels(mask_complete, name='complete-mask')
+        self.translate_layer('complete-mask')
 
     def _on_click_clean_mask(self):
         
@@ -699,6 +738,7 @@ class SedimentWidget(QWidget):
         mask_filled = binary_fill_holes(final_mask)
         mask_filled = (mask_filled == 0).astype(np.uint8)
         self.viewer.add_labels(mask_filled, name='clean-mask')
+        self.translate_layer('clean-mask')
 
     def _on_click_save_mask(self):
         """Save mask to file"""
@@ -752,9 +792,7 @@ class SedimentWidget(QWidget):
                 colormap=cmap,
                 blending='additive')
 
-        im = np.sum(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)  
-        self.slider_mask_threshold.setRange(im.min(), im.max())
-        self.slider_mask_threshold.setValue([im.min(), im.max()])
+        self._update_threshold_limits()
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
