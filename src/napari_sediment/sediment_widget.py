@@ -26,9 +26,9 @@ from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
 from .sediproc import (white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
-                       fit_1dgaussian_without_outliers)
+                       fit_1dgaussian_without_outliers, correct_save_to_zarr)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, load_params_yml, correct_save_to_zarr
+from .io import save_mask, load_mask, load_params_yml, get_mask_path
 from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
@@ -725,12 +725,12 @@ class SedimentWidget(QWidget):
         else:
             mask = self.viewer.layers['mask'].data
 
-        save_mask(mask, self.get_mask_path())
+        save_mask(mask, get_mask_path(self.export_folder))
 
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask = load_mask(self.get_mask_path())
+        mask = load_mask(get_mask_path(self.export_folder))
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
@@ -743,10 +743,6 @@ class SedimentWidget(QWidget):
             self._on_click_select_export_folder()
 
         self.viewer.screenshot(str(self.export_folder.joinpath('snapshot.png')))
-
-    def get_mask_path(self):
-
-        return self.export_folder.joinpath('mask.tif')
 
 
     def _on_click_RGB(self):
