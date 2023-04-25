@@ -98,5 +98,8 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path, zarr_path,
         future.cancel()
         del future
 
+    z1.attrs['metadata'] = {
+        'wavelength': list(np.array(img.metadata['wavelength'])[band_indices])}
+
     client.close()
 
