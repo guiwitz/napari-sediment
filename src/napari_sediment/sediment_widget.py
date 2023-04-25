@@ -718,7 +718,9 @@ class SedimentWidget(QWidget):
         if self.export_folder is None: 
             self._on_click_select_export_folder()
 
-        if 'complete-mask' in self.viewer.layers:
+        if 'clean-mask' in self.viewer.layers:
+            mask = self.viewer.layers['clean-mask'].data
+        elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
         else:
             mask = self.viewer.layers['mask'].data
