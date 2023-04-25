@@ -7,7 +7,8 @@ https://napari.org/stable/plugins/guides.html?#readers
 """
 import numpy as np
 from spectral import open_image
-
+import zarr
+from pathlib import Path
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
@@ -74,21 +75,42 @@ def reader_function(path):
 
 def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
 
-    img = open_image(path)
+    path = Path(path)
+    if path.suffix == '.hdr':
+        img = open_image(path)
 
-    metadata = img.metadata
+        metadata = img.metadata
 
-    if bands is None:
-       bands = np.arange(0, len(metadata['wavelength']))
+        if bands is None:
+            bands = np.arange(0, len(metadata['wavelength']))
 
-    if row_bounds is not None:
-        if col_bounds is not None:
-            data = img.read_subregion(row_bounds=row_bounds, col_bounds=col_bounds, bands=bands)
+        if row_bounds is not None:
+            if col_bounds is not None:
+                data = img.read_subregion(row_bounds=row_bounds, col_bounds=col_bounds, bands=bands)
+            else:
+                raise ValueError('col_bounds must be provided if row_bounds is provided')
         else:
-            raise ValueError('col_bounds must be provided if row_bounds is provided')
-    else:
-        data = img.read_bands(bands)
+            data = img.read_bands(bands)
 
+    elif path.suffix == '.zarr':
+        zarr_image = read_hyper_zarr(path)
+        metadata = zarr_image.attrs['metadata']
+        if bands is None:
+            bands = np.arange(zarr_image.shape[0])
+        else :
+            bands = np.array(bands)
+        
+        if row_bounds is not None:
+            if col_bounds is not None:
+                data = zarr_image.get_orthogonal_selection(
+                    (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
+            else:
+                raise ValueError('col_bounds must be provided if row_bounds is provided')
+        else:
+            data = zarr_image.get_orthogonal_selection((bands,slice(0, zarr_image.shape[1]), slice(0, zarr_image.shape[2])))
+
+        data = np.moveaxis(data, 0, 2)
+        
     return data, metadata
 
 def get_rgb_index(metadata=None, path=None, red=640, green=545, blue=460):
@@ -105,3 +127,8 @@ def get_rgb_index(metadata=None, path=None, red=640, green=545, blue=460):
     rgb_wl = [metadata['wavelength'][x] for x in rgb_ch]
 
     return rgb_ch, rgb_wl
+
+def read_hyper_zarr(zarr_path):
+
+    hyperzarr = zarr.open(zarr_path, mode='r')
+    return hyperzarr

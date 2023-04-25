@@ -21,19 +21,18 @@ from spectral import open_image
 from skimage.measure import points_in_poly
 import skimage
 from scipy.ndimage import binary_fill_holes
-import yaml
 
 from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
-from .sediproc import (compute_average_in_roi, white_dark_correct,
+from .sediproc import (white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, load_params_yml
-from .classifier import Classifier
+from .io import save_mask, load_mask, load_params_yml, save_to_zarr
 from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
+from .widgets.mlwidget import MLWidget
 import napari
 
 
@@ -56,7 +55,7 @@ class SedimentWidget(QWidget):
         self.rgb_ch = None
         self.rgb_names = None
         self.viewer2 = None
-        self.pixclass = None
+        #self.pixclass = None
         self.export_folder = None
         self.mainroi_min_col = None
         self.mainroi_max_col = None
@@ -136,6 +135,11 @@ class SedimentWidget(QWidget):
         self.btn_RGBwhite_correct = QPushButton("RGB White correct")
         self.processRGB_group.glayout.addWidget(self.btn_RGBwhite_correct)
 
+        self.batch_group = VHGroup('Batch', orientation='G')
+        self.tabs.add_named_tab('Processing', self.batch_group.gbox)
+        self.btn_batch_correct = QPushButton("Save corrected images")
+        self.batch_group.glayout.addWidget(self.btn_batch_correct)
+
     def _create_mask_tab(self):
             
         self.tabs.widget(self.tab_names.index('Mask')).layout().setAlignment(Qt.AlignTop)
@@ -184,20 +188,8 @@ class SedimentWidget(QWidget):
         self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
         # ml
-        self.btn_add_annotation_layer = QPushButton("Add annotation layer")
-        self.mask_group_ml.glayout.addWidget(self.btn_add_annotation_layer, 0, 0, 1, 2)
-        self.check_smoothing = QCheckBox('Gaussian smoothing')
-        self.check_smoothing.setChecked(False)
-        self.mask_group_ml.glayout.addWidget(self.check_smoothing, 1, 0, 1, 1)
-        self.spin_gaussian_smoothing = QDoubleSpinBox()
-        self.spin_gaussian_smoothing.setRange(0.1, 10)
-        self.spin_gaussian_smoothing.setSingleStep(0.1)
-        self.spin_gaussian_smoothing.setValue(3)
-        self.mask_group_ml.glayout.addWidget(self.spin_gaussian_smoothing, 1, 1, 1, 1)
-        self.btn_reset_mlmodel = QPushButton("Reset/Initialize ML model")
-        self.mask_group_ml.glayout.addWidget(self.btn_reset_mlmodel, 2, 0, 1, 2)
-        self.btn_ml_mask = QPushButton("Pixel Classifier mask")
-        self.mask_group_ml.glayout.addWidget(self.btn_ml_mask, 3, 0, 1, 2)
+        self.mlwidget = MLWidget(self, self.viewer)
+        self.mask_group_ml.glayout.addWidget(self.mlwidget)
         
         # combine
         self.btn_combine_masks = QPushButton("Combine masks")
@@ -286,6 +278,7 @@ class SedimentWidget(QWidget):
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
+        self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
@@ -293,9 +286,6 @@ class SedimentWidget(QWidget):
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
         self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
         self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
-        self.btn_add_annotation_layer.clicked.connect(self._on_click_add_annotation_layer)
-        self.btn_reset_mlmodel.clicked.connect(self._on_initialize_model)
-        self.btn_ml_mask.clicked.connect(self._on_click_ml_mask)
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
 
@@ -483,28 +473,6 @@ class SedimentWidget(QWidget):
         self.mask_layer = self.viewer.add_labels(
             np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8),
             name='mask')
-        
-    '''def _compute_index(self):
-        """Compute index"""
-
-        # get selected channels
-        selected_channels = [item.text() for item in self.qlist_channels_analyze.selectedItems()]
-
-        # get channel indices
-        channel_indices = [self.metadata['wavelength'].index(channel) for channel in selected_channels]
-
-        # get selected roi
-        selected_roi = self.viewer.layers['rois'].data[0].astype(int)
-
-        white_path = self.white_file_path
-
-        data_av = compute_average_in_roi(
-            file_path=self.imhdr_path,
-            channel_indices=channel_indices, 
-            roi=((selected_roi[0][0], selected_roi[2][0]),(selected_roi[0][1], selected_roi[1][1])),
-            white_path=white_path,
-        )
-        self.image_indices = data_av'''
 
     def _on_click_destripe(self):
         """Destripe image"""
@@ -555,6 +523,13 @@ class SedimentWidget(QWidget):
                     self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
             
             self._update_threshold_limits()
+
+    def _on_click_batch_correct(self):
+
+        save_to_zarr(
+            self.imhdr_path, self.white_file_path,
+            self.dark_file_path, self.export_folder.joinpath('corrected.zarr'))
+
 
     def get_RGB_cropped(self):
         """Get RGB image cropped"""
@@ -660,53 +635,6 @@ class SedimentWidget(QWidget):
         else:
             self.viewer.add_labels(in_out_image, name='phasor-mask')
 
-    def _on_click_add_annotation_layer(self):
-        """Add annotation layer to viewer"""
-
-        if 'annotations' in self.viewer.layers:
-            print('Annotations layer already exists')
-            return
-        self.viewer.add_labels(np.zeros_like(self.viewer.layers['mask'].data), name='annotations', opacity=0.5)
-
-    def _on_initialize_model(self):
-
-        if 'annotations' not in self.viewer.layers:
-            raise ValueError('No annotation layer found')
-        
-        reduce_fact = 4
-        data = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
-        annotations = self.viewer.layers['annotations'].data[::reduce_fact,::reduce_fact]
-        if self.check_smoothing.isChecked():
-            data = skimage.filters.gaussian(data, sigma=self.spin_gaussian_smoothing.value(), preserve_range=True)[:, ::4, ::4]
-        else:
-            data = data[:, ::reduce_fact, ::reduce_fact]
-        self.pixclass = Classifier(data=data, annotations=annotations)
-        #self.pixclass.load_model(model_type='resnet50')
-        self.pixclass.load_model(model_type='vgg16')
-        
-        self.pixclass.compute_multiscale_features()
-
-    def _on_click_ml_mask(self):
-
-        if 'annotations' not in self.viewer.layers:
-            raise ValueError('No annotation layer found')
-        
-        if self.pixclass is None:
-            self._on_initialize_model()
-
-        reduce_fact = 4
-        annotations = self.viewer.layers['annotations'].data[::reduce_fact,::reduce_fact]
-        self.pixclass.annotations = annotations
-        self.pixclass.extract_annotated_features()
-        self.pixclass.train_model()
-        pred = self.pixclass.predict()
-        pred = (pred == 1).astype(np.uint8)
-        predict_upscale = skimage.transform.resize(
-            pred, self.viewer.layers['annotations'].data.shape, order=0)
-        if 'ml-mask' in self.viewer.layers:
-            self.viewer.layers['ml-mask'].data = predict_upscale
-        else:
-            self.viewer.add_labels((predict_upscale==1).astype(np.uint8), name='ml-mask')
 
     def _on_click_combine_masks(self):
         """Combine masks from border removel, phasor and thresholding"""
