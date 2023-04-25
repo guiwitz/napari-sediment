@@ -335,7 +335,9 @@ class SedimentWidget(QWidget):
     def _on_click_select_imhdr(self):
         """Interactively select hdr file"""
 
-        imhdr_path = QFileDialog.getOpenFileName(self, "Select file")[0]
+        imhdr_path = Path(QFileDialog.getOpenFileName(self, "Select file")[0])
+        if imhdr_path.parent.suffix == '.zarr':
+            imhdr_path = imhdr_path.parent
         self.set_paths(imhdr_path)
         self._on_select_file()
 
@@ -558,6 +560,9 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_min.setValue(self.slider_batch_wavelengths.value()[0])
 
     def _on_click_batch_correct(self):
+
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
 
         min_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[0]))
         max_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[1]))
