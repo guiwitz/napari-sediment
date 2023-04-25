@@ -28,7 +28,7 @@ from .sediproc import (white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, load_params_yml, save_to_zarr
+from .io import save_mask, load_mask, load_params_yml, correct_save_to_zarr
 from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
@@ -121,7 +121,7 @@ class SedimentWidget(QWidget):
     def _create_processing_tab(self):
         
         self.tabs.widget(self.tab_names.index('Processing')).layout().setAlignment(Qt.AlignTop)
-        # processing tab
+
         self.process_group = VHGroup('Process Hypercube', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group.gbox)
 
@@ -138,7 +138,22 @@ class SedimentWidget(QWidget):
         self.batch_group = VHGroup('Batch', orientation='G')
         self.tabs.add_named_tab('Processing', self.batch_group.gbox)
         self.btn_batch_correct = QPushButton("Save corrected images")
-        self.batch_group.glayout.addWidget(self.btn_batch_correct)
+        self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
+        self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
+        self.slider_batch_wavelengths.setRange(0, 1000)
+        self.slider_batch_wavelengths.setSingleStep(1)
+        self.slider_batch_wavelengths.setSliderPosition([0, 1000])
+        self.batch_group.glayout.addWidget(self.slider_batch_wavelengths, 1,1,1,1)
+        
+        self.spin_batch_wavelengths_min = QDoubleSpinBox()
+        self.spin_batch_wavelengths_min.setRange(0, 1000)
+        self.spin_batch_wavelengths_min.setSingleStep(1)
+        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_min, 1, 0, 1, 1)
+        self.spin_batch_wavelengths_max = QDoubleSpinBox()
+        self.spin_batch_wavelengths_max.setRange(0, 1000)
+        self.spin_batch_wavelengths_max.setSingleStep(1)
+        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 1, 2, 1, 1)
+
 
     def _create_mask_tab(self):
             
@@ -279,6 +294,7 @@ class SedimentWidget(QWidget):
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
+        self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
@@ -386,6 +402,14 @@ class SedimentWidget(QWidget):
 
         self._add_roi_layer()
         self._add_mask()
+        self._update_range_wavelength()
+
+    def _update_range_wavelength(self):
+        """Update range of wavelength slider"""
+        
+        wavelengths = np.array(self.imagechannels.channel_names).astype(float)
+        self.slider_batch_wavelengths.setRange(np.round(wavelengths[0]), np.round(wavelengths[-1]))
+        self.slider_batch_wavelengths.setSliderPosition([np.round(wavelengths[0]), np.round(wavelengths[-1])])
 
     def _on_click_use_crop(self):
         """Update crop bounds. Reload cropped image if crop is checked."""
@@ -524,11 +548,26 @@ class SedimentWidget(QWidget):
             
             self._update_threshold_limits()
 
+    def _on_change_batch_wavelengths(self, event):
+
+        self.spin_batch_wavelengths_max.setMinimum(self.slider_batch_wavelengths.minimum())
+        self.spin_batch_wavelengths_max.setMaximum(self.slider_batch_wavelengths.maximum())
+        self.spin_batch_wavelengths_min.setMinimum(self.slider_batch_wavelengths.minimum())
+        self.spin_batch_wavelengths_min.setMaximum(self.slider_batch_wavelengths.maximum())
+        self.spin_batch_wavelengths_max.setValue(self.slider_batch_wavelengths.value()[1])
+        self.spin_batch_wavelengths_min.setValue(self.slider_batch_wavelengths.value()[0])
+
     def _on_click_batch_correct(self):
 
-        save_to_zarr(
-            self.imhdr_path, self.white_file_path,
-            self.dark_file_path, self.export_folder.joinpath('corrected.zarr'))
+        min_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[0]))
+        max_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[1]))
+        bands_to_correct = np.arange(min_band, max_band+1)
+        correct_save_to_zarr(
+            imhdr_path=self.imhdr_path,
+            white_file_path=self.white_file_path,
+            dark_file_path=self.dark_file_path,
+            zarr_path=self.export_folder.joinpath('corrected.zarr'),
+            band_indices=bands_to_correct)
 
 
     def get_RGB_cropped(self):
