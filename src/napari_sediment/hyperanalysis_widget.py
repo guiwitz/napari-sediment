@@ -16,6 +16,7 @@ from .sediproc import white_dark_correct
 from ._reader import read_spectral
 from .spectralplot import SpectralPlotter, SelectRange
 from .channel_widget import ChannelWidget
+from .io import load_mask, get_mask_path
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 
@@ -47,6 +48,8 @@ class HyperAnalysisWidget(QWidget):
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
         self.btn_load_project = QPushButton("Load project")
         self.files_group.glayout.addWidget(self.btn_load_project, 2, 0, 1, 2)
+        self.check_load_corrected = QCheckBox("Load corrected data")
+        self.check_load_corrected.setChecked(True)
 
         # channel selection
         self.main_group = VHGroup('Select', orientation='G')
@@ -147,8 +150,22 @@ class HyperAnalysisWidget(QWidget):
         self.row_bounds = [self.rois[0][:,0].min(), self.rois[0][:,0].max()]
         self.col_bounds = [self.rois[0][:,1].min(), self.rois[0][:,1].max()]
 
-        self.imagechannels = ImChannels(self.imhdr_path)
+        if self.check_load_corrected.isChecked():
+            self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
+        else:
+            self.imagechannels = ImChannels(self.imhdr_path)
         self.qlist_channels._update_channel_list()
+
+        self._on_click_load_mask()
+
+    def _on_click_load_mask(self):
+        """Load mask from file"""
+        
+        mask = load_mask(get_mask_path(self.export_folder))[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        if 'mask' in self.viewer.layers:
+            self.viewer.layers['mask'].data = mask
+        else:
+            self.viewer.add_labels(mask, name='mask')
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
@@ -172,8 +189,8 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_mnfr(self):
 
-        signal = calc_stats(np.moveaxis(self.viewer.layers['imcube_corrected'].data,0,2))
-        noise = noise_from_diffs(np.moveaxis(self.viewer.layers['imcube_corrected'].data,0,2))
+        signal = calc_stats(np.moveaxis(self.viewer.layers['imcube'].data,0,2))
+        noise = noise_from_diffs(np.moveaxis(self.viewer.layers['imcube'].data,0,2))
         self.mnfr = mnf(signal, noise)
         self.eigenvals = self.mnfr.napc.eigenvalues
 
@@ -185,7 +202,7 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_reduce_mnfr(self):
         
         last_index = np.arange(0,len(self.eigenvals))[self.eigenvals > self.spin_mnfr_threshold.value()][-1]
-        denoised = self.mnfr.reduce(np.moveaxis(self.viewer.layers['imcube_corrected'].data,0,2), num=last_index)
+        denoised = self.mnfr.reduce(np.moveaxis(self.viewer.layers['imcube'].data,0,2), num=last_index)
         
         all_coef = []
         for i in range(denoised.shape[2]):
@@ -217,7 +234,7 @@ class HyperAnalysisWidget(QWidget):
         else:
             self.viewer.add_labels(self.pure, name='pure')
         
-        vects = self.viewer.layers['imcube_corrected'].data[:,self.pure > 10]
+        vects = self.viewer.layers['imcube'].data[:,self.pure > 10]
         #self.ppi_plot.axes.clear()
         #self.ppi_plot.axes.plot(vects)#, linewidth=0.1, markersize=0.5)
         #self.ppi_plot.canvas.figure.canvas.draw()
@@ -236,12 +253,12 @@ class HyperAnalysisWidget(QWidget):
         cursor_pos attribute and the _draw method is called afterwards.
         """
 
-        if 'Shift' in event.modifiers and 'imcube_corrected' in self.viewer.layers:
+        if 'Shift' in event.modifiers and 'imcube' in self.viewer.layers:
             self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
             
             self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
             self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
-            spectral_pixel = self.viewer.layers['imcube_corrected'].data[
+            spectral_pixel = self.viewer.layers['imcube'].data[
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
             ]
 
