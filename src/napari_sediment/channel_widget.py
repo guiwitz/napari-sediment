@@ -3,6 +3,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 import numpy as np
+from .hyperanalysis_widget import HyperAnalysisWidget
 
 class ChannelWidget(QListWidget):
     """Widget to handle channel selection and display. Works only i parent widget
@@ -20,6 +21,12 @@ class ChannelWidget(QListWidget):
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
         self.itemClicked.connect(self._on_change_channel_selection)
+
+        if isinstance(self.parent, HyperAnalysisWidget):
+            self.parent_type = 'hyperanalysis'
+        else:
+            self.parent_type = 'sediment'
+
 
     def _on_change_channel_selection(self):
         """Load images upon of change in channel selection.
@@ -41,17 +48,19 @@ class ChannelWidget(QListWidget):
             roi=roi)
 
         self.parent.channel_indices = new_channel_indices
+        
+        layer_name = 'imcube'
 
-        if 'imcube' in self.parent.viewer.layers:
-            self.parent.viewer.layers['imcube'].data = new_cube
-            self.parent.viewer.layers['imcube'].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
+        if layer_name in self.parent.viewer.layers:
+            self.parent.viewer.layers[layer_name].data = new_cube
         else:
             self.parent.viewer.add_image(
                 new_cube,
-                name='imcube',
-                rgb=False, 
-                translate=(0, self.parent.row_bounds[0], self.parent.col_bounds[0])
-                )
+                name=layer_name,
+                rgb=False,
+            )
+        if self.parent_type == 'sediment':
+            self.parent.viewer.layers[layer_name].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
             
     def _update_channel_list(self):
         """Update channel list"""
