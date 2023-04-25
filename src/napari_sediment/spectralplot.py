@@ -18,13 +18,15 @@ class SpectralPlotter(NapariMPLWidget):
         super().__init__(napari_viewer)
         self.axes = self.canvas.figure.subplots()
         self.cursor_pos = np.array([])
+        self.axes.tick_params(colors='white')
        
 
     def clear(self):
         """
         Clear the canvas.
         """
-        self.axes.clear()
+        #self.axes.clear()
+        pass
 
 class SelectRange:
     
@@ -36,7 +38,6 @@ class SelectRange:
         self.myline1 = None
         self.myline2 = None
         
-
         self.span = SpanSelector(ax, onselect=self.onselect, direction='horizontal')#, button=1)
         
 
@@ -46,9 +47,10 @@ class SelectRange:
             self.myline1.pop(0).remove()
         if self.myline2 is not None:
             self.myline2.pop(0).remove()
-            
-        self.myline1 = self.ax.plot([min_pos, min_pos], [-1,1])
-        self.myline2 = self.ax.plot([max_pos, max_pos], [-1,1])
+        min_max = [self.ax.lines[0].get_data()[1].min(),
+                   self.ax.lines[0].get_data()[1].max()]
+        self.myline1 = self.ax.plot([min_pos, min_pos], min_max)
+        self.myline2 = self.ax.plot([max_pos, max_pos], min_max)
         self.min_pos = min_pos
         self.max_pos = max_pos
         
