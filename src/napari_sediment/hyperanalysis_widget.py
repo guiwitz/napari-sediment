@@ -90,7 +90,7 @@ class HyperAnalysisWidget(QWidget):
         self.tabs.add_named_tab('Processing', self.process_group.gbox)
         self.process_group_mnfr = VHGroup('MNFR', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_mnfr.gbox)
-        self.process_group_ppi = VHGroup('MNFR', orientation='G')
+        self.process_group_ppi = VHGroup('PPI', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_ppi.gbox)
 
         self.btn_destripe = QPushButton("Destripe")
@@ -107,8 +107,21 @@ class HyperAnalysisWidget(QWidget):
         self.spin_mnfr_threshold.setValue(0.99)
         self.process_group_mnfr.glayout.addWidget(self.spin_mnfr_threshold)
 
+        
+        self.ppi_threshold = QSpinBox()
+        self.ppi_threshold.setRange(0, 100)
+        self.ppi_threshold.setSingleStep(1)
+        self.ppi_threshold.setValue(10)
+        self.process_group_ppi.glayout.addWidget(QLabel('Threshold PPI counts'), 0, 0, 1, 1)
+        self.process_group_ppi.glayout.addWidget(self.ppi_threshold, 0, 1, 1, 1)
+        self.ppi_iterations = QSpinBox()
+        self.ppi_iterations.setRange(0, 10000)
+        self.ppi_iterations.setSingleStep(1)
+        self.ppi_iterations.setValue(5000)
+        self.process_group_ppi.glayout.addWidget(QLabel('Iterations'), 2, 0, 1, 1)
+        self.process_group_ppi.glayout.addWidget(self.ppi_iterations, 2, 1, 1, 1)
         self.btn_ppi = QPushButton("PPI")
-        self.process_group_ppi.glayout.addWidget(self.btn_ppi)
+        self.process_group_ppi.glayout.addWidget(self.btn_ppi, 3, 0, 1, 2)
 
 
 
@@ -150,13 +163,14 @@ class HyperAnalysisWidget(QWidget):
         self.row_bounds = [self.rois[0][:,0].min(), self.rois[0][:,0].max()]
         self.col_bounds = [self.rois[0][:,1].min(), self.rois[0][:,1].max()]
 
+        self._on_click_load_mask()
+
         if self.check_load_corrected.isChecked():
             self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
         else:
             self.imagechannels = ImChannels(self.imhdr_path)
         self.qlist_channels._update_channel_list()
 
-        self._on_click_load_mask()
 
     def _on_click_load_mask(self):
         """Load mask from file"""
@@ -189,7 +203,10 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_mnfr(self):
 
-        signal = calc_stats(np.moveaxis(self.viewer.layers['imcube'].data,0,2))
+        signal = calc_stats(
+            image=np.moveaxis(self.viewer.layers['imcube'].data,0,2),
+            mask=self.viewer.layers['mask'].data,
+            index=0)
         noise = noise_from_diffs(np.moveaxis(self.viewer.layers['imcube'].data,0,2))
         self.mnfr = mnf(signal, noise)
         self.eigenvals = self.mnfr.napc.eigenvalues
@@ -228,16 +245,13 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_ppi(self):
 
-        self.pure = ppi(self.selected_bands, niters=5000, display=0)
+        self.pure = ppi(self.selected_bands, niters=self.ppi_iterations.value(), display=0)
         if 'pure' in self.viewer.layers:
             self.viewer.layers['pure'].data = self.pure
         else:
             self.viewer.add_labels(self.pure, name='pure')
         
-        vects = self.viewer.layers['imcube'].data[:,self.pure > 10]
-        #self.ppi_plot.axes.clear()
-        #self.ppi_plot.axes.plot(vects)#, linewidth=0.1, markersize=0.5)
-        #self.ppi_plot.canvas.figure.canvas.draw()
+        vects = self.viewer.layers['imcube'].data[:,self.pure > self.ppi_threshold.value()]
 
         im = open_image(self.imhdr_path)
         band_centers = np.array(im.bands.centers)[self.channel_indices]
