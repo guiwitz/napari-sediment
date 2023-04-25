@@ -3,7 +3,6 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 import numpy as np
-from .hyperanalysis_widget import HyperAnalysisWidget
 
 class ChannelWidget(QListWidget):
     """Widget to handle channel selection and display. Works only i parent widget
@@ -22,7 +21,7 @@ class ChannelWidget(QListWidget):
 
         self.itemClicked.connect(self._on_change_channel_selection)
 
-        if isinstance(self.parent, HyperAnalysisWidget):
+        if self.parent.__class__.__name__ == 'HyperAnalysisWidget':
             self.parent_type = 'hyperanalysis'
         else:
             self.parent_type = 'sediment'
