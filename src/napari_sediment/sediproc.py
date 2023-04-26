@@ -6,6 +6,7 @@ import zarr
 from dask.distributed import Client
 from spectral import open_image
 from tqdm import tqdm
+import pystripe
 
 from ._reader import read_spectral
 
@@ -101,6 +102,8 @@ def white_dark_correct(data, white_data, dark_data):
     
     im_corr = (data - dark_av) / (white_av - dark_av)
     im_corr = np.moveaxis(im_corr, 1,0)
+    im_corr[im_corr < 0] = 0
+    im_corr = (im_corr * 2**12).astype(np.uint16)
 
     return im_corr
 
@@ -237,7 +240,10 @@ def remove_left_right(data):
     last_index = sel_split[-1]
     return first_index, last_index
 
-def correct_single_channel(im_path, white_path, dark_path, im_zarr, zarr_ind, band):
+def correct_single_channel(
+        im_path, white_path, dark_path, im_zarr,
+        zarr_ind, band, white_correction=True, destripe=True,
+        ):
     """White dark correction and save to zarr
     
     Parameters
@@ -254,6 +260,10 @@ def correct_single_channel(im_path, white_path, dark_path, im_zarr, zarr_ind, ba
         Channel to correct
     zarr_ind: int
         Index of zarr to save corrected image to
+    white_correction : bool, optional
+        Whether to perform white correction. Default is True.
+    destripe : bool, optional
+        Whether to perform destriping. Default is True.
     
     Returns
     -------
@@ -268,17 +278,23 @@ def correct_single_channel(im_path, white_path, dark_path, im_zarr, zarr_ind, ba
     img_load = im_reg.read_band(band)
     img_white_load = white.read_band(band)
     img_dark_load = dark.read_band(band)
-    corrected = white_dark_correct(
-        data=img_load[np.newaxis,:,:],
-        white_data=img_white_load[:,:,np.newaxis], 
-        dark_data=img_dark_load[:,:,np.newaxis]
-    )[0]
+    
+    corrected = img_load.copy()
+    if white_correction:
+        corrected = white_dark_correct(
+            data=img_load[np.newaxis,:,:],
+            white_data=img_white_load[:,:,np.newaxis], 
+            dark_data=img_dark_load[:,:,np.newaxis]
+        )[0]
+    if destripe:
+        corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
     
     im_zarr[zarr_ind, :,:] = corrected
 
     return None
 
-def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path, zarr_path, band_indices=None):
+def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path,
+                         zarr_path, band_indices=None, white_correction=True, destripe=True):
 
     img = open_image(imhdr_path)
 
@@ -291,7 +307,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path, zarr_path,
         bands = len(band_indices)
 
     z1 = zarr.open(zarr_path, mode='w', shape=(bands, lines,samples),
-               chunks=(1, lines, samples), dtype='f8')
+               chunks=(1, lines, samples), dtype='u2')#'f8')
 
     client = Client()
     
@@ -299,7 +315,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path, zarr_path,
     for ind, c in enumerate(band_indices):
         process.append(client.submit(
             correct_single_channel,
-            imhdr_path, white_file_path, dark_file_path, z1, ind, c))
+            imhdr_path, white_file_path, dark_file_path, z1, ind, c, True, True))
     
     for k in tqdm(range(len(process)), "correcting and saving to zarr"):
         future = process[k]

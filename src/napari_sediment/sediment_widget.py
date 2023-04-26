@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
-                            QLabel, QFileDialog, QListWidget, QAbstractItemView,
+                            QLabel, QFileDialog, QComboBox, QAbstractItemView,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
@@ -28,7 +28,7 @@ from .sediproc import (white_dark_correct,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, load_params_yml, get_mask_path
+from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
@@ -125,15 +125,20 @@ class SedimentWidget(QWidget):
         self.process_group = VHGroup('Process Hypercube', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group.gbox)
 
-        self.btn_destripe = QPushButton("Destripe")
-        self.process_group.glayout.addWidget(self.btn_destripe)
         self.btn_white_correct = QPushButton("White correct")
         self.process_group.glayout.addWidget(self.btn_white_correct)
+        self.check_only_rgb = QCheckBox("Only RGB")
+        self.check_only_rgb.setChecked(True)
+        self.process_group.glayout.addWidget(self.check_only_rgb)
 
-        self.processRGB_group = VHGroup('Process RGB', orientation='G')
-        self.tabs.add_named_tab('Processing', self.processRGB_group.gbox)
-        self.btn_RGBwhite_correct = QPushButton("RGB White correct")
-        self.processRGB_group.glayout.addWidget(self.btn_RGBwhite_correct)
+        self.destripe_group = VHGroup('Destripe', orientation='G')
+        self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
+        self.combo_layer_destripe = QComboBox()
+        self.combo_layer_destripe.addItems(['RGB', 'imcube'])
+        self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 0, 1, 1)
+        self.btn_destripe = QPushButton("Destripe")
+        self.destripe_group.glayout.addWidget(self.btn_destripe)
+
 
         self.batch_group = VHGroup('Batch', orientation='G')
         self.tabs.add_named_tab('Processing', self.batch_group.gbox)
@@ -153,6 +158,13 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_max.setRange(0, 1000)
         self.spin_batch_wavelengths_max.setSingleStep(1)
         self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 1, 2, 1, 1)
+
+        self.check_batch_white = QCheckBox("White correct")
+        self.check_batch_destripe = QCheckBox("Destripe")
+        self.check_batch_white.setChecked(True)
+        self.check_batch_destripe.setChecked(True)
+        self.batch_group.glayout.addWidget(self.check_batch_white, 2, 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 1, 1, 1)
 
 
     def _create_mask_tab(self):
@@ -288,7 +300,6 @@ class SedimentWidget(QWidget):
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_white_correct.clicked.connect(self._on_click_white_correct)
-        self.btn_RGBwhite_correct.clicked.connect(self._on_click_white_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
@@ -503,14 +514,25 @@ class SedimentWidget(QWidget):
     def _on_click_destripe(self):
         """Destripe image"""
         
-        data_destripe = self.viewer.layers['imcube'].data.copy()
+        selected_layer = self.combo_layer_destripe.currentText()
+        if (selected_layer == 'None') or (selected_layer == 'imcube'):
+            data_destripe = self.viewer.layers['imcube'].data.copy()
+        elif selected_layer == 'imcube_corrected':
+            data_destripe = self.viewer.layers['imcube_corrected'].data.copy()
+        elif selected_layer == 'RGB':
+            data_destripe = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
+        
         for d in range(data_destripe.shape[0]):
             data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
 
-        if 'imcube_destripe' in self.viewer.layers:
-            self.viewer.layers['imcube_destripe'].data = data_destripe
+        if selected_layer == 'RGB':
+            for ind, x in enumerate(self.rgb_names):
+                self.viewer.layers[x].data = data_destripe[ind]
         else:
-            self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+            if 'imcube_destripe' in self.viewer.layers:
+                self.viewer.layers['imcube_destripe'].data = data_destripe
+            else:
+                self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
 
 
     def _on_click_white_correct(self, event):
@@ -519,7 +541,7 @@ class SedimentWidget(QWidget):
         img_white = open_image(self.white_file_path)
         img_dark = open_image(self.dark_file_path)
         
-        if self.sender().text() == 'White correct':
+        if not self.check_only_rgb.isChecked():
 
             white_data = img_white.read_bands(self.channel_indices)
             dark_data = img_dark.read_bands(self.channel_indices)
@@ -535,7 +557,7 @@ class SedimentWidget(QWidget):
                 self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
                 self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
-        elif self.sender().text() == 'RGB White correct':
+        else:
             for ind in self.rgb_ch:
                 ch_name = self.imagechannels.channel_names[ind]
                 if ch_name in self.viewer.layers:
@@ -549,6 +571,7 @@ class SedimentWidget(QWidget):
                     self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
             
             self._update_threshold_limits()
+            self.combo_layer_destripe.addItems(['imcube_corrected'])
 
     def _on_change_batch_wavelengths(self, event):
 
@@ -572,7 +595,9 @@ class SedimentWidget(QWidget):
             white_file_path=self.white_file_path,
             dark_file_path=self.dark_file_path,
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
-            band_indices=bands_to_correct)
+            band_indices=bands_to_correct,
+            white_correction=self.check_batch_white.isChecked(),
+            destripe=self.check_batch_destripe.isChecked())
 
 
     def get_RGB_cropped(self):
@@ -822,12 +847,6 @@ class SedimentWidget(QWidget):
         self.params.rois = rois
         self.params.save_parameters()
 
-    def load_params(self):
-        
-        self.params = Param(project_path=self.export_folder)
-
-        self.params = load_params_yml(self.params)
-
     def export_project(self):
         """Export data"""
 
@@ -843,7 +862,7 @@ class SedimentWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
-        self.load_params()
+        self.params = load_project_params(folder=self.export_folder)
 
         self.imhdr_path = Path(self.params.file_path)
         self.white_file_path = Path(self.params.white_path)
