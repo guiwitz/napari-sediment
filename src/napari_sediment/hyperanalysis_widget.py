@@ -10,7 +10,7 @@ from spectral.algorithms import ppi
 
 
 from .parameters import Param
-from .io import load_params_yml
+from .io import load_params_yml, load_project_params
 from .imchannels import ImChannels
 from .sediproc import white_dark_correct
 from ._reader import read_spectral
@@ -142,17 +142,12 @@ class HyperAnalysisWidget(QWidget):
         self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         self.export_path_display.setText(self.export_folder.as_posix())
 
-    def load_params(self):
-        
-        self.params = Param(project_path=self.export_folder)
-        self.params = load_params_yml(self.params)
-
     def import_project(self):
         
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
-        self.load_params()
+        self.params = load_project_params(folder=self.export_folder)
 
         self.imhdr_path = Path(self.params.file_path)
         self.white_file_path = Path(self.params.white_path)
@@ -203,11 +198,12 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_mnfr(self):
 
+        data = np.moveaxis(self.viewer.layers['imcube'].data,0,2).astype(np.float32)
         signal = calc_stats(
-            image=np.moveaxis(self.viewer.layers['imcube'].data,0,2),
+            image=data,
             mask=self.viewer.layers['mask'].data,
             index=0)
-        noise = noise_from_diffs(np.moveaxis(self.viewer.layers['imcube'].data,0,2))
+        noise = noise_from_diffs(data)
         self.mnfr = mnf(signal, noise)
         self.eigenvals = self.mnfr.napc.eigenvalues
 
@@ -218,8 +214,9 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_reduce_mnfr(self):
         
+        data = np.moveaxis(self.viewer.layers['imcube'].data,0,2).astype(np.float32)
         last_index = np.arange(0,len(self.eigenvals))[self.eigenvals > self.spin_mnfr_threshold.value()][-1]
-        denoised = self.mnfr.reduce(np.moveaxis(self.viewer.layers['imcube'].data,0,2), num=last_index)
+        denoised = self.mnfr.reduce(data, num=last_index)
         
         all_coef = []
         for i in range(denoised.shape[2]):
@@ -252,6 +249,7 @@ class HyperAnalysisWidget(QWidget):
             self.viewer.add_labels(self.pure, name='pure')
         
         vects = self.viewer.layers['imcube'].data[:,self.pure > self.ppi_threshold.value()]
+        vects = vects.astype(np.float32)
 
         im = open_image(self.imhdr_path)
         band_centers = np.array(im.bands.centers)[self.channel_indices]
