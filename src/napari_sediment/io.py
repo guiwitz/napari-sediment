@@ -37,6 +37,7 @@ def load_project_params(folder):
 
 def get_mask_path(export_folder):
 
+    export_folder = Path(export_folder)
     return export_folder.joinpath('mask.tif')
 
 
