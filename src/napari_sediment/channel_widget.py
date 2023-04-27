@@ -38,9 +38,9 @@ class ChannelWidget(QListWidget):
 
         roi = np.concatenate([self.parent.row_bounds, self.parent.col_bounds])
 
-        self.parent.imagechannels.read_channels(
+        '''self.parent.imagechannels.read_channels(
             channels=new_channel_indices, 
-            roi=roi)
+            roi=roi)'''
 
         new_cube = self.parent.imagechannels.get_image_cube(
             channels=new_channel_indices,
