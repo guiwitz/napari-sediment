@@ -74,6 +74,19 @@ def get_rgb_channels(wavelengths, rgb=[640, 545, 460]):
     rgb_ch = [np.argmin(np.abs(np.array(wavelengths).astype(float) - x)) for x in rgb]
     return rgb_ch
 
+def load_white_dark(white_file_path, dark_file_path, channel_indices, col_bounds=None):
+
+    img_white = open_image(white_file_path)
+    img_dark = open_image(dark_file_path)
+
+    white_data = img_white.read_bands(channel_indices)
+    dark_data = img_dark.read_bands(channel_indices)
+    if col_bounds is not None:
+        white_data = white_data[:, col_bounds[0]:col_bounds[1], :]
+        dark_data = dark_data[:, col_bounds[0]:col_bounds[1], :]
+
+    return white_data, dark_data
+
 def white_dark_correct(data, white_data, dark_data):
     """White and dark reference correction.
 

@@ -24,7 +24,7 @@ from scipy.ndimage import binary_fill_holes
 
 from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
-from .sediproc import (white_dark_correct,
+from .sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr)
 from .imchannels import ImChannels
@@ -537,17 +537,13 @@ class SedimentWidget(QWidget):
 
     def _on_click_white_correct(self, event):
         """White correct image"""
-
-        img_white = open_image(self.white_file_path)
-        img_dark = open_image(self.dark_file_path)
-        
+                
         if not self.check_only_rgb.isChecked():
-
-            white_data = img_white.read_bands(self.channel_indices)
-            dark_data = img_dark.read_bands(self.channel_indices)
-            if self.check_use_crop.isChecked():
-                white_data = white_data[:,self.col_bounds[0]:self.col_bounds[1],:]
-                dark_data = dark_data[:,self.col_bounds[0]:self.col_bounds[1],:]
+            
+            col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
+            white_data, dark_data = load_white_dark(
+                self.white_file_path, self.dark_file_path, 
+                self.channel_indices, col_bounds=col_bounds)
 
             im_corr = white_dark_correct(self.viewer.layers['imcube'].data, white_data, dark_data)
 
@@ -558,15 +554,14 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
         else:
-            for ind in self.rgb_ch:
-                ch_name = self.imagechannels.channel_names[ind]
-                if ch_name in self.viewer.layers:
-                    data = self.viewer.layers[ch_name].data[np.newaxis, :,:]
-                    white_data = img_white.read_bands([ind])
-                    dark_data = img_dark.read_bands([ind])
-
-                    im_corr = white_dark_correct(data, white_data, dark_data)
-                    self.viewer.layers[ch_name].data = im_corr[0,:,:]
+            white_data, dark_data = load_white_dark(
+                self.white_file_path, self.dark_file_path, self.rgb_ch)
+            data = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
+            im_corr = white_dark_correct(data, white_data, dark_data)
+            
+            for ind, ch_name in enumerate(self.rgb_names):
+                    
+                    self.viewer.layers[ch_name].data = im_corr[ind,:,:]
                     self.viewer.layers[ch_name].contrast_limits_range = (self.viewer.layers[ch_name].data.min(), self.viewer.layers[ch_name].data.max())
                     self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
             
