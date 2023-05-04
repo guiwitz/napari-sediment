@@ -274,6 +274,10 @@ class HyperAnalysisWidget(QWidget):
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
             ]
 
+            band_centers = np.array(self.imagechannels.channel_names).astype(float)[self.channel_indices]
+            spectral_pixel = spectral_pixel.astype(np.float64)
+            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=band_centers)
+
             self.scan_plot.axes.clear()
             self.scan_plot.axes.plot(spectral_pixel)
             
