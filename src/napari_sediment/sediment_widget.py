@@ -472,15 +472,19 @@ class SedimentWidget(QWidget):
     def _add_roi_layer(self):
         """Add ROI layers to napari viewer"""
 
-        self.roi_layer = self.viewer.add_shapes(
-            ndim = 2,
-            name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
+        if 'main-roi' not in self.viewer.layers:
+            self.roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
         
-        self.roi_layer = self.viewer.add_shapes(
-            ndim = 2,
-            name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
+        if 'rois' not in self.viewer.layers:
+            self.roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
          
     def _on_click_add_main_roi(self):
+
+        self._add_roi_layer()
 
         if 'clean-mask' in self.viewer.layers:
             mask = self.viewer.layers['clean-mask'].data.copy()
