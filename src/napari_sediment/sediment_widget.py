@@ -273,11 +273,17 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('Options', self.background_group.gbox)
         self.tabs.add_named_tab('Options', self.crop_group.gbox)
 
-        self.btn_select_white_file = QPushButton("Select white folder")
+        self.check_use_external_ref = QCheckBox("Use external reference")
+        self.check_use_external_ref.setChecked(True)
+
+        self.btn_select_white_file = QPushButton("Select white ref")
         self.background_group.glayout.addWidget(self.btn_select_white_file)
 
-        self.btn_select_dark_file = QPushButton("Select dark folder")
+        self.btn_select_dark_file = QPushButton("Select dark ref")
         self.background_group.glayout.addWidget(self.btn_select_dark_file)
+
+        self.btn_select_dark_for_white_file = QPushButton("Select dark ref of white ref")
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file)
 
         crop_bounds_name = ['Min row', 'Max row', 'Min col', 'Max col']
         self.crop_bounds = {x: QSpinBox() for x in crop_bounds_name}
@@ -298,6 +304,7 @@ class SedimentWidget(QWidget):
         self.btn_select_imhdr_file.clicked.connect(self._on_click_select_imhdr)
         self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
+        self.btn_select_dark_for_white_file.clicked.connect(self._on_click_select_dark_for_white_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_white_correct.clicked.connect(self._on_click_white_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
@@ -360,7 +367,12 @@ class SedimentWidget(QWidget):
     def _on_click_select_dark_file(self):
         """Interactively select white reference"""
         
-        self.dark_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref")[0])
+        self.dark_for_white_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref ofr white")[0])
+
+    def _on_click_select_dark_for_white_file(self):
+        """Interactively select white reference"""
+        
+        self.dark_for_im_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0])
 
     def set_paths(self, imhdr_path):
         """Update image and white/dark image paths"""
@@ -368,14 +380,23 @@ class SedimentWidget(QWidget):
         self.imhdr_path = Path(imhdr_path)
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
 
-        try:
-            name_parts = self.imhdr_path.name.split('_')
-            refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
-            self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
-            self.dark_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
-        except:
-            # raise a warning that file was not found
-            warnings.warn('White and dark reference files not found. Please select manually.')
+        if self.check_use_external_ref.isChecked():
+            try:
+                name_parts = self.imhdr_path.name.split('_')
+                refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
+                self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
+                self.dark_for_white_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
+            except:
+                warnings.warn('Low exposure White and dark reference files not found. Please select manually.')
+            try:
+                self.dark_for_im_file_path = list(self.imhdr_path.parent.glob('DARK*.hdr'))[0]
+            except:
+                warnings.warn('No Dark Ref found for image')
+
+        else:
+            self.dark_for_white_file_path = None
+            self.dark_for_im_file_path = list(self.imhdr_path.parent.glob('DARK*.hdr'))[0]
+            self.white_file_path = list(self.imhdr_path.parent.glob('WHITE*.hdr'))[0]
 
 
     def open_file(self):
@@ -541,11 +562,17 @@ class SedimentWidget(QWidget):
         if not self.check_only_rgb.isChecked():
             
             col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
-            white_data, dark_data = load_white_dark(
-                self.white_file_path, self.dark_file_path, 
-                self.channel_indices, col_bounds=col_bounds)
+            white_data, dark_data, dark_for_white_data = load_white_dark(
+                white_file_path=self.white_file_path,
+                dark_for_im_file_path=self.dark_for_im_file_path,
+                dark_for_white_file_path=self.dark_for_white_file_path,
+                channel_indices=self.channel_indices,
+                col_bounds=col_bounds,
+                clean_white=True
+                )
 
-            im_corr = white_dark_correct(self.viewer.layers['imcube'].data, white_data, dark_data)
+            im_corr = white_dark_correct(
+                self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
 
             if 'imcube_corrected' in self.viewer.layers:
                 self.viewer.layers['imcube_corrected'].data = im_corr
@@ -554,10 +581,10 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
         else:
-            white_data, dark_data = load_white_dark(
-                self.white_file_path, self.dark_file_path, self.rgb_ch)
+            white_data, dark_data, dark_for_white_data = load_white_dark(
+                self.white_file_path, self.dark_for_im_file_path, self.dark_for_white_file_path, self.rgb_ch)
             data = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
-            im_corr = white_dark_correct(data, white_data, dark_data)
+            im_corr = white_dark_correct(data, white_data, dark_data, dark_for_white_data)
             
             for ind, ch_name in enumerate(self.rgb_names):
                     
@@ -588,7 +615,8 @@ class SedimentWidget(QWidget):
         correct_save_to_zarr(
             imhdr_path=self.imhdr_path,
             white_file_path=self.white_file_path,
-            dark_file_path=self.dark_file_path,
+            dark_for_im_file_path=self.dark_for_im_file_path,
+            dark_for_white_file_path=self.dark_for_white_file_path,
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
             band_indices=bands_to_correct,
             white_correction=self.check_batch_white.isChecked(),
@@ -837,7 +865,8 @@ class SedimentWidget(QWidget):
         self.params.project_path = self.export_folder
         self.params.file_path = self.imhdr_path
         self.params.white_path = self.white_file_path
-        self.params.dark_path = self.dark_file_path
+        self.params.dark_for_im_path = self.dark_for_im_file_path
+        self.params.dark_for_white_path = self.dark_for_white_file_path
         self.params.main_roi = mainroi
         self.params.rois = rois
         self.params.save_parameters()
@@ -861,7 +890,8 @@ class SedimentWidget(QWidget):
 
         self.imhdr_path = Path(self.params.file_path)
         self.white_file_path = Path(self.params.white_path)
-        self.dark_file_path = Path(self.params.dark_path)
+        self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
+        self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
 
         self._on_select_file()
         self._on_click_load_mask()
