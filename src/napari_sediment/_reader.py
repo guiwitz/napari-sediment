@@ -84,13 +84,15 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
         if bands is None:
             bands = np.arange(0, len(metadata['wavelength']))
 
-        if row_bounds is not None:
-            if col_bounds is not None:
-                data = img.read_subregion(row_bounds=row_bounds, col_bounds=col_bounds, bands=bands)
-            else:
-                raise ValueError('col_bounds must be provided if row_bounds is provided')
-        else:
+        if (row_bounds is None) and (col_bounds is None):
             data = img.read_bands(bands)
+        else:
+            if row_bounds is None:
+                row_bounds = (0, img.nrows)
+            if col_bounds is None:
+                col_bounds = (0, img.ncols)
+
+            data = img.read_subregion(row_bounds=row_bounds, col_bounds=col_bounds, bands=bands)
 
     elif path.suffix == '.zarr':
         zarr_image = read_hyper_zarr(path)
@@ -100,15 +102,14 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
         else :
             bands = np.array(bands)
         
-        if row_bounds is not None:
-            if col_bounds is not None:
-                data = zarr_image.get_orthogonal_selection(
-                    (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
-            else:
-                raise ValueError('col_bounds must be provided if row_bounds is provided')
-        else:
-            data = zarr_image.get_orthogonal_selection((bands,slice(0, zarr_image.shape[1]), slice(0, zarr_image.shape[2])))
+        if row_bounds is None:
+            row_bounds = (0, zarr_image.shape[1])
+        if col_bounds is None:
+            col_bounds = (0, zarr_image.shape[2])
 
+        data = zarr_image.get_orthogonal_selection(
+            (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
+            
         data = np.moveaxis(data, 0, 2)
         
     return data, metadata
