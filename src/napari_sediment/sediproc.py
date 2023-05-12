@@ -1,14 +1,13 @@
 import numpy as np
 from spectral import open_image
+from ._reader import read_spectral
 from sklearn.covariance import EllipticEnvelope
 import skimage
 import zarr
 from dask.distributed import Client
-from spectral import open_image
 from tqdm import tqdm
 import pystripe
 
-from ._reader import read_spectral
 
 def compute_average_in_roi(file_path, channel_indices, roi, white_path=None):
     """Compute average reflectance in a region of interest (ROI).
@@ -74,20 +73,54 @@ def get_rgb_channels(wavelengths, rgb=[640, 545, 460]):
     rgb_ch = [np.argmin(np.abs(np.array(wavelengths).astype(float) - x)) for x in rgb]
     return rgb_ch
 
-def load_white_dark(white_file_path, dark_file_path, channel_indices, col_bounds=None):
+def load_white_dark(white_file_path, dark_for_im_file_path,
+                    dark_for_white_file_path=None, channel_indices=None,
+                    col_bounds=None, clean_white=False):
+    """Load white and dark reference images. In case a separate white reference is used
+    (not the one acquired at the same time as the image), the corresponding dark reference
+    should be used to correct it. Optionally corrects the white reference by removing rows
+    outside of the expected noise range.
 
-    img_white = open_image(white_file_path)
-    img_dark = open_image(dark_file_path)
+    Parameters
+    ----------
+    white_file_path : str
+        Path to white reference image.
+    dark_for_im_file_path : str
+        Path to dark reference image for image.
+    dark_for_white_file_path : str, optional
+        Path to dark reference image for white reference. If None, no
+        dark reference for white reference is returned.
+    channel_indices : list of int, optional
+        List of channel indices to load. If None, all channels are loaded.
+    col_bounds : tuple, optional
+        Tuple of (min, max) column indices to load. If None, all columns are loaded.
+    clean_white : bool, optional
+        If True, remove rows outside of the expected noise range from the white reference.
 
-    white_data = img_white.read_bands(channel_indices)
-    dark_data = img_dark.read_bands(channel_indices)
-    if col_bounds is not None:
-        white_data = white_data[:, col_bounds[0]:col_bounds[1], :]
-        dark_data = dark_data[:, col_bounds[0]:col_bounds[1], :]
+    Returns
+    -------
+    im_white : array
+        White reference image. Dims are (rows, cols, bands).
+    im_dark : array
+        Dark reference image for image. Dims are (rows, cols, bands).
+    im_dark_for_white : array
+        Dark reference image for white reference. Dims are (rows, cols, bands).
+        
+    """
 
-    return white_data, dark_data
+    im_white, _ = read_spectral(path=white_file_path, bands=channel_indices, col_bounds=col_bounds)
+    im_dark, _ = read_spectral(path=dark_for_im_file_path, bands=channel_indices, col_bounds=col_bounds)
+    im_dark_for_white=None
+    if dark_for_white_file_path is not None:
+        im_dark_for_white, _ = read_spectral(path=dark_for_white_file_path, bands=channel_indices, col_bounds=col_bounds)
+    
+    if clean_white:
+        im_white = clean_white_ref(im_white)
 
-def white_dark_correct(data, white_data, dark_data):
+    return im_white, im_dark, im_dark_for_white
+
+
+def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=None):
     """White and dark reference correction.
 
     Parameters
@@ -96,8 +129,10 @@ def white_dark_correct(data, white_data, dark_data):
         Data to correct. Dims are (bands, rows, cols).
     white_data : array
         White reference data. Dims are (rows, cols, bands)
-    dark_data : array
-        Dark reference data. Dims are (rows, cols, bands)
+    dark_for_im_data : array
+        Dark reference data for image. Dims are (rows, cols, bands)
+    dark_for_white_data: array
+        Dark reference data for white ref. Dims are (rows, cols, bands)
     
     Returns
     -------
@@ -105,20 +140,45 @@ def white_dark_correct(data, white_data, dark_data):
         Corrected data. Dims are (bands, rows, cols).
     """
     
-    white_av = white_data.mean(axis=0)
-    dark_av = dark_data.mean(axis=0)
-
-    data = np.moveaxis(data,0,1)
-    white_av = np.moveaxis(white_av,0,1)
-    dark_av = np.moveaxis(dark_av,0,1)
-
+    data_to_process = [white_data, dark_for_im_data, dark_for_white_data]
+    for ind, d in enumerate(data_to_process):
+        if d is not None:
+            d_av = d.mean(axis=0)
+            d_av = np.moveaxis(d_av, 0, 1)
+            data_to_process[ind] = d_av
+    data = np.moveaxis(data, 0, 1)
+    white_av, dark_for_im_av, dark_for_white_av = data_to_process
+    if dark_for_white_av is None:
+        im_corr = (data - dark_for_im_av) / (white_av - dark_for_im_av)
+    else:
+        im_corr = (data - dark_for_im_av) / (white_av - dark_for_white_av)
     
-    im_corr = (data - dark_av) / (white_av - dark_av)
     im_corr = np.moveaxis(im_corr, 1,0)
     im_corr[im_corr < 0] = 0
     im_corr = (im_corr * 2**12).astype(np.uint16)
 
     return im_corr
+
+def clean_white_ref(white_image):
+    """Remove noise rows from white ref. Return clean white ref"""
+
+    white_mean = white_image.mean(axis=2)
+    # compute mean over columns
+    col_means = np.nanmean(white_mean, axis=0)
+    col_sdevs = np.nanstd(white_mean, axis=0)
+
+    # create noise threshold
+    sdevssub = col_means - (3 * col_sdevs)
+
+    # check which rows are above threshold
+    submean = white_mean-sdevssub
+    # find rows with no negative number i.e. good samples
+    rowpos = np.sum((submean < 0), axis=1) ==0
+
+    # keep good rows
+    white_sel = white_image[rowpos,:]
+
+    return white_sel
 
 def phasor(image_stack, harmonic=1):
     """Compute phasor components from image stack.
@@ -254,7 +314,7 @@ def remove_left_right(data):
     return first_index, last_index
 
 def correct_single_channel(
-        im_path, white_path, dark_path, im_zarr,
+        im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
         zarr_ind, band, white_correction=True, destripe=True,
         ):
     """White dark correction and save to zarr
@@ -265,8 +325,10 @@ def correct_single_channel(
         Path to image to be corrected
     white_path : str
         Path to white image
-    dark_path : str
-        Path to dark image
+    dark_for_im_path : str
+        Path to dark image for image
+    dark_for_white_path : str
+        Path to dark image for white ref
     im_zarr : zarr
         Zarr to save corrected image to
     band : int
@@ -286,18 +348,21 @@ def correct_single_channel(
     
     im_reg = open_image(im_path)
     white = open_image(white_path)
-    dark = open_image(dark_path)
+    dark = open_image(dark_for_im_path)
+    dark_white = open_image(dark_for_white_path)
 
     img_load = im_reg.read_band(band)
     img_white_load = white.read_band(band)
     img_dark_load = dark.read_band(band)
+    img_dark_white_load = dark_white.read_band(band)
     
     corrected = img_load.copy()
     if white_correction:
         corrected = white_dark_correct(
             data=img_load[np.newaxis,:,:],
             white_data=img_white_load[:,:,np.newaxis], 
-            dark_data=img_dark_load[:,:,np.newaxis]
+            dark_for_im_data=img_dark_load[:,:,np.newaxis],
+            dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
         )[0]
     if destripe:
         corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
@@ -306,8 +371,9 @@ def correct_single_channel(
 
     return None
 
-def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path,
-                         zarr_path, band_indices=None, white_correction=True, destripe=True):
+def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
+                         dark_for_white_file_path , zarr_path, band_indices=None,
+                         white_correction=True, destripe=True):
 
     img = open_image(imhdr_path)
 
@@ -328,7 +394,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_file_path,
     for ind, c in enumerate(band_indices):
         process.append(client.submit(
             correct_single_channel,
-            imhdr_path, white_file_path, dark_file_path, z1, ind, c, True, True))
+            imhdr_path, white_file_path, dark_for_im_file_path, dark_for_white_file_path, z1, ind, c, True, True))
     
     for k in tqdm(range(len(process)), "correcting and saving to zarr"):
         future = process[k]
