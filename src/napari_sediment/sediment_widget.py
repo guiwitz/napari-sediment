@@ -901,13 +901,14 @@ class SedimentWidget(QWidget):
         self._on_click_load_mask()
 
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
+        mainroi[0] = mainroi[0].astype(int)
         rois = [np.array(x).reshape(4,2) for x in self.params.rois]
         self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b', edge_width=10)
         self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
 
         self.set_main_roi_bounds(
-            min_col=mainroi[:,1].min(),
-            max_col=mainroi[:,1].max(),
-            min_row=mainroi[:,0].min(),
-            max_row=mainroi[:,0].max()
+            min_col=mainroi[0][:,1].min(),
+            max_col=mainroi[0][:,1].max(),
+            min_row=mainroi[0][:,0].min(),
+            max_row=mainroi[0][:,0].max()
         )
