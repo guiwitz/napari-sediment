@@ -2,6 +2,8 @@ import numpy as np
 from spectral import open_image
 from ._reader import read_spectral
 from sklearn.covariance import EllipticEnvelope
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import DBSCAN
 import skimage
 import zarr
 from dask.distributed import Client
@@ -403,6 +405,47 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
         del future
 
     z1.attrs['metadata'] = {
-        'wavelength': list(np.array(img.metadata['wavelength'])[band_indices])}
+        'wavelength': list(np.array(img.metadata['wavelength'])[band_indices]),
+        'centers': list(np.array(img.bands.centers[band_indices]))
+        }
 
     client.close()
+
+def save_image_to_zarr(image, zarr_path):
+    """Save multichannel image to zarr"""
+
+    if image.ndim == 2:
+        chunks = (image.shape[0], image.shape[1])
+    elif image.ndim == 3:
+        chunks = (1, image.shape[1], image.shape[2])
+
+    im_zarr = zarr.open(zarr_path, mode='w', shape=image.shape,
+               chunks=chunks, dtype=image.dtype)
+    im_zarr[:] = image
+
+def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
+    """Perform spectral clustering on pixel vectors
+    
+    Parameters
+    ----------
+    pixel_vectors : array
+        Array of pixel vectors. Dims are (n_pixels, n_bands).
+    dbscan_eps : float, optional
+        Epsilon parameter for DBSCAN. Default is 0.5.
+    
+    Returns
+    -------
+    labels : array
+        Cluster labels for each pixel.
+    """
+
+    pixel_vectors = pixel_vectors.astype(np.float32)
+    X = StandardScaler().fit_transform(pixel_vectors)
+    dbscan = DBSCAN(eps=dbscan_eps)
+
+    # cluster the three first components
+    dbscan.fit(X=X[:,0:3])
+
+    labels = dbscan.labels_
+
+    return labels
