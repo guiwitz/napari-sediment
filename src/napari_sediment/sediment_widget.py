@@ -10,14 +10,13 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
-                            QLabel, QFileDialog, QComboBox, QAbstractItemView,
+                            QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
 import numpy as np
 import pystripe
-from spectral import open_image
 from skimage.measure import points_in_poly
 import skimage
 from scipy.ndimage import binary_fill_holes

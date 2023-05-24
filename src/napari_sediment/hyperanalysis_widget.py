@@ -11,11 +11,11 @@ import zarr
 
 from .parameters import Param
 from .parameters_indices import ParamIndices
-from .io import load_params_yml, load_project_params, load_index_params
+from .io import load_project_params, load_index_params
 from .imchannels import ImChannels
 from .sediproc import white_dark_correct, spectral_clustering, save_image_to_zarr
 from ._reader import read_spectral
-from .spectralplot import SpectralPlotter, SelectRange
+from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
 from napari_guitils.gui_structures import TabSet, VHGroup
