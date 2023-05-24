@@ -80,6 +80,7 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
         img = open_image(path)
 
         metadata = img.metadata
+        metadata['centers'] = img.bands.centers
 
         if bands is None:
             bands = np.arange(0, len(metadata['wavelength']))

@@ -24,6 +24,8 @@ class ImChannels:
         number of rows in the image
     ncols: int
         number of columns in the image
+    centers: array
+        band centers of the channels
     
     """
     imhdr_path: str = None
@@ -33,6 +35,7 @@ class ImChannels:
     metadata: dict = field(default_factory=dict)
     nrows: int = None
     ncols: int = None
+    centers: np.ndarray = None
 
     def __post_init__(self):
     
@@ -49,6 +52,7 @@ class ImChannels:
         self.metadata = metadata
         self.nrows = data.shape[0]
         self.ncols = data.shape[1]
+        self.centers = np.array(metadata['centers'])
 
     def read_channels(self, channels=None, roi=None):
         """
