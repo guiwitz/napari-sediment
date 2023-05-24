@@ -4,10 +4,12 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSlider,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
+from superqt import QLabeledDoubleRangeSlider
 from spectral import open_image
 from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
 from spectral.algorithms import ppi
 import zarr
+import pandas as pd
 
 from .parameters import Param
 from .parameters_indices import ParamIndices
@@ -34,8 +36,11 @@ class HyperAnalysisWidget(QWidget):
         self.eigen_line = None
         self.corr_line = None
         self.corr_limit_line = None
+        self.ppi_boundary_lines = None
         self.export_folder = None
         self.selected_bands = None
+        self.end_members = None
+        self.bands = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -85,6 +90,9 @@ class HyperAnalysisWidget(QWidget):
         self.tabs.add_named_tab('PPI', self.ppi_plot)
         self.btn_update_ppi = QPushButton("Update PPI")
         self.tabs.add_named_tab('PPI', self.btn_update_ppi)
+        self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.ppi_boundaries_range.setValue((0, 0, 0))
+        self.tabs.add_named_tab('PPI', self.ppi_boundaries_range)
 
         self._add_processing_tab()
         self.add_connections()
@@ -167,6 +175,7 @@ class HyperAnalysisWidget(QWidget):
         self.btn_load_index_project.clicked.connect(self.import_index_project)
         self.slider_corr_limit.valueChanged.connect(self._on_change_corr_limit)
         self.btn_update_ppi.clicked.connect(self.plot_ppi)
+        self.ppi_boundaries_range.valueChanged.connect(self._on_change_ppi_boundaries)
 
         cid = self.eigen_plot.canvas.mpl_connect('button_release_event', self._on_interactive_eigen_threshold)
         cid2 = self.corr_plot.canvas.mpl_connect('button_release_event', self._on_interactive_corr_threshold)
@@ -216,31 +225,39 @@ class HyperAnalysisWidget(QWidget):
         # load index parameters
         self.params_indices = load_index_params(folder=self.export_folder)
 
-        # set UI setting using index parameters
-        for i in range(self.params_indices.min_max_channel[0], self.params_indices.min_max_channel[1]):
+        # update selected channels
+        for i in range(self.params_indices.min_max_channel[0], self.params_indices.min_max_channel[1]+1):
             self.qlist_channels.item(i).setSelected(True)
         self.qlist_channels._on_change_channel_selection()
 
+        # load stacks
+        self.load_stacks()
+        self.load_plots()
+
+        # set UI setting using index parameters
         if self.params_indices.eigen_threshold is not None:
             self.spin_eigen_threshold.setValue(self.params_indices.eigen_threshold)
         if self.params_indices.correlation_threshold is not None:
             self.spin_correlation_threshold.setValue(self.params_indices.correlation_threshold)
         self.ppi_iterations.setValue(self.params_indices.ppi_iterations)
         self.ppi_threshold.setValue(self.params_indices.ppi_threshold)
-        self.eigenvals = np.array(self.params_indices.eigenvalues)
-        self.all_coef = np.array(self.params_indices.correlation)
         self.slider_corr_limit.setRange(0,len(self.all_coef))
         if self.params_indices.corr_limit is not None:
             self.slider_corr_limit.setValue(self.params_indices.corr_limit)
 
-        # add plots and images
+        # add plots
         self.plot_eigenvals()
         self.plot_correlation()
-        self.load_stacks()
 
-        # add end-member plot is available
-        if 'pure' in self.viewer.layers:
+        if self.end_members is not None:
             self.plot_ppi()
+            self.ppi_boundaries_range.setRange(self.bands[0],self.bands[-1])
+            self.ppi_boundaries_range.setValue(self.params_indices.index_boundaries)
+        else:
+            if 'pure' in self.viewer.layers:
+                self.compute_end_members()
+                self.plot_ppi()
+
 
     def save_index_project(self):
         """Save parameters and stacks related to denoising/reduction"""
@@ -251,12 +268,12 @@ class HyperAnalysisWidget(QWidget):
         self.params_indices.correlation_threshold = float(self.spin_correlation_threshold.value())
         self.params_indices.ppi_iterations = self.ppi_iterations.value()
         self.params_indices.ppi_threshold = self.ppi_threshold.value()
-        self.params_indices.eigenvalues = self.eigenvals.tolist()
-        self.params_indices.correlation = self.all_coef.tolist()
         self.params_indices.corr_limit = self.slider_corr_limit.value()
+        self.params_indices.index_boundaries = list(self.ppi_boundaries_range.value())
 
         self.params_indices.save_parameters()
         self.save_stacks()
+        self.save_plots()
 
     def save_stacks(self):
         """Save denoised and reduced staks to zarr"""
@@ -268,7 +285,7 @@ class HyperAnalysisWidget(QWidget):
                     image=self.viewer.layers[lname].data,
                     zarr_path=self.export_folder.joinpath(f'{lname}.zarr')
                 )
-        
+    
     def load_stacks(self):
         """Load denoised and reduced staks from zarr"""
 
@@ -280,6 +297,32 @@ class HyperAnalysisWidget(QWidget):
         if self.export_folder.joinpath('pure.zarr').is_dir():
             im = np.array(zarr.open_array(self.export_folder.joinpath('pure.zarr')))
             self.viewer.add_labels(im, name='pure')
+    
+    def save_plots(self):
+        """Save plots to csv"""
+            
+        if self.eigenvals is not None:
+            df = pd.DataFrame(self.eigenvals, columns=['eigenvalues'])
+            df.to_csv(self.export_folder.joinpath('eigenvalues.csv'), index=False)
+        if self.all_coef is not None:
+            df = pd.DataFrame(self.all_coef, columns=['correlation'])
+            df.to_csv(self.export_folder.joinpath('correlation.csv'), index=False)
+        if self.end_members is not None:
+            df = pd.DataFrame(self.end_members, columns=np.arange(self.end_members.shape[1]))
+            df.to_csv(self.export_folder.joinpath('end_members.csv'), index=False)
+
+    def load_plots(self):
+        """Load csv files"""
+            
+        if self.export_folder.joinpath('eigenvalues.csv').is_file():
+            self.eigenvals = pd.read_csv(self.export_folder.joinpath('eigenvalues.csv')).values
+            self.plot_eigenvals()
+        if self.export_folder.joinpath('correlation.csv').is_file():
+            self.all_coef = pd.read_csv(self.export_folder.joinpath('correlation.csv')).values
+            self.plot_correlation()
+        if self.export_folder.joinpath('end_members.csv').is_file():
+            self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
+            self.plot_ppi()
     
 
     def _on_click_load_mask(self):
@@ -421,10 +464,13 @@ class HyperAnalysisWidget(QWidget):
             self.viewer.layers['pure'].data = pure
         else:
             self.viewer.add_labels(pure, name='pure')
+        
+        if self.end_members is None:
+            self.compute_end_members()
         self.plot_ppi()
-    
-    def plot_ppi(self, event=None):
-        """Cluster the pure pixels and plot the endmembers as average of clusters."""
+
+    def compute_end_members(self):
+        """"Cluster the pure pixels and compute average end-members."""
 
         pure = self.viewer.layers['pure'].data
         # recover pixel vectors from denoised image and actual image
@@ -435,16 +481,44 @@ class HyperAnalysisWidget(QWidget):
         labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=0.5)
 
         # compute band location
-        bands = self.imagechannels.centers[np.array(self.channel_indices).astype(int)]
+        self.ppi_boundaries_range.setRange(min=self.bands[0],max=self.bands[-1])
+        self.ppi_boundaries_range.setValue((self.bands[0], (self.bands[-1]-self.bands[0])/2, self.bands[-1]))
 
-        self.ppi_plot.axes.clear()
+        self.end_members = []
         for ind in range(0, labels.max()+1):
             
             endmember = vects_image[:, labels==ind].mean(axis=1)
-            out = remove_continuum(spectra=endmember, bands=bands)
+            self.end_members.append(remove_continuum(spectra=endmember, bands=self.bands))
 
-            self.ppi_plot.axes.plot(bands, out, label=f'Endmember {ind}')
-        self.ppi_plot.canvas.figure.canvas.draw()   
+        self.end_members = np.stack(self.end_members, axis=1)
+    
+    def plot_ppi(self, event=None):
+        """Cluster the pure pixels and plot the endmembers as average of clusters."""
+
+        self.ppi_plot.axes.clear()
+        self.ppi_plot.axes.plot(self.bands, self.end_members)
+        self.ppi_plot.canvas.figure.canvas.draw()
+
+    def _on_change_ppi_boundaries(self, event):
+        """Update the PPI plot when the PPI boundaries are changed."""
+
+        if self.ppi_boundary_lines is not None:
+                num_lines = len(self.ppi_boundary_lines)
+                for i in range(num_lines):
+                    self.ppi_boundary_lines.pop(0).remove()
+
+        if self.end_members is not None:
+            ymin = self.end_members.min()
+            ymax = self.end_members.max()
+            self.ppi_boundary_lines = self.ppi_plot.axes.plot(
+                [
+                    [self.ppi_boundaries_range.value()[0], self.ppi_boundaries_range.value()[1], self.ppi_boundaries_range.value()[2]], [self.ppi_boundaries_range.value()[0], self.ppi_boundaries_range.value()[1], self.ppi_boundaries_range.value()[2]]
+                ],
+                [
+                    [ymin, ymin, ymin], [ymax, ymax, ymax]
+                ], 'r--'
+            )
+            self.ppi_plot.canvas.figure.canvas.draw()
 
 
     def _shift_move_callback(self, viewer, event):
@@ -462,9 +536,8 @@ class HyperAnalysisWidget(QWidget):
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
             ]
 
-            band_centers = np.array(self.imagechannels.channel_names).astype(float)[self.channel_indices]
             spectral_pixel = spectral_pixel.astype(np.float64)
-            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=band_centers)
+            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=self.bands)
 
             self.scan_plot.axes.clear()
             self.scan_plot.axes.plot(spectral_pixel)

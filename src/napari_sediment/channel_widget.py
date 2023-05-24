@@ -47,6 +47,7 @@ class ChannelWidget(QListWidget):
             roi=roi)
 
         self.parent.channel_indices = new_channel_indices
+        self.parent.bands = self.parent.imagechannels.centers[np.array(self.parent.channel_indices).astype(int)]
         
         layer_name = 'imcube'
 
