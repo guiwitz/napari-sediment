@@ -12,8 +12,8 @@ import zarr
 import pandas as pd
 
 from .parameters import Param
-from .parameters_indices import ParamIndices
-from .io import load_project_params, load_index_params
+from .parameters_endmembers import ParamEndMember
+from .io import load_project_params, load_endmember_params
 from .imchannels import ImChannels
 from .sediproc import white_dark_correct, spectral_clustering, save_image_to_zarr
 from ._reader import read_spectral
@@ -31,7 +31,7 @@ class HyperAnalysisWidget(QWidget):
         
         self.viewer = napari_viewer
         self.params = Param()
-        self.params_indices = ParamIndices()
+        self.params_endmembers = ParamEndMember()
         self.channel_indices = None
         self.eigen_line = None
         self.corr_line = None
@@ -223,10 +223,10 @@ class HyperAnalysisWidget(QWidget):
         self.import_project()
         
         # load index parameters
-        self.params_indices = load_index_params(folder=self.export_folder)
+        self.params_endmembers = load_endmember_params(folder=self.export_folder)
 
         # update selected channels
-        for i in range(self.params_indices.min_max_channel[0], self.params_indices.min_max_channel[1]+1):
+        for i in range(self.params_endmembers.min_max_channel[0], self.params_endmembers.min_max_channel[1]+1):
             self.qlist_channels.item(i).setSelected(True)
         self.qlist_channels._on_change_channel_selection()
 
@@ -235,15 +235,15 @@ class HyperAnalysisWidget(QWidget):
         self.load_plots()
 
         # set UI setting using index parameters
-        if self.params_indices.eigen_threshold is not None:
-            self.spin_eigen_threshold.setValue(self.params_indices.eigen_threshold)
-        if self.params_indices.correlation_threshold is not None:
-            self.spin_correlation_threshold.setValue(self.params_indices.correlation_threshold)
-        self.ppi_iterations.setValue(self.params_indices.ppi_iterations)
-        self.ppi_threshold.setValue(self.params_indices.ppi_threshold)
+        if self.params_endmembers.eigen_threshold is not None:
+            self.spin_eigen_threshold.setValue(self.params_endmembers.eigen_threshold)
+        if self.params_endmembers.correlation_threshold is not None:
+            self.spin_correlation_threshold.setValue(self.params_endmembers.correlation_threshold)
+        self.ppi_iterations.setValue(self.params_endmembers.ppi_iterations)
+        self.ppi_threshold.setValue(self.params_endmembers.ppi_threshold)
         self.slider_corr_limit.setRange(0,len(self.all_coef))
-        if self.params_indices.corr_limit is not None:
-            self.slider_corr_limit.setValue(self.params_indices.corr_limit)
+        if self.params_endmembers.corr_limit is not None:
+            self.slider_corr_limit.setValue(self.params_endmembers.corr_limit)
 
         # add plots
         self.plot_eigenvals()
@@ -252,7 +252,7 @@ class HyperAnalysisWidget(QWidget):
         if self.end_members is not None:
             self.plot_ppi()
             self.ppi_boundaries_range.setRange(self.bands[0],self.bands[-1])
-            self.ppi_boundaries_range.setValue(self.params_indices.index_boundaries)
+            self.ppi_boundaries_range.setValue(self.params_endmembers.index_boundaries)
         else:
             if 'pure' in self.viewer.layers:
                 self.compute_end_members()
@@ -262,16 +262,16 @@ class HyperAnalysisWidget(QWidget):
     def save_index_project(self):
         """Save parameters and stacks related to denoising/reduction"""
 
-        self.params_indices.project_path = self.export_folder.as_posix()
-        self.params_indices.min_max_channel = [self.channel_indices[0], self.channel_indices[-1]]
-        self.params_indices.eigen_threshold = float(self.spin_eigen_threshold.value())
-        self.params_indices.correlation_threshold = float(self.spin_correlation_threshold.value())
-        self.params_indices.ppi_iterations = self.ppi_iterations.value()
-        self.params_indices.ppi_threshold = self.ppi_threshold.value()
-        self.params_indices.corr_limit = self.slider_corr_limit.value()
-        self.params_indices.index_boundaries = list(self.ppi_boundaries_range.value())
+        self.params_endmembers.project_path = self.export_folder.as_posix()
+        self.params_endmembers.min_max_channel = [self.channel_indices[0], self.channel_indices[-1]]
+        self.params_endmembers.eigen_threshold = float(self.spin_eigen_threshold.value())
+        self.params_endmembers.correlation_threshold = float(self.spin_correlation_threshold.value())
+        self.params_endmembers.ppi_iterations = self.ppi_iterations.value()
+        self.params_endmembers.ppi_threshold = self.ppi_threshold.value()
+        self.params_endmembers.corr_limit = self.slider_corr_limit.value()
+        self.params_endmembers.index_boundaries = list(self.ppi_boundaries_range.value())
 
-        self.params_indices.save_parameters()
+        self.params_endmembers.save_parameters()
         self.save_stacks()
         self.save_plots()
 

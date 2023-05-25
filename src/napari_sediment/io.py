@@ -3,7 +3,7 @@ import tifffile
 import yaml
 from pathlib import Path
 from .parameters import Param
-from .parameters_indices import ParamIndices
+from .parameters_endmembers import ParamEndMember
 
 def save_mask(mask, filename):
    
@@ -35,11 +35,11 @@ def load_project_params(folder):
     
     return params
 
-def load_index_params(folder):
+def load_endmember_params(folder):
     """Load index parameters from yaml file in a given folder."""
 
     folder = Path(folder)
-    params = ParamIndices(project_path=folder)
+    params = ParamEndMember(project_path=folder)
     params = load_params_yml(params, file_name='Parameters_indices.yml')
     
     return params

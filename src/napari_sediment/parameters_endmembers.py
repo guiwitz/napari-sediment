@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 @dataclass
-class ParamIndices:
+class ParamEndMember:
     """
     Class for keeping track of processing parameters.
     
