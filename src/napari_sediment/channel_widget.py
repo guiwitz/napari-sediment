@@ -21,9 +21,12 @@ class ChannelWidget(QListWidget):
 
         self.itemClicked.connect(self._on_change_channel_selection)
 
+        self.parent_type = None
         if self.parent.__class__.__name__ == 'HyperAnalysisWidget':
             self.parent_type = 'hyperanalysis'
-        else:
+        elif self.parent.__class__.__name__ == 'SpectralIndexWidget':
+            self.parent_type = 'spectralindex'
+        elif self.parent.__class__.__name__ == 'SedimentWidget':
             self.parent_type = 'sediment'
 
 
