@@ -124,11 +124,11 @@ class SedimentWidget(QWidget):
         self.process_group = VHGroup('Process Hypercube', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group.gbox)
 
-        self.btn_white_correct = QPushButton("White correct")
-        self.process_group.glayout.addWidget(self.btn_white_correct)
-        self.check_only_rgb = QCheckBox("Only RGB")
-        self.check_only_rgb.setChecked(True)
-        self.process_group.glayout.addWidget(self.check_only_rgb)
+        self.btn_background_correct = QPushButton("Background correct")
+        self.process_group.glayout.addWidget(self.btn_background_correct)
+        self.check_background_correct_only_rgb = QCheckBox("Only RGB")
+        self.check_background_correct_only_rgb.setChecked(True)
+        self.process_group.glayout.addWidget(self.check_background_correct_only_rgb)
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
@@ -305,7 +305,7 @@ class SedimentWidget(QWidget):
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
         self.btn_select_dark_for_white_file.clicked.connect(self._on_click_select_dark_for_white_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
-        self.btn_white_correct.clicked.connect(self._on_click_white_correct)
+        self.btn_background_correct.clicked.connect(self._on_click_background_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
@@ -559,10 +559,10 @@ class SedimentWidget(QWidget):
                 self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
 
 
-    def _on_click_white_correct(self, event):
+    def _on_click_background_correct(self, event):
         """White correct image"""
                 
-        if not self.check_only_rgb.isChecked():
+        if not self.check_background_correct_only_rgb.isChecked():
             
             col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
             white_data, dark_data, dark_for_white_data = load_white_dark(
@@ -622,7 +622,7 @@ class SedimentWidget(QWidget):
             dark_for_white_file_path=self.dark_for_white_file_path,
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
             band_indices=bands_to_correct,
-            white_correction=self.check_batch_white.isChecked(),
+            background_correction=self.check_batch_white.isChecked(),
             destripe=self.check_batch_destripe.isChecked())
 
 

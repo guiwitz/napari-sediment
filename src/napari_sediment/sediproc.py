@@ -317,7 +317,7 @@ def remove_left_right(data):
 
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
-        zarr_ind, band, white_correction=True, destripe=True,
+        zarr_ind, band, background_correction=True, destripe=True,
         ):
     """White dark correction and save to zarr
     
@@ -337,7 +337,7 @@ def correct_single_channel(
         Channel to correct
     zarr_ind: int
         Index of zarr to save corrected image to
-    white_correction : bool, optional
+    background_correction : bool, optional
         Whether to perform white correction. Default is True.
     destripe : bool, optional
         Whether to perform destriping. Default is True.
@@ -359,7 +359,7 @@ def correct_single_channel(
     img_dark_white_load = dark_white.read_band(band)
     
     corrected = img_load.copy()
-    if white_correction:
+    if background_correction:
         corrected = white_dark_correct(
             data=img_load[np.newaxis,:,:],
             white_data=img_white_load[:,:,np.newaxis], 
@@ -375,7 +375,7 @@ def correct_single_channel(
 
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
-                         white_correction=True, destripe=True):
+                         background_correction=True, destripe=True):
 
     img = open_image(imhdr_path)
 
@@ -396,7 +396,9 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
     for ind, c in enumerate(band_indices):
         process.append(client.submit(
             correct_single_channel,
-            imhdr_path, white_file_path, dark_for_im_file_path, dark_for_white_file_path, z1, ind, c, True, True))
+            imhdr_path, white_file_path,
+            dark_for_im_file_path, dark_for_white_file_path,
+            z1, ind, c, True, True))
     
     for k in tqdm(range(len(process)), "correcting and saving to zarr"):
         future = process[k]
