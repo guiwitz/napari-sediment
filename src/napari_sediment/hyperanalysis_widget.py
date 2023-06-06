@@ -88,8 +88,8 @@ class HyperAnalysisWidget(QWidget):
 
         self.ppi_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('PPI', self.ppi_plot)
-        self.btn_update_ppi = QPushButton("Update PPI")
-        self.tabs.add_named_tab('PPI', self.btn_update_ppi)
+        self.btn_update_endmembers = QPushButton("Update end-members")
+        self.tabs.add_named_tab('PPI', self.btn_update_endmembers)
         self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.ppi_boundaries_range.setValue((0, 0, 0))
         self.tabs.add_named_tab('PPI', self.ppi_boundaries_range)
@@ -174,7 +174,7 @@ class HyperAnalysisWidget(QWidget):
         self.btn_save_index_project.clicked.connect(self.save_index_project)
         self.btn_load_index_project.clicked.connect(self.import_index_project)
         self.slider_corr_limit.valueChanged.connect(self._on_change_corr_limit)
-        self.btn_update_ppi.clicked.connect(self.plot_ppi)
+        self.btn_update_endmembers.clicked.connect(self._on_click_update_endmembers)
         self.ppi_boundaries_range.valueChanged.connect(self._on_change_ppi_boundaries)
 
         cid = self.eigen_plot.canvas.mpl_connect('button_release_event', self._on_interactive_eigen_threshold)
@@ -309,6 +309,7 @@ class HyperAnalysisWidget(QWidget):
             df.to_csv(self.export_folder.joinpath('correlation.csv'), index=False)
         if self.end_members is not None:
             df = pd.DataFrame(self.end_members, columns=np.arange(self.end_members.shape[1]))
+            df['bands'] = self.bands
             df.to_csv(self.export_folder.joinpath('end_members.csv'), index=False)
 
     def load_plots(self):
@@ -322,6 +323,7 @@ class HyperAnalysisWidget(QWidget):
             self.plot_correlation()
         if self.export_folder.joinpath('end_members.csv').is_file():
             self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
+            self.end_members = self.end_members[:,:-1]
             self.plot_ppi()
     
 
@@ -465,8 +467,12 @@ class HyperAnalysisWidget(QWidget):
         else:
             self.viewer.add_labels(pure, name='pure')
         
-        if self.end_members is None:
-            self.compute_end_members()
+        self._on_click_update_endmembers()
+
+    def _on_click_update_endmembers(self, event=None):
+        """Update end-members based on threshold."""
+
+        self.compute_end_members()
         self.plot_ppi()
 
     def compute_end_members(self):
@@ -482,7 +488,7 @@ class HyperAnalysisWidget(QWidget):
 
         # compute band location
         self.ppi_boundaries_range.setRange(min=self.bands[0],max=self.bands[-1])
-        self.ppi_boundaries_range.setValue((self.bands[0], (self.bands[-1]-self.bands[0])/2, self.bands[-1]))
+        self.ppi_boundaries_range.setValue((self.bands[0], (self.bands[-1]+self.bands[0])/2, self.bands[-1]))
 
         self.end_members = []
         for ind in range(0, labels.max()+1):
