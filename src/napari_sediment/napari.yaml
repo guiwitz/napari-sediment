@@ -11,6 +11,9 @@ contributions:
     - id: napari-sediment.make_hyperwidget
       python_name: napari_sediment.hyperanalysis_widget:HyperAnalysisWidget
       title: Make Hyperanalysis QWidget
+    - id: napari-sediment.make_spectralindexwidget
+      python_name: napari_sediment.spectral_index_widget:SpectralIndexWidget
+      title: Make Spectral Indices QWidget
   readers:
     - command: napari-sediment.get_reader
       accepts_directories: false
@@ -20,3 +23,5 @@ contributions:
       display_name: Sediment
     - command: napari-sediment.make_hyperwidget
       display_name: HyperAnalysis
+    - command: napari-sediment.make_spectralindexwidget
+      display_name: SpectralIndices
