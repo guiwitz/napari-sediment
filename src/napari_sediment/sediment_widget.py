@@ -25,7 +25,8 @@ from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
 from .sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
-                       fit_1dgaussian_without_outliers, correct_save_to_zarr)
+                       fit_1dgaussian_without_outliers, correct_save_to_zarr,
+                       find_index_of_band)
 from .imchannels import ImChannels
 from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters import Param
@@ -97,8 +98,13 @@ class SedimentWidget(QWidget):
         self.btn_select_all = QPushButton('Select all')
         self.main_group.glayout.addWidget(self.btn_select_all, 4, 0, 1, 2)
 
+        self.btn_dislpay_as_rgb = QPushButton('Display as RGB')
+        self.main_group.glayout.addWidget(self.btn_dislpay_as_rgb, 5, 0, 1, 1)
+        self.combo_layer_to_rgb = QComboBox()
+        self.main_group.glayout.addWidget(self.combo_layer_to_rgb, 5, 1, 1, 1)
+
         self.btn_new_view = QPushButton('New view')
-        self.main_group.glayout.addWidget(self.btn_new_view, 5, 0, 1, 2)
+        self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
         self.btn_new_view.clicked.connect(self.new_view)
 
         # Plot tab
@@ -126,14 +132,11 @@ class SedimentWidget(QWidget):
 
         self.btn_background_correct = QPushButton("Background correct")
         self.process_group.glayout.addWidget(self.btn_background_correct)
-        self.check_background_correct_only_rgb = QCheckBox("Only RGB")
-        self.check_background_correct_only_rgb.setChecked(True)
-        self.process_group.glayout.addWidget(self.check_background_correct_only_rgb)
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
         self.combo_layer_destripe = QComboBox()
-        self.combo_layer_destripe.addItems(['RGB', 'imcube'])
+        #self.combo_layer_destripe.addItems(['RGB', 'imcube'])
         self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 0, 1, 1)
         self.btn_destripe = QPushButton("Destripe")
         self.destripe_group.glayout.addWidget(self.btn_destripe)
@@ -308,6 +311,7 @@ class SedimentWidget(QWidget):
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
+        self.btn_dislpay_as_rgb.clicked.connect(self.display_as_rgb)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
@@ -336,6 +340,9 @@ class SedimentWidget(QWidget):
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
+        # layer callbacks
+        self.viewer.layers.events.inserted.connect(self._update_combo_layers)
+        self.viewer.layers.events.removed.connect(self._update_combo_layers)
 
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
@@ -562,41 +569,41 @@ class SedimentWidget(QWidget):
     def _on_click_background_correct(self, event):
         """White correct image"""
                 
-        if not self.check_background_correct_only_rgb.isChecked():
             
-            col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
-            white_data, dark_data, dark_for_white_data = load_white_dark(
-                white_file_path=self.white_file_path,
-                dark_for_im_file_path=self.dark_for_im_file_path,
-                dark_for_white_file_path=self.dark_for_white_file_path,
-                channel_indices=self.channel_indices,
-                col_bounds=col_bounds,
-                clean_white=True
-                )
+        col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
+        white_data, dark_data, dark_for_white_data = load_white_dark(
+            white_file_path=self.white_file_path,
+            dark_for_im_file_path=self.dark_for_im_file_path,
+            dark_for_white_file_path=self.dark_for_white_file_path,
+            channel_indices=self.channel_indices,
+            col_bounds=col_bounds,
+            clean_white=True
+            )
 
-            im_corr = white_dark_correct(
-                self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+        im_corr = white_dark_correct(
+            self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
 
-            if 'imcube_corrected' in self.viewer.layers:
-                self.viewer.layers['imcube_corrected'].data = im_corr
-            else:
-                self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
-                self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
-
+        if 'imcube_corrected' in self.viewer.layers:
+            self.viewer.layers['imcube_corrected'].data = im_corr
         else:
-            white_data, dark_data, dark_for_white_data = load_white_dark(
-                self.white_file_path, self.dark_for_im_file_path, self.dark_for_white_file_path, self.rgb_ch)
-            data = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
-            im_corr = white_dark_correct(data, white_data, dark_data, dark_for_white_data)
-            
-            for ind, ch_name in enumerate(self.rgb_names):
-                    
-                    self.viewer.layers[ch_name].data = im_corr[ind,:,:]
-                    self.viewer.layers[ch_name].contrast_limits_range = (self.viewer.layers[ch_name].data.min(), self.viewer.layers[ch_name].data.max())
-                    self.viewer.layers[ch_name].contrast_limits = np.percentile(self.viewer.layers[ch_name].data, (2,98))
-            
-            self._update_threshold_limits()
-            self.combo_layer_destripe.addItems(['imcube_corrected'])
+            self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+            self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
+
+
+    def _update_combo_layers(self):
+        
+        admit_layers = ['imcube', 'imcube_corrected', 'RBB']
+        self.combo_layer_destripe.clear()
+        for a in admit_layers:
+            if a in self.viewer.layers:
+                self.combo_layer_destripe.addItem(a)
+
+        admit_layers = ['imcube', 'imcube_corrected', 'imcube_destripe']
+        self.combo_layer_to_rgb.clear()
+        for a in admit_layers:
+            if a in self.viewer.layers:
+                self.combo_layer_to_rgb.addItem(a)        
+        
 
     def _on_change_batch_wavelengths(self, event):
 
@@ -626,11 +633,13 @@ class SedimentWidget(QWidget):
             destripe=self.check_batch_destripe.isChecked())
 
 
-    def get_RGB_cropped(self):
-        """Get RGB image cropped"""
+    def get_summary_image(self):
+        """Get summary image"""
 
-        im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
-        return im[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        #im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
+        #return im[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        im = np.mean(self.viewer.layers['imcube'].data, axis=0)
+        return im
 
     def translate_layer(self, mask_name):
         """Translate mask"""
@@ -641,7 +650,7 @@ class SedimentWidget(QWidget):
     def _on_click_remove_borders(self):
         """Remove borders from image"""
         
-        im = self.get_RGB_cropped()
+        im = self.get_summary_image()
 
         first_row, last_row = remove_top_bottom(im)
         first_col, last_col = remove_left_right(im)
@@ -658,14 +667,14 @@ class SedimentWidget(QWidget):
 
     def _update_threshold_limits(self):
         
-        im = self.get_RGB_cropped()
+        im = self.get_summary_image()
         self.slider_mask_threshold.setRange(im.min(), im.max())
         self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
     def _on_click_automated_threshold(self):
         """Automatically set threshold for mask based on mean RGB pixel intensity"""
 
-        im = self.get_RGB_cropped()
+        im = self.get_summary_image()
         if 'border-mask' in self.viewer.layers:
             pix_selected = im[self.viewer.layers['border-mask'].data == 0]
         else:
@@ -684,11 +693,18 @@ class SedimentWidget(QWidget):
     def _on_click_update_mask(self):
         """Update mask based on current threshold"""
         
-        data = self.get_RGB_cropped()
+        data = self.get_summary_image()
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
-        self.viewer.layers['mask'].data = mask
+        self.update_mask(mask)
         self.translate_layer('mask')
         self.viewer.layers['mask'].refresh()
+
+    def update_mask(self, mask):
+
+        if 'mask' in self.viewer.layers:
+            self.viewer.layers['mask'].data = mask
+        else:
+            self.viewer.add_labels(mask, name='mask')
 
     def _on_click_compute_phasor(self):
         """Compute phasor from image. Opens a new viewer with 2D histogram of 
@@ -782,10 +798,7 @@ class SedimentWidget(QWidget):
         """Load mask from file"""
         
         mask = load_mask(get_mask_path(self.export_folder))
-        if 'mask' in self.viewer.layers:
-            self.viewer.layers['mask'].data = mask
-        else:
-            self.viewer.add_labels(mask, name='mask')
+        self.update_mask(mask)
 
     def _on_click_snapshot(self):
         """Save snapshot of viewer"""
@@ -799,20 +812,34 @@ class SedimentWidget(QWidget):
     def _on_click_RGB(self):
         """Load RGB image"""
 
-        self.rgb_ch = [np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - x)) for x in self.rgb]
+        #self.rgb_ch = [np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - x)) for x in self.rgb]
+        self.rgb_ch = [find_index_of_band(self.imagechannels.centers, x) for x in self.rgb]
         self.rgb_names = [self.imagechannels.channel_names[x] for x in self.rgb_ch]
 
         [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
         self.qlist_channels._on_change_channel_selection()
 
-        cmap = ['red', 'green', 'blue']
-        for c, cmap in zip(self.rgb_ch, cmap):
-            self.viewer.add_image(
-                self.imagechannels.channel_array[c],
-                name=self.imagechannels.channel_names[c],
-                colormap=cmap,
-                blending='additive')
+        self.display_as_rgb()
 
+        self._update_threshold_limits()
+
+    def display_as_rgb(self):
+
+        cmaps = ['red', 'green', 'blue']
+        layer_name = self.combo_layer_to_rgb.currentText()
+        for ind, cmap in enumerate(cmaps):
+            if cmap not in self.viewer.layers:
+                self.viewer.add_image(
+                    self.viewer.layers[layer_name].data[ind],
+                    name=cmap,
+                    colormap=cmap,
+                    blending='additive')
+            else:
+                self.viewer.layers[cmap].data = self.viewer.layers[layer_name].data[ind]
+            
+            self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
+            self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
+            
         self._update_threshold_limits()
 
     def _on_click_select_all(self):
