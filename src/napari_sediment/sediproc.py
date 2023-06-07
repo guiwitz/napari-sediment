@@ -408,7 +408,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
 
     z1.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])[band_indices]),
-        'centers': list(np.array(img.bands.centers[band_indices]))
+        'centers': list(np.array(img.bands.centers)[band_indices])
         }
 
     client.close()
