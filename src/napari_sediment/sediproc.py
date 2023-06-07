@@ -455,6 +455,7 @@ def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
 def find_index_of_band(band_list, band_value):
     """Find index of band in list of bands"""
     
+    band_list = np.array(band_list)
     band_index = np.argmin(np.abs(band_list-band_value))
     
     return band_index
