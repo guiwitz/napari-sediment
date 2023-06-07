@@ -58,7 +58,10 @@ class MLWidget(QWidget):
             raise ValueError('No annotation layer found')
         
         reduce_fact = 4
-        data = np.stack([self.viewer.layers[x].data for x in self.parent.rgb_names], axis=0)
+        #data = np.stack([self.viewer.layers[x].data for x in self.parent.rgb_names], axis=0)
+        data = self.viewer.layers['imcube'].data
+        if len(data) !=3:
+            raise ValueError('Only three channel images are supported')
         annotations = self.viewer.layers['annotations'].data[::reduce_fact,::reduce_fact]
         if self.check_smoothing.isChecked():
             data = skimage.filters.gaussian(data, sigma=self.spin_gaussian_smoothing.value(), preserve_range=True)[:, ::4, ::4]
