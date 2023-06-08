@@ -7,20 +7,23 @@
 [![codecov](https://codecov.io/gh/guiwitz/napari-sediment/branch/main/graph/badge.svg)](https://codecov.io/gh/guiwitz/napari-sediment)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-sediment)](https://napari-hub.org/plugins/napari-sediment)
 
-A plugin to process hyperspectral images of sediments
+This napari plugin is designed to hpyerspectral images of sediment cores. It is composed of three interfaces allowing the user to:
 
-----------------------------------
+- import HDR images
+- normalize the images using white and dark references
+- mask unwanted regions
+- perform spectral dimensionality reduction via minimum noise fraction analysis
+- perform spatial dimensionality reduction based on pixel purity indices
+- identify representative end-members by clustering pure pixels
+- select relevant regions in spectra to compute absorption indices and create absorption maps 
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+### Pre-processing: Sediment widget
 
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
+The sediment widget allows the user to import an HDR image and to normalize it using white and dark references. The widget also allows the user to mask unwanted regions of the images.
 
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
+## Documentation
 
+You can find a detailed documentation [here](https://guiwitz.github.io/napari-sediment).
 ## Installation
 
 You can install `napari-sediment` use:
@@ -37,6 +40,10 @@ the coverage at least stays the same before you submit a pull request.
 
 Distributed under the terms of the [BSD-3] license,
 "napari-sediment" is free and open source software
+
+## Authors
+
+This plugin has been developed by Guillaume Witz at the Data Science Lab of the University of Bern in collaboration with Petra Zahajská, Institue of Geography of the University of Bern. Funding for development was provided by Prof. Martin Grosjean, Institute of Geography of the University of Bern.
 
 ## Issues
 
