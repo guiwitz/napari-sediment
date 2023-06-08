@@ -211,33 +211,32 @@ class SpectralIndexWidget(QWidget):
             rgb_to_plot,
             cmaps=['pure_red', 'pure_green', 'pure_blue'], 
             rescale_type='limits', limits=[0,4000], proj_type='sum')
-        
-        ratio = toplot.shape[0]/toplot.shape[1]
-        #fig, ax  = plt.subplots(1,3, figsize=(15*3/ratio, 15), sharey=True)
 
-        fig, ax = plt.subplot_mosaic([['left', 'middle', 'right']],
-                              constrained_layout=True, figsize=(15*3/ratio, 15),
-                              gridspec_kw={'width_ratios':(1,1,1),'height_ratios':(1,)})
-        fig.tight_layout()
-        ax['middle'].sharey(ax['left'])
-        ax['right'].sharey(ax['left'])
+        fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(2,8))
 
-
-        ax['left'].imshow(rgb_to_plot)
-        ax['middle'].imshow(self.viewer.layers['RABD'].data, vmin=0, vmax=2)
+        ax[0].imshow(rgb_to_plot, aspect='auto')
+        ax[1].imshow(self.viewer.layers['RABD'].data, vmin=0, vmax=2, aspect='auto')
         #ax[2].imshow(np.ones((toplot.shape[0],toplot.shape[1],3)))
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
             colmin = int(roi[0,1])
             colmax = int(roi[3,1])
             proj = self.viewer.layers['RABD'].data[:,colmin:colmax].mean(axis=1)
-            ax['right'].plot(proj, np.arange(len(proj)))
+            ax[2].imshow(rgb_to_plot, alpha=0.0,aspect='auto')
+            ax[2].plot(1000*proj, np.arange(len(proj)))
             #ax[2].invert_yaxis()
+            
+        ax[0].set_xticks([])
+        ax[1].set_xticks([])
 
+
+        #ax[2].set_aspect(100*ax[0].get_data_ratio())
+        fig.subplots_adjust(wspace=0)
+        ax[0].set_ylabel('depth')
         fig.savefig(self.export_folder.joinpath('index_plot.png'))
 
         self.pixmap = QPixmap(self.export_folder.joinpath('index_plot.png').as_posix())
-        self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
+        self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
 
     def _on_click_add_triplets(self, event):
         #self.index_triplets.append(list(self.ppi_boundaries_range.value()))
