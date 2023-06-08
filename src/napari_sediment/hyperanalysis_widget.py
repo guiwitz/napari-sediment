@@ -105,8 +105,6 @@ class HyperAnalysisWidget(QWidget):
 
         self.tabs.widget(self.tab_names.index('Processing')).layout().setAlignment(Qt.AlignTop)
         # processing tab
-        self.process_group = VHGroup('Process Hypercube', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group.gbox)
         self.process_group_mnfr = VHGroup('MNFR', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_mnfr.gbox)
         self.process_group_ppi = VHGroup('PPI', orientation='G')
@@ -114,10 +112,6 @@ class HyperAnalysisWidget(QWidget):
         self.process_group_io = VHGroup('IO', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_io.gbox)
 
-        self.btn_destripe = QPushButton("Destripe")
-        self.process_group.glayout.addWidget(self.btn_destripe)
-        self.btn_white_correct = QPushButton("White correct")
-        self.process_group.glayout.addWidget(self.btn_white_correct)
         self.btn_mnfr = QPushButton("Compute MNFR")
         self.process_group_mnfr.glayout.addWidget(self.btn_mnfr, 0, 0, 1, 2)
         self.btn_reduce_mnfr = QPushButton("Reduce on eigenvalues")
@@ -166,7 +160,6 @@ class HyperAnalysisWidget(QWidget):
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
-        self.btn_white_correct.clicked.connect(self._on_click_white_correct)
         self.btn_mnfr.clicked.connect(self._on_click_mnfr)
         self.btn_reduce_mnfr.clicked.connect(self._on_click_reduce_mnfr_on_eigen)
         self.btn_reduce_correlation.clicked.connect(self._on_click_reduce_mnfr_on_correlation)
@@ -339,24 +332,6 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
         self.qlist_channels._on_change_channel_selection()
-
-    def _on_click_white_correct(self, event):
-        """White correct image"""
-
-        img_white = open_image(self.white_file_path)
-        img_dark = open_image(self.dark_file_path)
-
-        white_data, _ = read_spectral(self.white_file_path, self.channel_indices, [0, img_white.nrows], self.col_bounds)
-        dark_for_im_data, _ = read_spectral(self.dark_for_im_path, self.channel_indices, [0, img_dark.nrows], self.col_bounds)
-        if self.dark_for_white_path is not None:
-            dark_for_white_data, _ = read_spectral(self.dark_for_white_path, self.channel_indices, [0, img_dark.nrows], self.col_bounds)  
-        im_corr = white_dark_correct(self.viewer.layers['imcube'].data, white_data,
-                                     dark_for_im_data=dark_for_im_data, dark_for_white_data=dark_for_white_data)
-
-        if 'imcube_corrected' in self.viewer.layers:
-            self.viewer.layers['imcube_corrected'].data = im_corr
-        else:
-            self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
 
     def _on_click_mnfr(self):
         """Compute MNFR transform and compute vertical correlation. Keep all bands."""
