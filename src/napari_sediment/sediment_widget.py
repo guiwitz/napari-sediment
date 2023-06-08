@@ -16,7 +16,7 @@ from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
 import numpy as np
-import pystripe
+#import pystripe
 from skimage.measure import points_in_poly
 import skimage
 from scipy.ndimage import binary_fill_holes

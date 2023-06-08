@@ -8,7 +8,7 @@ import skimage
 import zarr
 from dask.distributed import Client
 from tqdm import tqdm
-import pystripe
+#import pystripe
 
 
 def compute_average_in_roi(file_path, channel_indices, roi, white_path=None):
