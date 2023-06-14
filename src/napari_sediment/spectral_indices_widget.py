@@ -134,7 +134,7 @@ class SpectralIndexWidget(QWidget):
         self.ppi_boundaries_range.setValue(
             (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
         
-        self.plot_ppi()
+        self.plot_endmembers()
 
     def _add_analysis_roi(self, viewer, event):
         """Add roi to layer"""
@@ -164,7 +164,7 @@ class SpectralIndexWidget(QWidget):
         [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
         self.qlist_channels._on_change_channel_selection()
 
-    def plot_ppi(self, event=None):
+    def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
 
         self.ppi_plot.axes.clear()
