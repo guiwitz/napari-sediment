@@ -2,6 +2,8 @@ import numpy as np
 import tifffile
 import yaml
 from pathlib import Path
+
+import zarr
 from .parameters import Param
 from .parameters_endmembers import ParamEndMember
 
@@ -13,6 +15,27 @@ def load_mask(filename):
     
     mask = tifffile.imread(filename)
     return mask
+
+def save_image_to_zarr(image, zarr_path):
+    """Create a zarr file and stores image in it.
+    
+    Parameters
+    ----------
+    image : array
+        Image to save. Dims are (bands, rows, cols) or (rows, cols).
+    zarr_path : str
+        Path to save zarr to.
+    """
+
+    if image.ndim == 2:
+        chunks = (image.shape[0], image.shape[1])
+    elif image.ndim == 3:
+        chunks = (1, image.shape[1], image.shape[2])
+
+    im_zarr = zarr.open(zarr_path, mode='w', shape=image.shape,
+               chunks=chunks, dtype=image.dtype)
+    im_zarr[:] = image
+
 
 def load_params_yml(params, file_name='Parameters.yml'):
     

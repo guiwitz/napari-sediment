@@ -1,5 +1,6 @@
 import numpy as np
 from spectral import open_image
+from spectral.algorithms import calc_stats
 from ._reader import read_spectral
 from sklearn.covariance import EllipticEnvelope
 from sklearn.preprocessing import StandardScaler
@@ -367,6 +368,7 @@ def correct_single_channel(
             dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
         )[0]
     if destripe:
+        import pystripe
         corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
     
     im_zarr[zarr_ind, :,:] = corrected
@@ -413,17 +415,6 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
 
     client.close()
 
-def save_image_to_zarr(image, zarr_path):
-    """Save multichannel image to zarr"""
-
-    if image.ndim == 2:
-        chunks = (image.shape[0], image.shape[1])
-    elif image.ndim == 3:
-        chunks = (1, image.shape[1], image.shape[2])
-
-    im_zarr = zarr.open(zarr_path, mode='w', shape=image.shape,
-               chunks=chunks, dtype=image.dtype)
-    im_zarr[:] = image
 
 def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
     """Perform spectral clustering on pixel vectors
@@ -459,3 +450,35 @@ def find_index_of_band(band_list, band_value):
     band_index = np.argmin(np.abs(band_list-band_value))
     
     return band_index
+
+def custom_ppi(X, niters=1000, threshold=0, centered=False):
+
+    if not centered:
+        stats = calc_stats(X)
+        X = X - stats.mean
+
+    shape = X.shape
+    X = X.reshape(-1, X.shape[-1])
+    nbands = X.shape[-1]
+
+    counts = np.zeros(X.shape[0], dtype=np.uint32)
+    total_ppi = [0]
+    for i in range(niters):
+        r = np.random.rand(nbands) - 0.5
+        r /= np.sqrt(np.sum(r * r))
+        s = X.dot(r)
+        imin = np.argmin(s)
+        imax = np.argmax(s)
+
+        updating = True
+        if threshold == 0:
+            # Only the two extreme pixels are incremented
+            counts[imin] += 1
+            counts[imax] += 1
+        else:
+            # All pixels within threshold distance from the two extremes
+            counts[s >= (s[imax] - threshold)] += 1
+            counts[s <= (s[imin] + threshold)] += 1
+        total_ppi.append(np.sum(counts > 0))
+    
+    return counts.reshape(shape[:2]), total_ppi
