@@ -13,9 +13,9 @@ import pandas as pd
 
 from .parameters import Param
 from .parameters_endmembers import ParamEndMember
-from .io import load_project_params, load_endmember_params
+from .io import load_project_params, load_endmember_params, save_image_to_zarr
 from .imchannels import ImChannels
-from .sediproc import white_dark_correct, spectral_clustering, save_image_to_zarr
+from .sediproc import white_dark_correct, spectral_clustering
 from ._reader import read_spectral
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
@@ -88,8 +88,6 @@ class HyperAnalysisWidget(QWidget):
 
         self.ppi_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('PPI', self.ppi_plot)
-        self.btn_update_endmembers = QPushButton("Update end-members")
-        self.tabs.add_named_tab('PPI', self.btn_update_endmembers)
         self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.ppi_boundaries_range.setValue((0, 0, 0))
         self.tabs.add_named_tab('PPI', self.ppi_boundaries_range)
@@ -109,6 +107,8 @@ class HyperAnalysisWidget(QWidget):
         self.tabs.add_named_tab('Processing', self.process_group_mnfr.gbox)
         self.process_group_ppi = VHGroup('PPI', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_ppi.gbox)
+        self.process_group_endmember = VHGroup('End-members', orientation='G')
+        self.tabs.add_named_tab('Processing', self.process_group_endmember.gbox)
         self.process_group_io = VHGroup('IO', orientation='G')
         self.tabs.add_named_tab('Processing', self.process_group_io.gbox)
 
@@ -138,15 +138,34 @@ class HyperAnalysisWidget(QWidget):
         self.ppi_threshold.setValue(10)
         self.process_group_ppi.glayout.addWidget(QLabel('Threshold PPI counts'), 0, 0, 1, 1)
         self.process_group_ppi.glayout.addWidget(self.ppi_threshold, 0, 1, 1, 1)
+
+
+        self.ppi_proj_threshold = QDoubleSpinBox()
+        self.ppi_proj_threshold.setRange(0, 1)
+        self.ppi_proj_threshold.setSingleStep(0.1)
+        self.ppi_proj_threshold.setValue(0)
+        self.process_group_ppi.glayout.addWidget(QLabel('Threshold PPI projection'), 1, 0, 1, 1)
+        self.process_group_ppi.glayout.addWidget(self.ppi_proj_threshold, 1, 1, 1, 1)
+
         self.ppi_iterations = QSpinBox()
-        self.ppi_iterations.setRange(0, 10000)
+        self.ppi_iterations.setRange(0, 100000)
         self.ppi_iterations.setSingleStep(1)
         self.ppi_iterations.setValue(5000)
         self.process_group_ppi.glayout.addWidget(QLabel('Iterations'), 2, 0, 1, 1)
         self.process_group_ppi.glayout.addWidget(self.ppi_iterations, 2, 1, 1, 1)
+        
         self.btn_ppi = QPushButton("PPI")
         self.process_group_ppi.glayout.addWidget(self.btn_ppi, 3, 0, 1, 2)
 
+        self.btn_update_endmembers = QPushButton("Compute end-members")
+        self.process_group_endmember.glayout.addWidget(self.btn_update_endmembers, 0, 0, 1, 2)
+        self.qspin_endm_eps = QDoubleSpinBox()
+        self.qspin_endm_eps.setRange(0, 1)
+        self.qspin_endm_eps.setSingleStep(0.1)
+        self.qspin_endm_eps.setValue(0.5)
+        self.process_group_endmember.glayout.addWidget(QLabel('DBSCAN eps'), 1, 0, 1, 1)
+        self.process_group_endmember.glayout.addWidget(self.qspin_endm_eps, 1, 1, 1, 1)
+        
         self.btn_save_index_project = QPushButton("Save index project")
         self.process_group_io.glayout.addWidget(self.btn_save_index_project)
         self.btn_load_index_project = QPushButton("Load index project")
@@ -243,13 +262,13 @@ class HyperAnalysisWidget(QWidget):
         self.plot_correlation()
 
         if self.end_members is not None:
-            self.plot_ppi()
+            self.plot_endmembers()
             self.ppi_boundaries_range.setRange(self.bands[0],self.bands[-1])
             self.ppi_boundaries_range.setValue(self.params_endmembers.index_boundaries)
         else:
             if 'pure' in self.viewer.layers:
                 self.compute_end_members()
-                self.plot_ppi()
+                self.plot_endmembers()
 
 
     def save_index_project(self):
@@ -317,7 +336,7 @@ class HyperAnalysisWidget(QWidget):
         if self.export_folder.joinpath('end_members.csv').is_file():
             self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
             self.end_members = self.end_members[:,:-1]
-            self.plot_ppi()
+            self.plot_endmembers()
     
 
     def _on_click_load_mask(self):
@@ -436,7 +455,13 @@ class HyperAnalysisWidget(QWidget):
         im_masked[:, self.viewer.layers['mask'].data == 1] = 0
         im_masked = np.moveaxis(im_masked,0,2)
 
-        pure = ppi(im_masked, niters=self.ppi_iterations.value(), display=0)
+        #pure = ppi(im_masked, niters=self.ppi_iterations.value(), display=0)
+        from .sediproc import custom_ppi
+        pure, self.total_ppi_series = custom_ppi(
+            im_masked,
+            niters=self.ppi_iterations.value(),
+            threshold=self.ppi_proj_threshold.value(),
+        )
         if 'pure' in self.viewer.layers:
             self.viewer.layers['pure'].data = pure
         else:
@@ -448,7 +473,7 @@ class HyperAnalysisWidget(QWidget):
         """Update end-members based on threshold."""
 
         self.compute_end_members()
-        self.plot_ppi()
+        self.plot_endmembers()
 
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
@@ -459,7 +484,7 @@ class HyperAnalysisWidget(QWidget):
         vects_image = self.viewer.layers['imcube'].data[:,pure > self.ppi_threshold.value()] 
         
         # compute clustering
-        labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=0.5)
+        labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())
 
         # compute band location
         self.ppi_boundaries_range.setRange(min=self.bands[0],max=self.bands[-1])
@@ -473,7 +498,7 @@ class HyperAnalysisWidget(QWidget):
 
         self.end_members = np.stack(self.end_members, axis=1)
     
-    def plot_ppi(self, event=None):
+    def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
 
         self.ppi_plot.axes.clear()
