@@ -60,7 +60,12 @@ class ChannelWidget(QListWidget):
             )
         if self.parent_type == 'sediment':
             self.parent.viewer.layers[layer_name].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
-            
+
+        # put mask as top layer
+        if 'mask' in self.parent.viewer.layers:
+            mask_ind = [x.name for x in self.parent.viewer.layers].index('mask')
+            self.parent.viewer.layers.move(mask_ind, len(self.parent.viewer.layers))
+
     def _update_channel_list(self):
         """Update channel list"""
 
