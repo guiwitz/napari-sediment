@@ -18,12 +18,14 @@ class Param:
         path of dark image for the files
     dark_for_white_path: str
         path of dark image for the white image
-    channels: dict of str
-        channel getting exported as source
     main_roi: array
         main roi 
     rois: dict of arrays
         flat list of rois
+    scale: float
+        scale of the image in mm/px
+    location: str
+        location of the sample
     
     """
     project_path: str = None
@@ -33,7 +35,9 @@ class Param:
     dark_for_white_path: str = None
     main_roi: list = field(default_factory=list)
     rois: list = field(default_factory=list)
-
+    scale: float = None
+    location: str = None
+    
     def save_parameters(self, alternate_path=None):
         """Save parameters as yml file.
         

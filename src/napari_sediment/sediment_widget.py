@@ -33,6 +33,8 @@ from .parameters import Param
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
 from .widgets.mlwidget import MLWidget
+from .images import save_rgb_tiff_image
+
 import napari
 
 
@@ -70,7 +72,24 @@ class SedimentWidget(QWidget):
 
         self.main_layout.addWidget(self.tabs)
 
-        # loading tab
+
+        self._create_main_tab()
+        self._create_options_tab()
+        self._create_processing_tab()
+        self._create_mask_tab()
+        self._create_roi_tab()
+        self._create_export_tab()
+        self._create_plot_tab()
+
+        self.add_connections()
+
+    def new_view(self):
+        import napari
+        self.viewer2 = napari.Viewer()
+
+    def _create_main_tab(self):
+
+        # file selection
         self.files_group = VHGroup('File selection', orientation='G')
         self.tabs.add_named_tab('Main', self.files_group.gbox)
 
@@ -84,6 +103,20 @@ class SedimentWidget(QWidget):
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 1, 0, 1, 1)
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
 
+        # metadata
+        self.metadata_group = VHGroup('Metadata', orientation='G')
+        self.tabs.add_named_tab('Main', self.metadata_group.gbox)
+
+        self.metadata_location = QLineEdit("No location")
+        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
+        self.spinbox_metadata_scale = QDoubleSpinBox()
+        self.spinbox_metadata_scale.setRange(1, 1000)
+        self.spinbox_metadata_scale.setSingleStep(0.1)
+        self.spinbox_metadata_scale.setValue(1)
+        self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
+
         # channel selection
         self.main_group = VHGroup('Select', orientation='G')
         self.tabs.add_named_tab('Main', self.main_group.gbox)
@@ -92,6 +125,7 @@ class SedimentWidget(QWidget):
         self.qlist_channels = ChannelWidget(self)
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
 
+        # loading selection
         self.btn_RGB = QPushButton('Load RGB')
         self.main_group.glayout.addWidget(self.btn_RGB, 3, 0, 1, 2)
 
@@ -106,22 +140,6 @@ class SedimentWidget(QWidget):
         self.btn_new_view = QPushButton('New view')
         self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
         self.btn_new_view.clicked.connect(self.new_view)
-
-        # Plot tab
-        self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('Plotting', self.scan_plot)
-
-        self._create_options_tab()
-        self._create_processing_tab()
-        self._create_mask_tab()
-        self._create_roi_tab()
-        self._create_export_tab()
-
-        self.add_connections()
-
-    def new_view(self):
-        import napari
-        self.viewer2 = napari.Viewer()
 
     def _create_processing_tab(self):
         
@@ -258,6 +276,11 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('Export', self.mask_group_capture.gbox)
         self.btn_snapshot = QPushButton("Snapshot")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot)
+        self.lineedit_rgb_tiff = QLineEdit()
+        self.lineedit_rgb_tiff.setText('rgb.tiff')
+        self.mask_group_capture.glayout.addWidget(self.lineedit_rgb_tiff)
+        self.btn_save_rgb_tiff = QPushButton("Save RGB tiff")
+        self.mask_group_capture.glayout.addWidget(self.btn_save_rgb_tiff)
 
         self.mask_group_project = VHGroup('Project', orientation='G')
         self.tabs.add_named_tab('Export', self.mask_group_project.gbox)
@@ -298,6 +321,12 @@ class SedimentWidget(QWidget):
         self.crop_group.glayout.addWidget(self.check_use_crop, ind+1, 0, 1, 1)
         self.crop_group.glayout.addWidget(self.btn_refresh_crop, ind+1, 1, 1, 1)
 
+    def _create_plot_tab(self):
+
+        # Plot tab
+        self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.tabs.add_named_tab('Plotting', self.scan_plot)
+
 
     def add_connections(self):
         """Add callbacks"""
@@ -335,6 +364,7 @@ class SedimentWidget(QWidget):
         self.btn_snapshot.clicked.connect(self._on_click_snapshot)
         self.btn_export.clicked.connect(self.export_project)
         self.btn_import.clicked.connect(self.import_project)
+        self.btn_save_rgb_tiff.clicked.connect(self._on_click_save_rgb_tiff)
         
         # mouse
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
@@ -388,8 +418,20 @@ class SedimentWidget(QWidget):
 
         if self.check_use_external_ref.isChecked():
             try:
-                name_parts = self.imhdr_path.name.split('_')
-                refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
+
+                refpath = None
+                wr_files = list(self.imhdr_path.parent.parent.parent.glob('*_WR*'))
+                for wr in wr_files:
+                    wr_first_part = wr.name.split('WR')[0]
+                    if wr_first_part in self.imhdr_path.name:
+                        refpath = wr
+                if refpath is None:
+                    raise Exception('No matching white reference folder found')
+        
+
+                #name_parts = self.imhdr_path.name.split('_')
+                #refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
+                
                 self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
                 self.dark_for_white_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
             except:
@@ -808,6 +850,14 @@ class SedimentWidget(QWidget):
 
         self.viewer.screenshot(str(self.export_folder.joinpath('snapshot.png')))
 
+    def _on_click_save_rgb_tiff(self):
+        """Save RGB image to tiff file"""
+
+        rgb = ['red', 'green', 'blue']
+        image_list = [self.viewer.layers[c].data for c in rgb]
+        contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
+        save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
+        
 
     def _on_click_RGB(self):
         """Load RGB image"""
@@ -899,6 +949,9 @@ class SedimentWidget(QWidget):
         self.params.dark_for_white_path = self.dark_for_white_file_path
         self.params.main_roi = mainroi
         self.params.rois = rois
+        self.params.location = self.metadata_location.text()
+        self.params.scale = self.spinbox_metadata_scale.value()
+
         self.params.save_parameters()
 
     def export_project(self):
@@ -918,6 +971,7 @@ class SedimentWidget(QWidget):
 
         self.params = load_project_params(folder=self.export_folder)
 
+        # files
         self.imhdr_path = Path(self.params.file_path)
         self.white_file_path = Path(self.params.white_path)
         self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
@@ -926,6 +980,11 @@ class SedimentWidget(QWidget):
         self._on_select_file()
         self._on_click_load_mask()
 
+        # metadata
+        self.metadata_location.setText(self.params.location)
+        self.spinbox_metadata_scale.setValue(self.params.scale)
+
+        # rois
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
         mainroi[0] = mainroi[0].astype(int)
         rois = [np.array(x).reshape(4,2) for x in self.params.rois]
