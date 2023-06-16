@@ -106,6 +106,8 @@ class SpectralIndexWidget(QWidget):
             QSizePolicy.Expanding)
         #self.pixlabel.resizeEvent = self._on_resize_preview
         self.tabs.add_named_tab('Plots', self.pixlabel)
+        self.btn_create_index_plot = QPushButton("Create index plot")
+        self.tabs.add_named_tab('Plots', self.btn_create_index_plot)
 
         self.add_connections()
 
@@ -181,6 +183,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_export_index_settings.clicked.connect(self._on_click_export_index_settings)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
         self.btn_select_index_file.clicked.connect(self._on_click_select_index_file)
+        self.btn_create_index_plot.clicked.connect(self.create_index_plot)
         
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
@@ -313,8 +316,7 @@ class SpectralIndexWidget(QWidget):
     def create_index_plot(self):
         """Create the index plot."""
 
-
-        toplot = self.viewer.layers['RABD'].data
+        toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
 
         rgb_to_plot = self.viewer.layers['imcube'].data.copy()
@@ -326,15 +328,19 @@ class SpectralIndexWidget(QWidget):
         fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(2,8))
 
         ax[0].imshow(rgb_to_plot, aspect='auto')
-        ax[1].imshow(self.viewer.layers['RABD'].data, vmin=0, vmax=2, aspect='auto')
+        vmin = np.percentile(toplot, 0.1)
+        vmax = np.percentile(toplot, 99.9)
+        ax[1].imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto')
         #ax[2].imshow(np.ones((toplot.shape[0],toplot.shape[1],3)))
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
             colmin = int(roi[0,1])
             colmax = int(roi[3,1])
-            proj = self.viewer.layers['RABD'].data[:,colmin:colmax].mean(axis=1)
+            proj = toplot[:,colmin:colmax].mean(axis=1)
             ax[2].imshow(rgb_to_plot, alpha=0.0,aspect='auto')
-            ax[2].plot(1000*proj, np.arange(len(proj)))
+            ax[2].plot(1000 * proj, np.arange(len(proj)))
+            roi = np.concatenate([roi, roi[[0]]])
+            ax[1].plot(roi[:,1], roi[:,0], 'r')
             #ax[2].invert_yaxis()
             
         ax[0].set_xticks([])
@@ -344,7 +350,9 @@ class SpectralIndexWidget(QWidget):
         #ax[2].set_aspect(100*ax[0].get_data_ratio())
         fig.subplots_adjust(wspace=0)
         ax[0].set_ylabel('depth')
-        fig.savefig(self.export_folder.joinpath('index_plot.png'))
+        fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location)
+        fig.tight_layout()
+        fig.savefig(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'), dpi=300)
 
         self.pixmap = QPixmap(self.export_folder.joinpath('index_plot.png').as_posix())
         self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
