@@ -318,7 +318,7 @@ def remove_left_right(data):
 
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
-        zarr_ind, band, background_correction=True, destripe=True,
+        zarr_ind, band, background_correction=True, destripe=False,
         ):
     """White dark correction and save to zarr
     
