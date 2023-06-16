@@ -12,7 +12,7 @@ contributions:
       python_name: napari_sediment.hyperanalysis_widget:HyperAnalysisWidget
       title: Make Hyperanalysis QWidget
     - id: napari-sediment.make_spectralindexwidget
-      python_name: napari_sediment.spectral_index_widget:SpectralIndexWidget
+      python_name: napari_sediment.spectral_indices_widget:SpectralIndexWidget
       title: Make Spectral Indices QWidget
   readers:
     - command: napari-sediment.get_reader
