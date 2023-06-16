@@ -367,9 +367,9 @@ def correct_single_channel(
             dark_for_im_data=img_dark_load[:,:,np.newaxis],
             dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
         )[0]
-    if destripe:
-        import pystripe
-        corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
+    #if destripe:
+    #    import pystripe
+    #    corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
     
     im_zarr[zarr_ind, :,:] = corrected
 
