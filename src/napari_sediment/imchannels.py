@@ -119,6 +119,11 @@ class ImChannels:
             list of channels to get
         roi: array
             [row_start, row_end, col_start, col_end], None means full image
+
+        Returns
+        -------
+        data: array
+            array of shape (n_channels, n_rows, n_cols)
         
         """
 
