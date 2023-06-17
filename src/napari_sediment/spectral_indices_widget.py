@@ -330,7 +330,11 @@ class SpectralIndexWidget(QWidget):
             cmaps=['pure_red', 'pure_green', 'pure_blue'], 
             rescale_type='limits', limits=[0,4000], proj_type='sum')
 
-        #fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(2,8))
+        # The plot has the same height as the image and 6 times the width
+        # Two two images take 1 width and the plot 4
+        # In addition there are margins on all sides, specified in fractions of the image dimesions
+        # The axes are added in fractions of the figure dimensions. It is made sure
+        # that the axes fille the space of the full figure minus the margins
         im_w = toplot.shape[1]
         im_h = toplot.shape[0]
         width_tot = 6*im_w
@@ -347,6 +351,8 @@ class SpectralIndexWidget(QWidget):
 
         quarter = im_w / width_tot_margin
 
+        # The figure and axes are set explicitly to make sure that the axes fill the figure
+        # This is achieved using the add_axes method instead of subplots
         fig_size = 15*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
         fig = plt.figure(figsize=fig_size)
         ax1 = fig.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
@@ -357,13 +363,11 @@ class SpectralIndexWidget(QWidget):
         vmin = np.percentile(toplot, 0.1)
         vmax = np.percentile(toplot, 99.9)
         ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
-        #ax[2].imshow(np.ones((toplot.shape[0],toplot.shape[1],3)))
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
             colmin = int(roi[0,1])
             colmax = int(roi[3,1])
             proj = toplot[:,colmin:colmax].mean(axis=1)
-            #ax[2].imshow(rgb_to_plot, alpha=0.0,aspect='auto')
             ax3.plot(proj, np.arange(len(proj)),linewidth=0.5)
             roi = np.concatenate([roi, roi[[0]]])
             ax2.plot(roi[:,1], roi[:,0], 'r')
@@ -386,7 +390,9 @@ class SpectralIndexWidget(QWidget):
         fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location)
         fig.text(x=0, y=0, s='test')
 
-        fig.savefig(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'), dpi=500)
+        fig.savefig(
+            self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'),
+            dpi=500, bbox_inches="tight")
 
         # update napari preview
         self.pixmap = QPixmap(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png').as_posix())
