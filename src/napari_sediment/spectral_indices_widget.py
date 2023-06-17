@@ -325,36 +325,59 @@ class SpectralIndexWidget(QWidget):
             cmaps=['pure_red', 'pure_green', 'pure_blue'], 
             rescale_type='limits', limits=[0,4000], proj_type='sum')
 
-        fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(2,8))
+        #fig, ax = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=(2,8))
+        im_w = toplot.shape[1]
+        im_h = toplot.shape[0]
+        width_tot = 6*im_w
 
-        ax[0].imshow(rgb_to_plot, aspect='auto')
+        to_add_top = 0.05*im_h
+        to_add_bottom = 0.05*im_h
+        to_add_left = 0.25 * width_tot
+        to_add_right = 0.25 * width_tot
+
+        width_tot_margin = width_tot + to_add_left + to_add_right
+        height_tot_margin = im_h + to_add_top + to_add_bottom
+        left_margin = to_add_left / width_tot_margin
+        bottom_margin = to_add_bottom / height_tot_margin
+
+        quarter = im_w / width_tot_margin
+
+        fig_size = 15*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+        fig = plt.figure(figsize=fig_size)
+        ax1 = fig.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
+        ax2 = fig.add_axes(rect=(quarter+left_margin,bottom_margin,quarter,im_h / height_tot_margin))
+        ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, 4*quarter, im_h / height_tot_margin))
+
+        ax1.imshow(rgb_to_plot, aspect='auto')
         vmin = np.percentile(toplot, 0.1)
         vmax = np.percentile(toplot, 99.9)
-        ax[1].imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto')
+        ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto')
         #ax[2].imshow(np.ones((toplot.shape[0],toplot.shape[1],3)))
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
             colmin = int(roi[0,1])
             colmax = int(roi[3,1])
             proj = toplot[:,colmin:colmax].mean(axis=1)
-            ax[2].imshow(rgb_to_plot, alpha=0.0,aspect='auto')
-            ax[2].plot(1000 * proj, np.arange(len(proj)))
+            #ax[2].imshow(rgb_to_plot, alpha=0.0,aspect='auto')
+            ax3.plot(proj, np.arange(len(proj)),linewidth=0.5)
             roi = np.concatenate([roi, roi[[0]]])
-            ax[1].plot(roi[:,1], roi[:,0], 'r')
-            #ax[2].invert_yaxis()
+            ax2.plot(roi[:,1], roi[:,0], 'r')
+
+            ax3.set_ylim(0, len(proj))
+            ax3.yaxis.tick_right()
+            ax3.invert_yaxis()
             
-        ax[0].set_xticks([])
-        ax[1].set_xticks([])
-
-
-        #ax[2].set_aspect(100*ax[0].get_data_ratio())
-        fig.subplots_adjust(wspace=0)
-        ax[0].set_ylabel('depth')
+        ax1.set_xticks([])
+        ax2.set_xticks([])
+        ax2.set_ylim(len(proj),0)
+        ax1.set_ylabel('depth')
         fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location)
-        fig.tight_layout()
-        fig.savefig(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'), dpi=300)
+        fig.text(x=0, y=0, s='test')
 
-        self.pixmap = QPixmap(self.export_folder.joinpath('index_plot.png').as_posix())
+        fig.savefig(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'), dpi=500)
+
+        # update napari preview
+        self.pixmap = QPixmap(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png').as_posix())
         self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
 
     def _on_click_new_index(self, event):
