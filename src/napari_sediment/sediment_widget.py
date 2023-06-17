@@ -292,7 +292,7 @@ class SedimentWidget(QWidget):
 
     def _create_options_tab(self):
         
-        self.background_group = VHGroup('Background selection')
+        self.background_group = VHGroup('Background selection', orientation='G')
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
         self.tabs.add_named_tab('Options', self.background_group.gbox)
@@ -302,13 +302,19 @@ class SedimentWidget(QWidget):
         self.check_use_external_ref.setChecked(True)
 
         self.btn_select_white_file = QPushButton("Select white ref")
-        self.background_group.glayout.addWidget(self.btn_select_white_file)
+        self.qtext_select_white_file = QLineEdit()
+        self.background_group.glayout.addWidget(self.btn_select_white_file, 0, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_white_file, 0, 1, 1, 1)
 
         self.btn_select_dark_file = QPushButton("Select dark ref")
-        self.background_group.glayout.addWidget(self.btn_select_dark_file)
+        self.qtext_select_dark_file = QLineEdit()
+        self.background_group.glayout.addWidget(self.btn_select_dark_file, 1, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 1, 1, 1, 1)
 
-        self.btn_select_dark_for_white_file = QPushButton("Select dark ref of white ref")
-        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file)
+        self.btn_select_dark_for_white_file = QPushButton("Select dark ref for white ref")
+        self.qtext_select_dark_for_white_file = QLineEdit()
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file, 2, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
 
         crop_bounds_name = ['Min row', 'Max row', 'Min col', 'Max col']
         self.crop_bounds = {x: QSpinBox() for x in crop_bounds_name}
@@ -399,16 +405,19 @@ class SedimentWidget(QWidget):
         """Interactively select white reference"""
         
         self.white_file_path = Path(QFileDialog.getOpenFileName(self, "Select White Ref")[0])
+        self.qtext_select_white_file.setText(self.white_file_path.as_posix())
 
     def _on_click_select_dark_file(self):
         """Interactively select white reference"""
         
         self.dark_for_white_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref ofr white")[0])
+        self.qtext_select_dark_file.setText(self.dark_for_white_file_path.as_posix())
 
     def _on_click_select_dark_for_white_file(self):
         """Interactively select white reference"""
         
         self.dark_for_im_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0])
+        self.qtext_select_dark_for_white_file.setText(self.dark_for_im_file_path.as_posix())
 
     def set_paths(self, imhdr_path):
         """Update image and white/dark image paths"""
@@ -418,7 +427,6 @@ class SedimentWidget(QWidget):
 
         if self.check_use_external_ref.isChecked():
             try:
-
                 refpath = None
                 wr_files = list(self.imhdr_path.parent.parent.parent.glob('*_WR*'))
                 for wr in wr_files:
@@ -434,10 +442,14 @@ class SedimentWidget(QWidget):
                 
                 self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
                 self.dark_for_white_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
+
+                self.qtext_select_white_file.setText(self.white_file_path.as_posix())
+                self.qtext_select_dark_file.setText(self.dark_for_white_file_path.as_posix())
             except:
                 warnings.warn('Low exposure White and dark reference files not found. Please select manually.')
             try:
                 self.dark_for_im_file_path = list(self.imhdr_path.parent.glob('DARK*.hdr'))[0]
+                self.qtext_select_dark_for_white_file.setText(self.dark_for_im_file_path.as_posix())
             except:
                 warnings.warn('No Dark Ref found for image')
 
