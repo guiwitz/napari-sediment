@@ -319,6 +319,11 @@ class SpectralIndexWidget(QWidget):
         toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
 
+        # get colormap
+        from cmap import Colormap
+        newmap = Colormap(self.viewer.layers[self.qcom_indices.currentText()]._colormap.colors)
+        mpl_map = newmap.to_matplotlib()
+
         rgb_to_plot = self.viewer.layers['imcube'].data.copy()
         rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
             rgb_to_plot,
@@ -351,7 +356,7 @@ class SpectralIndexWidget(QWidget):
         ax1.imshow(rgb_to_plot, aspect='auto')
         vmin = np.percentile(toplot, 0.1)
         vmax = np.percentile(toplot, 99.9)
-        ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto')
+        ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
         #ax[2].imshow(np.ones((toplot.shape[0],toplot.shape[1],3)))
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
@@ -366,11 +371,18 @@ class SpectralIndexWidget(QWidget):
             ax3.set_ylim(0, len(proj))
             ax3.yaxis.tick_right()
             ax3.invert_yaxis()
-            
+        
+        # set y axis scale
+        scale = self.params.scale #mm/px
+        tickpos = np.array([x.get_position()[1] for x in  ax1.get_yticklabels()])[1:-1]
+        newlabels = scale * np.array(tickpos)
+        ax1.set_yticks(ticks=tickpos, labels = newlabels)
+
         ax1.set_xticks([])
         ax2.set_xticks([])
+        ax2.set_yticks([])
         ax2.set_ylim(len(proj),0)
-        ax1.set_ylabel('depth')
+        ax1.set_ylabel('depth [mm]')
         fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location)
         fig.text(x=0, y=0, s='test')
 
