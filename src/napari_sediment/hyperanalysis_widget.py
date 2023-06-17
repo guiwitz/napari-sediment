@@ -373,6 +373,7 @@ class HyperAnalysisWidget(QWidget):
 
         self.eigen_plot.axes.clear()
         self.eigen_plot.axes.plot(self.eigenvals)
+        self.eigen_plot.axes.set_title('Eigenvalues', fontdict={'color':'w'})
             
         self.eigen_plot.canvas.figure.canvas.draw()
 
@@ -421,6 +422,7 @@ class HyperAnalysisWidget(QWidget):
 
         self.corr_plot.axes.clear()
         self.corr_plot.axes.plot(self.all_coef)#, linewidth=0.1, markersize=0.5)
+        self.corr_plot.axes.set_title('Line correlation', fontdict={'color':'w'})
         self.corr_plot.canvas.figure.canvas.draw()
 
     def _on_click_reduce_mnfr_on_correlation(self):
