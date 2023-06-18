@@ -494,7 +494,7 @@ class SedimentWidget(QWidget):
 
         self._on_click_RGB()
 
-        self._add_roi_layer()
+        #self._add_roi_layer()
         self._add_mask()
         self._update_range_wavelength()
 
@@ -948,11 +948,17 @@ class SedimentWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
-        mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
-        mainroi = [[x.item() for x in y] for y in mainroi]
+        if 'main-roi' not in self.viewer.layers:
+            mainroi = []
+        else:
+            mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
+            mainroi = [[x.item() for x in y] for y in mainroi]
 
-        rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
-        rois = [[x.item() for x in y] for y in rois]
+        if 'rois' not in self.viewer.layers:
+            rois = []
+        else:
+            rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
+            rois = [[x.item() for x in y] for y in rois]
 
         self.params.project_path = self.export_folder
         self.params.file_path = self.imhdr_path
