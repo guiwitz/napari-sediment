@@ -137,9 +137,17 @@ class SedimentWidget(QWidget):
         self.combo_layer_to_rgb = QComboBox()
         self.main_group.glayout.addWidget(self.combo_layer_to_rgb, 5, 1, 1, 1)
 
-        self.btn_new_view = QPushButton('New view')
-        self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
-        self.btn_new_view.clicked.connect(self.new_view)
+        #self.btn_new_view = QPushButton('New view')
+        #self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
+        #self.btn_new_view.clicked.connect(self.new_view)
+        self.slider_contrast = QDoubleRangeSlider(Qt.Horizontal)
+        self.slider_contrast.setRange(0, 1)
+        self.slider_contrast.setSingleStep(0.01)
+        self.slider_contrast.setSliderPosition([0, 1])
+        self.main_group.glayout.addWidget(QLabel("RGB Contrast"), 6, 0, 1, 1)
+        self.main_group.glayout.addWidget(self.slider_contrast, 6, 1, 1, 1)
+
+
 
     def _create_processing_tab(self):
         
@@ -351,6 +359,7 @@ class SedimentWidget(QWidget):
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
+        self.slider_contrast.valueChanged.connect(self._on_change_contrast)
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
@@ -903,6 +912,18 @@ class SedimentWidget(QWidget):
             self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
             
         self._update_threshold_limits()
+
+    def _on_change_contrast(self, event=None):
+        """Update contrast limits of RGB channels"""
+        
+        rgb = ['red', 'green', 'blue']
+        for c in rgb:
+            contrast_limits = np.percentile(self.viewer.layers[c].data, (2,98))
+            contrast_range = contrast_limits[1] - contrast_limits[0]
+            newlimits = contrast_limits.copy()
+            newlimits[0] = contrast_limits[0] + self.slider_contrast.value()[0] * contrast_range
+            newlimits[1] = contrast_limits[0] + self.slider_contrast.value()[1] * contrast_range
+            self.viewer.layers[c].contrast_limits = newlimits
 
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
