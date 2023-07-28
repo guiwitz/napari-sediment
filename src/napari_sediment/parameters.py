@@ -35,8 +35,8 @@ class Param:
     dark_for_white_path: str = None
     main_roi: list = field(default_factory=list)
     rois: list = field(default_factory=list)
-    scale: float = None
-    location: str = None
+    scale: float = 1
+    location: str = ''
     
     def save_parameters(self, alternate_path=None):
         """Save parameters as yml file.
