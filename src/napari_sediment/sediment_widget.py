@@ -430,6 +430,10 @@ class SedimentWidget(QWidget):
 
     def set_paths(self, imhdr_path):
         """Update image and white/dark image paths"""
+
+        self.white_file_path = None
+        self.dark_for_white_file_path = None
+        self.dark_for_im_file_path = None
         
         self.imhdr_path = Path(imhdr_path)
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
