@@ -192,10 +192,13 @@ class HyperAnalysisWidget(QWidget):
         cid = self.eigen_plot.canvas.mpl_connect('button_release_event', self._on_interactive_eigen_threshold)
         cid2 = self.corr_plot.canvas.mpl_connect('button_release_event', self._on_interactive_corr_threshold)
 
-    def _on_click_select_export_folder(self):
+    def _on_click_select_export_folder(self, event=None, alternate_path=None):
         """Interactively select folder to analyze"""
 
-        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        if alternate_path is not None:
+            self.export_folder = Path(alternate_path)
+        else:
+            self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         self.export_path_display.setText(self.export_folder.as_posix())
 
     def import_project(self):
