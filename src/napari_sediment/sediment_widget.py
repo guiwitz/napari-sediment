@@ -90,15 +90,18 @@ class SedimentWidget(QWidget):
     def _create_main_tab(self):
 
         # file selection
-        self.files_group = VHGroup('File selection', orientation='G')
+        self.files_group = VHGroup('Files and folders', orientation='G')
         self.tabs.add_named_tab('Main', self.files_group.gbox)
 
         self.btn_select_imhdr_file = QPushButton("Select imhdr file")
+        self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
         self.imhdr_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
         self.files_group.glayout.addWidget(self.imhdr_path_display, 0, 1, 1, 1)
 
-        self.btn_select_export_folder = QPushButton("Select export folder")
+        self.btn_select_export_folder = QPushButton("Set export folder")
+        self.btn_select_export_folder.setToolTip(
+            "Select a folder where to save the results and intermeditate files")
         self.export_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 1, 0, 1, 1)
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
@@ -108,9 +111,11 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('Main', self.metadata_group.gbox)
 
         self.metadata_location = QLineEdit("No location")
+        self.metadata_location.setToolTip("Indicate the location of data acquisition")
         self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
         self.spinbox_metadata_scale = QDoubleSpinBox()
+        self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
         self.spinbox_metadata_scale.setRange(1, 1000)
         self.spinbox_metadata_scale.setSingleStep(0.1)
         self.spinbox_metadata_scale.setValue(1)
@@ -118,24 +123,52 @@ class SedimentWidget(QWidget):
         self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
 
         # channel selection
-        self.main_group = VHGroup('Select', orientation='G')
+        self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('Main', self.main_group.gbox)
 
-        self.main_group.glayout.addWidget(QLabel('Channels to load'), 0, 0, 1, 2)
+        self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
         self.qlist_channels = ChannelWidget(self)
+        self.qlist_channels.setToolTip(
+            "Select one or more (hold shift) bands to load. Loaded bands are displayed in the imcube layer.")
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
 
-        # loading selection
-        self.btn_RGB = QPushButton('Load RGB')
-        self.main_group.glayout.addWidget(self.btn_RGB, 3, 0, 1, 2)
-
         self.btn_select_all = QPushButton('Select all')
-        self.main_group.glayout.addWidget(self.btn_select_all, 4, 0, 1, 2)
+        self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
-        self.btn_dislpay_as_rgb = QPushButton('Display as RGB')
-        self.main_group.glayout.addWidget(self.btn_dislpay_as_rgb, 5, 0, 1, 1)
+        self.rgbmain_group = VHGroup('RGB', orientation='G')
+        self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
+
+        self.rgb_bands_group = VHGroup('Select bands to display as RGB', orientation='G')
+        self.rgbmain_group.glayout.addWidget(self.rgb_bands_group.gbox, 0, 0, 1, 2)
+
+        self.btn_RGB = QPushButton('Load RGB')
+        self.btn_RGB.setToolTip("Load RGB channels")
+        self.spin_rchannel = QSpinBox()
+        self.spin_rchannel.setRange(0, 1000)
+        self.spin_rchannel.setValue(640)
+        self.spin_gchannel = QSpinBox()
+        self.spin_gchannel.setRange(0, 1000)
+        self.spin_gchannel.setValue(545)
+        self.spin_bchannel = QSpinBox()
+        self.spin_bchannel.setRange(0, 1000)
+        self.spin_bchannel.setValue(460)
+
+        self.rgb_bands_group.glayout.addWidget(QLabel('R'), 1, 0, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(self.spin_rchannel, 1, 1, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(QLabel('G'), 1, 2, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(self.spin_gchannel, 1, 3, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(QLabel('B'), 1, 4, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(self.spin_bchannel, 1, 5, 1, 1)
+        self.rgb_bands_group.glayout.addWidget(self.btn_RGB, 2, 0, 1, 6)
+
+        self.rgb_layer_group = VHGroup('Select layer to display as RGB', orientation='G')
+        self.rgbmain_group.glayout.addWidget(self.rgb_layer_group.gbox, 1, 0, 1, 2)
+
         self.combo_layer_to_rgb = QComboBox()
-        self.main_group.glayout.addWidget(self.combo_layer_to_rgb, 5, 1, 1, 1)
+        self.rgb_layer_group.glayout.addWidget(QLabel('Layer to display'), 0, 0, 1, 1)
+        self.rgb_layer_group.glayout.addWidget(self.combo_layer_to_rgb, 0, 1, 1, 1)
+        self.btn_dislpay_as_rgb = QPushButton('Display layer as RGB')
+        self.rgb_layer_group.glayout.addWidget(self.btn_dislpay_as_rgb, 1, 0, 2, 2)
 
         #self.btn_new_view = QPushButton('New view')
         #self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
@@ -144,8 +177,8 @@ class SedimentWidget(QWidget):
         self.slider_contrast.setRange(0, 1)
         self.slider_contrast.setSingleStep(0.01)
         self.slider_contrast.setSliderPosition([0, 1])
-        self.main_group.glayout.addWidget(QLabel("RGB Contrast"), 6, 0, 1, 1)
-        self.main_group.glayout.addWidget(self.slider_contrast, 6, 1, 1, 1)
+        self.rgbmain_group.glayout.addWidget(QLabel("RGB Contrast"), 2, 0, 1, 1)
+        self.rgbmain_group.glayout.addWidget(self.slider_contrast, 2, 1, 1, 1)
 
 
 
@@ -153,11 +186,33 @@ class SedimentWidget(QWidget):
         
         self.tabs.widget(self.tab_names.index('Processing')).layout().setAlignment(Qt.AlignTop)
 
-        self.process_group = VHGroup('Process Hypercube', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group.gbox)
+        self.background_group = VHGroup('Background correction', orientation='G')
+        self.tabs.add_named_tab('Processing', self.background_group.gbox)
 
-        self.btn_background_correct = QPushButton("Background correct")
-        self.process_group.glayout.addWidget(self.btn_background_correct)
+        self.btn_select_dark_file = QPushButton("Manual selection")
+        self.qtext_select_dark_file = QLineEdit()
+        self.qtext_select_dark_file.setText('No path')
+        self.background_group.glayout.addWidget(QLabel('Dark ref'), 0, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 0, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_file, 0, 2, 1, 1)
+
+        self.btn_select_white_file = QPushButton("Manual selection")
+        self.qtext_select_white_file = QLineEdit()
+        self.qtext_select_white_file.setText('No path')
+        self.background_group.glayout.addWidget(QLabel('White ref'), 1, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
+
+        self.btn_select_dark_for_white_file = QPushButton("Manual selection")
+        self.qtext_select_dark_for_white_file = QLineEdit()
+        self.qtext_select_dark_for_white_file.setText('No path')
+        self.background_group.glayout.addWidget(QLabel('Dark ref for White'), 2, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file, 2, 2, 1, 1)
+
+        self.btn_background_correct = QPushButton("Correct imcube")
+        self.background_group.glayout.addWidget(self.btn_background_correct, 3, 0, 1, 3)
+
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
@@ -175,7 +230,7 @@ class SedimentWidget(QWidget):
 
         self.batch_group = VHGroup('Batch', orientation='G')
         self.tabs.add_named_tab('Processing', self.batch_group.gbox)
-        self.btn_batch_correct = QPushButton("Save corrected images")
+        self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
         self.slider_batch_wavelengths.setRange(0, 1000)
@@ -305,29 +360,12 @@ class SedimentWidget(QWidget):
 
     def _create_options_tab(self):
         
-        self.background_group = VHGroup('Background selection', orientation='G')
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
-        self.tabs.add_named_tab('Options', self.background_group.gbox)
         self.tabs.add_named_tab('Options', self.crop_group.gbox)
 
         self.check_use_external_ref = QCheckBox("Use external reference")
         self.check_use_external_ref.setChecked(True)
-
-        self.btn_select_white_file = QPushButton("Select white ref")
-        self.qtext_select_white_file = QLineEdit()
-        self.background_group.glayout.addWidget(self.btn_select_white_file, 0, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_white_file, 0, 1, 1, 1)
-
-        self.btn_select_dark_file = QPushButton("Select dark ref")
-        self.qtext_select_dark_file = QLineEdit()
-        self.background_group.glayout.addWidget(self.btn_select_dark_file, 1, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 1, 1, 1, 1)
-
-        self.btn_select_dark_for_white_file = QPushButton("Select dark ref for white ref")
-        self.qtext_select_dark_for_white_file = QLineEdit()
-        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file, 2, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
 
         crop_bounds_name = ['Min row', 'Max row', 'Min col', 'Max col']
         self.crop_bounds = {x: QSpinBox() for x in crop_bounds_name}
@@ -358,6 +396,9 @@ class SedimentWidget(QWidget):
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
         self.btn_RGB.clicked.connect(self._on_click_RGB)
+        self.spin_rchannel.valueChanged.connect(self._on_change_rgb)
+        self.spin_gchannel.valueChanged.connect(self._on_change_rgb)
+        self.spin_bchannel.valueChanged.connect(self._on_change_rgb)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.btn_dislpay_as_rgb.clicked.connect(self.display_as_rgb)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
@@ -666,7 +707,7 @@ class SedimentWidget(QWidget):
 
     def _update_combo_layers(self):
         
-        admit_layers = ['imcube', 'imcube_corrected', 'RBB']
+        admit_layers = ['imcube', 'imcube_corrected', 'RGB']
         self.combo_layer_destripe.clear()
         for a in admit_layers:
             if a in self.viewer.layers:
@@ -890,7 +931,10 @@ class SedimentWidget(QWidget):
         contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
         save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
         
+    def _on_change_rgb(self, event=None):
 
+        self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
+    
     def _on_click_RGB(self):
         """Load RGB image"""
 
