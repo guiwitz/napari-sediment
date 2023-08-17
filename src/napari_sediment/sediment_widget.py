@@ -26,7 +26,7 @@ from ._reader import read_spectral
 from .sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
-                       find_index_of_band)
+                       find_index_of_band, savgol_destripe)
 from .imchannels import ImChannels
 from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters import Param
@@ -162,10 +162,15 @@ class SedimentWidget(QWidget):
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
         self.combo_layer_destripe = QComboBox()
-        #self.combo_layer_destripe.addItems(['RGB', 'imcube'])
-        self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 0, 1, 1)
+        self.destripe_group.glayout.addWidget(QLabel('Layer'), 0, 0, 1, 1)
+        self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 1, 1, 1)
+        self.qspin_destripe_width = QSpinBox()
+        self.qspin_destripe_width.setRange(1, 1000)
+        self.qspin_destripe_width.setValue(100)
+        self.destripe_group.glayout.addWidget(QLabel('Savgol Width'), 1, 0, 1, 1)
+        self.destripe_group.glayout.addWidget(self.qspin_destripe_width, 1, 1, 1, 1)
         self.btn_destripe = QPushButton("Destripe")
-        self.destripe_group.glayout.addWidget(self.btn_destripe)
+        self.destripe_group.glayout.addWidget(self.btn_destripe, 2, 0, 1, 2)
 
 
         self.batch_group = VHGroup('Batch', orientation='G')
@@ -621,7 +626,9 @@ class SedimentWidget(QWidget):
             data_destripe = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
         
         for d in range(data_destripe.shape[0]):
-            data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
+            #data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
+            width = self.qspin_destripe_width.value()
+            data_destripe[d] = savgol_destripe(data_destripe[d], width=width, order=2)
 
         if selected_layer == 'RGB':
             for ind, x in enumerate(self.rgb_names):

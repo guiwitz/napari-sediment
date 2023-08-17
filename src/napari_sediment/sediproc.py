@@ -9,6 +9,7 @@ import skimage
 import zarr
 from dask.distributed import Client
 from tqdm import tqdm
+from scipy.signal import savgol_filter
 #import pystripe
 
 
@@ -316,6 +317,80 @@ def remove_left_right(data):
     last_index = sel_split[-1]
     return first_index, last_index
 
+def savgol_destripe(image, width=100, order=2):
+    """Perform Savitzky-Golay destriping.
+
+    Adapted from https://github.com/tmiraglio/SUREHYP/blob/e7ab633e70f4bb995fc82e02985f231c34dd4818/src/surehyp/preprocess.py#L366
+    which is licensed under:
+    
+    BSD 3-Clause License
+
+    Copyright (c) 2022, Thomas Miraglio
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are met:
+
+    1. Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+    3. Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+    FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+    DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+    CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+    OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    
+    Parameters
+    ----------
+    image : array
+        Image to destripe. Dims are (rows, cols) or (rows. cols, bands).
+    width : int
+        Window width.
+    order : int
+        Order of polynomial to fit.
+    
+    Returns
+    -------
+    image : array
+        Destriped image. Dims are (rows, cols).
+    """
+
+    single_channel = False
+    if image.ndim == 2:
+        single_channel = True
+        image = image[:,:,np.newaxis]
+    
+    Pca=np.nanmedian(image,axis=0)
+
+    Pfit=[]
+    for b in np.arange(Pca.shape[1]):
+        Pfit.append(savgol_filter(Pca[:,b], width, order))
+    
+    Pfit=np.asarray(Pfit).T
+    diff=Pfit-Pca
+    diff=np.tile(diff,(image.shape[0],1,1))
+
+    image=image+diff
+
+    if single_channel:
+        image = image[:,:,0]
+    
+    return image
+    
+
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
         zarr_ind, band, background_correction=True, destripe=False,
@@ -367,10 +442,11 @@ def correct_single_channel(
             dark_for_im_data=img_dark_load[:,:,np.newaxis],
             dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
         )[0]
-    #if destripe:
+    if destripe:
     #    import pystripe
     #    corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
-    
+        corrected = savgol_destripe(corrected, width=100, order=2)
+
     im_zarr[zarr_ind, :,:] = corrected
 
     return None
