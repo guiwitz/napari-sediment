@@ -33,7 +33,7 @@ class MLWidget(QWidget):
         self.main_layout.addWidget(self.spin_gaussian_smoothing, 1, 1, 1, 1)
         self.btn_reset_mlmodel = QPushButton("Reset/Initialize ML model")
         self.main_layout.addWidget(self.btn_reset_mlmodel, 2, 0, 1, 2)
-        self.btn_ml_mask = QPushButton("Pixel Classifier mask")
+        self.btn_ml_mask = QPushButton("Generate mask")
         self.main_layout.addWidget(self.btn_ml_mask, 3, 0, 1, 2)
 
         self.add_connections()
