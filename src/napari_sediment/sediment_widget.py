@@ -259,22 +259,30 @@ class SedimentWidget(QWidget):
             
         self.tabs.widget(self.tab_names.index('Mask')).layout().setAlignment(Qt.AlignTop)
         
-        
-        self.mask_group_border = VHGroup('Mask processing', orientation='G')
-        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
-        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
-        self.mask_group_phasor = VHGroup('Phasor Threshold', orientation='G')
-        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
-        self.mask_group_combine = VHGroup('Combine', orientation='G')
-        self.tabs.add_named_tab('Mask', self.mask_group_border.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_group_manual.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_group_auto.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_group_phasor.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_group_ml.gbox)
-        self.tabs.add_named_tab('Mask', self.mask_group_combine.gbox)
+        self.mask_generation_group = VHGroup('1. Create one or more masks', orientation='G')
+        self.tabs.add_named_tab('Mask', self.mask_generation_group.gbox)
 
+        self.mask_assemble_group = VHGroup('2. Assemble masks', orientation='G')
+        self.tabs.add_named_tab('Mask', self.mask_assemble_group.gbox)
+        
+        self.mask_group_border = VHGroup('Border mask', orientation='G')
+        self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
+        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
+        self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
+
+        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
+        self.mask_group_auto.gbox.setToolTip("Fit intensity distribution with a Gaussian and set threshold at a given width")
+
+        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
+        self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
+        
+        self.mask_generation_group.glayout.addWidget(self.mask_group_border.gbox)
+        self.mask_generation_group.glayout.addWidget(self.mask_group_manual.gbox)
+        self.mask_generation_group.glayout.addWidget(self.mask_group_auto.gbox)
+        self.mask_generation_group.glayout.addWidget(self.mask_group_ml.gbox)
+        
         # border
-        self.btn_border_mask = QPushButton("Border mask")
+        self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
         # manual
@@ -282,25 +290,26 @@ class SedimentWidget(QWidget):
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
-        self.mask_group_manual.glayout.addWidget(QLabel("Threshold value"), 0, 0, 1, 1)
+        self.mask_group_manual.glayout.addWidget(QLabel("Min/Max Threshold"), 0, 0, 1, 1)
         self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 0, 1, 1, 1)
-        self.btn_update_mask = QPushButton("Manual Threshold mask")
+        self.btn_update_mask = QPushButton("Generate mask")
         self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 1, 0, 1, 2)
         
         # auto
-        self.btn_automated_mask = QPushButton("Automated mask")
+        self.btn_automated_mask = QPushButton("Generate mask")
         self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 1)
         self.spin_automated_mask_width = QDoubleSpinBox()
+        self.spin_automated_mask_width.setToolTip("Set threshold at a given width of the intensity distribution")
         self.spin_automated_mask_width.setRange(0.1, 10)
         self.spin_automated_mask_width.setSingleStep(0.1)
-        self.mask_group_auto.glayout.addWidget(QLabel('Distr. Width'), 1, 0, 1, 1)
+        self.mask_group_auto.glayout.addWidget(QLabel('Intensity distribution Width'), 1, 0, 1, 1)
         self.mask_group_auto.glayout.addWidget(self.spin_automated_mask_width, 1, 1, 1, 1)
 
         # phasor
-        self.btn_compute_phasor = QPushButton("Compute Phasor")
-        self.mask_group_phasor.glayout.addWidget(self.btn_compute_phasor, 0, 0, 1, 2)
-        self.btn_select_by_phasor = QPushButton("Phasor mask")
-        self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
+        #self.btn_compute_phasor = QPushButton("Compute Phasor")
+        #self.mask_group_phasor.glayout.addWidget(self.btn_compute_phasor, 0, 0, 1, 2)
+        #self.btn_select_by_phasor = QPushButton("Phasor mask")
+        #self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
         # ml
         self.mlwidget = MLWidget(self, self.viewer)
@@ -308,61 +317,71 @@ class SedimentWidget(QWidget):
         
         # combine
         self.btn_combine_masks = QPushButton("Combine masks")
-        self.mask_group_combine.glayout.addWidget(self.btn_combine_masks, 0, 0, 1, 2)
+        self.mask_assemble_group.glayout.addWidget(self.btn_combine_masks, 0, 0, 1, 2)
         self.btn_clean_mask = QPushButton("Clean mask")
-        self.mask_group_combine.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
+        self.mask_assemble_group.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
         
     def _create_roi_tab(self):
 
         self.tabs.widget(self.tab_names.index('ROI')).layout().setAlignment(Qt.AlignTop)
 
-        self.roi_group = VHGroup('ROI definition', orientation='G')
+        self.roi_group = VHGroup('Main ROI', orientation='G')
         self.tabs.add_named_tab('ROI', self.roi_group.gbox)
         self.btn_add_main_roi = QPushButton("Add main ROI")
+        self.btn_add_main_roi.setToolTip("Maximal ROI only removing fully masked border")
         self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
-        self.btn_add_sub_roi = QPushButton("Add analysis ROI")
-        self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
+
+        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
+        self.tabs.add_named_tab('ROI', self.subroi_group.gbox)
+        #self.btn_add_sub_roi = QPushButton("Add analysis ROI")
+        #self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
+        self.subroi_group.glayout.addWidget(QLabel(
+            'Set desired sub-ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
         self.spin_roi_width = QSpinBox()
         self.spin_roi_width.setRange(1, 1000)
         self.spin_roi_width.setValue(20)
-        self.roi_group.glayout.addWidget(QLabel('ROI width'), 2, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_roi_width, 2, 1, 1, 1)
+        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
+        self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
 
     def _create_export_tab(self):
 
         self.tabs.widget(self.tab_names.index('Export')).layout().setAlignment(Qt.AlignTop)
 
+        self.mask_group_project = VHGroup('Project', orientation='G')
+        self.tabs.add_named_tab('Export', self.mask_group_project.gbox)
+        self.btn_export = QPushButton("Export Project")
+        self.btn_export.setToolTip(
+            "Export all info necessary for next steps and to reload the project")
+        self.mask_group_project.glayout.addWidget(self.btn_export)
+        self.btn_import = QPushButton("Import Project")
+        self.mask_group_project.glayout.addWidget(self.btn_import)
+
         # io
-        self.mask_group_export = VHGroup('Mask export', orientation='G')
+        self.mask_group_export = VHGroup('Mask', orientation='G')
         self.tabs.add_named_tab('Export', self.mask_group_export.gbox)
         self.btn_save_mask = QPushButton("Save mask")
+        self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
         self.btn_load_mask = QPushButton("Load mask")
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
-        self.mask_group_capture = VHGroup('Captures', orientation='G')
+        self.mask_group_capture = VHGroup('Other exports', orientation='G')
         self.tabs.add_named_tab('Export', self.mask_group_capture.gbox)
         self.btn_snapshot = QPushButton("Snapshot")
-        self.mask_group_capture.glayout.addWidget(self.btn_snapshot)
+        self.btn_snapshot.setToolTip("Save snapshot of current viewer")
+        self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
         self.lineedit_rgb_tiff = QLineEdit()
         self.lineedit_rgb_tiff.setText('rgb.tiff')
-        self.mask_group_capture.glayout.addWidget(self.lineedit_rgb_tiff)
+        self.mask_group_capture.glayout.addWidget(self.lineedit_rgb_tiff, 1, 0, 1, 1)
         self.btn_save_rgb_tiff = QPushButton("Save RGB tiff")
-        self.mask_group_capture.glayout.addWidget(self.btn_save_rgb_tiff)
-
-        self.mask_group_project = VHGroup('Project', orientation='G')
-        self.tabs.add_named_tab('Export', self.mask_group_project.gbox)
-        self.btn_export = QPushButton("Export")
-        self.mask_group_project.glayout.addWidget(self.btn_export)
-        self.btn_import = QPushButton("Import")
-        self.mask_group_project.glayout.addWidget(self.btn_import)
-        
+        self.btn_save_rgb_tiff.setToolTip("Save current RGB layer as high-res tiff")
+        self.mask_group_capture.glayout.addWidget(self.btn_save_rgb_tiff, 1, 1, 1, 1)
 
     def _create_options_tab(self):
         
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
-        self.tabs.add_named_tab('Options', self.crop_group.gbox)
+        #self.tabs.add_named_tab('Options', self.crop_group.gbox)
 
         self.check_use_external_ref = QCheckBox("Use external reference")
         self.check_use_external_ref.setChecked(True)
@@ -411,8 +430,8 @@ class SedimentWidget(QWidget):
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
         self.btn_update_mask.clicked.connect(self._on_click_update_mask)
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
-        self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
-        self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
+        #self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
+        #self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
 
