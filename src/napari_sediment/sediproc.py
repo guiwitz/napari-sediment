@@ -377,7 +377,7 @@ def correct_single_channel(
 
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
-                         background_correction=True, destripe=True):
+                         background_correction=True, destripe=True, use_dask=False):
 
     img = open_image(imhdr_path)
 
@@ -392,28 +392,35 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
     z1 = zarr.open(zarr_path, mode='w', shape=(bands, lines,samples),
                chunks=(1, lines, samples), dtype='u2')#'f8')
 
-    client = Client()
-    
-    process = []
-    for ind, c in enumerate(band_indices):
-        process.append(client.submit(
-            correct_single_channel,
-            imhdr_path, white_file_path,
-            dark_for_im_file_path, dark_for_white_file_path,
-            z1, ind, c, True, True))
-    
-    for k in tqdm(range(len(process)), "correcting and saving to zarr"):
-        future = process[k]
-        out = future.result()
-        future.cancel()
-        del future
+    if use_dask:
+        client = Client()
+        process = []
+        for ind, c in enumerate(band_indices):
+            process.append(client.submit(
+                correct_single_channel,
+                imhdr_path, white_file_path,
+                dark_for_im_file_path, dark_for_white_file_path,
+                z1, ind, c, background_correction, destripe))
+        
+        for k in tqdm(range(len(process)), "correcting and saving to zarr"):
+            future = process[k]
+            out = future.result()
+            future.cancel()
+            del future
+    else:
+        for ind, c in enumerate(tqdm(band_indices, "correcting and saving to zarr")):
+            correct_single_channel(
+                imhdr_path, white_file_path,
+                dark_for_im_file_path, dark_for_white_file_path,
+                z1, ind, c, background_correction, destripe)
 
     z1.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])[band_indices]),
         'centers': list(np.array(img.bands.centers)[band_indices])
         }
 
-    client.close()
+    if use_dask:
+        client.close()
 
 
 def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
