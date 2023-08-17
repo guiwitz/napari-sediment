@@ -39,7 +39,7 @@ def save_image_to_zarr(image, zarr_path):
 
 def load_params_yml(params, file_name='Parameters.yml'):
     
-    if not params.project_path.joinpath(file_name).exists():
+    if not Path(params.project_path).joinpath(file_name).exists():
         raise FileNotFoundError(f"Project {params.project_path} does not exist")
 
     with open(params.project_path.joinpath(file_name)) as file:
