@@ -700,7 +700,7 @@ class SedimentWidget(QWidget):
                 self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
 
 
-    def _on_click_background_correct(self, event):
+    def _on_click_background_correct(self, event=None):
         """White correct image"""
                 
             
@@ -954,7 +954,7 @@ class SedimentWidget(QWidget):
 
         self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
     
-    def _on_click_RGB(self):
+    def _on_click_RGB(self, event=None):
         """Load RGB image"""
 
         #self.rgb_ch = [np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - x)) for x in self.rgb]
