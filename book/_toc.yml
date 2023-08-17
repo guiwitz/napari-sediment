@@ -1,4 +1,6 @@
 format: jb-book
 root: napari_sediment
 chapters:
-- file: Standard_use
+- file: Load_preprocess
+- file: Dimensionality_reduction
+- file: Spectral_indices
