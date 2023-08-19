@@ -45,13 +45,13 @@ class HyperAnalysisWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['Main', 'Processing', 'Eigenvalues','PPI', 'Plotting']
+        self.tab_names = ['Main', 'Reduction', 'PPI','End Members', 'Plotting']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
 
         # loading tab
-        self.files_group = VHGroup('Select', orientation='G')
+        self.files_group = VHGroup('Files and Folders', orientation='G')
         self.tabs.add_named_tab('Main', self.files_group.gbox)
         self.btn_select_export_folder = QPushButton("Select project folder")
         self.export_path_display = QLineEdit("No path")
@@ -61,38 +61,32 @@ class HyperAnalysisWidget(QWidget):
         self.files_group.glayout.addWidget(self.btn_load_project, 2, 0, 1, 2)
         self.check_load_corrected = QCheckBox("Load corrected data")
         self.check_load_corrected.setChecked(True)
+        self.files_group.glayout.addWidget(self.check_load_corrected, 3, 0, 1, 2)
 
         # channel selection
-        self.main_group = VHGroup('Select', orientation='G')
+        self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('Main', self.main_group.gbox)
 
-        self.main_group.glayout.addWidget(QLabel('Channels to load'), 0, 0, 1, 2)
+        self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
         self.qlist_channels = ChannelWidget(self)
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.btn_select_all = QPushButton("Select all")
-        self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 1)
+        self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
+
+        self.process_group_io = VHGroup('IO', orientation='G')
+        self.tabs.add_named_tab('Main', self.process_group_io.gbox)
+        self.btn_save_index_project = QPushButton("Save index project")
+        self.process_group_io.glayout.addWidget(self.btn_save_index_project)
+        self.btn_load_index_project = QPushButton("Load index project")
+        self.process_group_io.glayout.addWidget(self.btn_load_index_project)
 
          # Plot tab
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('Plotting', self.scan_plot)
 
-        # eigen tab
-        self.eigen_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('Eigenvalues', self.eigen_plot)
-        self.corr_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('Eigenvalues', self.corr_plot)
-        self.slider_corr_limit = QSlider(Qt.Horizontal)
-        self.slider_corr_limit.setRange(0, 1000)
-        self.slider_corr_limit.setValue(1000)
-        self.tabs.add_named_tab('Eigenvalues', self.slider_corr_limit)
-
-        self.ppi_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('PPI', self.ppi_plot)
-        self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self.ppi_boundaries_range.setValue((0, 0, 0))
-        self.tabs.add_named_tab('PPI', self.ppi_boundaries_range)
-
         self._add_processing_tab()
+        self._add_ppi_tab()
+        self._add_endmember_tab()
         self.add_connections()
 
         # mouse
@@ -101,37 +95,55 @@ class HyperAnalysisWidget(QWidget):
 
     def _add_processing_tab(self):
 
-        self.tabs.widget(self.tab_names.index('Processing')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('Reduction')).layout().setAlignment(Qt.AlignTop)
         # processing tab
-        self.process_group_mnfr = VHGroup('MNFR', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group_mnfr.gbox)
-        self.process_group_ppi = VHGroup('PPI', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group_ppi.gbox)
-        self.process_group_endmember = VHGroup('End-members', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group_endmember.gbox)
-        self.process_group_io = VHGroup('IO', orientation='G')
-        self.tabs.add_named_tab('Processing', self.process_group_io.gbox)
+        self.process_group_mnfr = VHGroup('Spectral reduction', orientation='G')
+        self.tabs.add_named_tab('Reduction', self.process_group_mnfr.gbox)
 
         self.btn_mnfr = QPushButton("Compute MNFR")
         self.process_group_mnfr.glayout.addWidget(self.btn_mnfr, 0, 0, 1, 2)
+
+        self.reduce_on_eigen_group = VHGroup('Reduce on eigenvalues', orientation='G')
+        self.process_group_mnfr.glayout.addWidget(self.reduce_on_eigen_group.gbox)
         self.btn_reduce_mnfr = QPushButton("Reduce on eigenvalues")
-        self.process_group_mnfr.glayout.addWidget(self.btn_reduce_mnfr, 1, 0, 1, 2)
+        self.reduce_on_eigen_group.glayout.addWidget(self.btn_reduce_mnfr, 0, 0, 1, 2)
         self.spin_eigen_threshold = QDoubleSpinBox()
         self.spin_eigen_threshold.setRange(0, 1)
         self.spin_eigen_threshold.setSingleStep(0.01)
         self.spin_eigen_threshold.setValue(0.99)
-        self.process_group_mnfr.glayout.addWidget(QLabel('Eigenvalue threshold'), 2, 0, 1, 1)
-        self.process_group_mnfr.glayout.addWidget(self.spin_eigen_threshold, 2, 1, 1, 1)
+        self.reduce_on_eigen_group.glayout.addWidget(QLabel('Eigenvalue threshold'), 1, 0, 1, 1)
+        self.reduce_on_eigen_group.glayout.addWidget(self.spin_eigen_threshold, 1, 1, 1, 1)
+        
+        self.reduce_on_correlation_group = VHGroup('Reduce on correlation', orientation='G')
+        self.process_group_mnfr.glayout.addWidget(self.reduce_on_correlation_group.gbox)
         self.btn_reduce_correlation = QPushButton("Reduce on correlation")
-        self.process_group_mnfr.glayout.addWidget(self.btn_reduce_correlation, 3, 0, 1, 2)
+        self.reduce_on_correlation_group.glayout.addWidget(self.btn_reduce_correlation, 0, 0, 1, 2)
         self.spin_correlation_threshold = QDoubleSpinBox()
         self.spin_correlation_threshold.setRange(0, 1)
         self.spin_correlation_threshold.setSingleStep(0.01)
         self.spin_correlation_threshold.setValue(0.0)
-        self.process_group_mnfr.glayout.addWidget(QLabel('Correlation threshold'), 4, 0, 1, 1)
-        self.process_group_mnfr.glayout.addWidget(self.spin_correlation_threshold, 4, 1, 1, 1)
+        self.reduce_on_correlation_group.glayout.addWidget(QLabel('Correlation threshold'), 1, 0, 1, 1)
+        self.reduce_on_correlation_group.glayout.addWidget(self.spin_correlation_threshold, 1, 1, 1, 1)
 
+        # eigen tab
+        self.eigen_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.tabs.add_named_tab('Reduction', self.eigen_plot)
+        self.corr_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.tabs.add_named_tab('Reduction', self.corr_plot)
+        self.slider_corr_limit = QSlider(Qt.Horizontal)
+        self.slider_corr_limit.setRange(0, 1000)
+        self.slider_corr_limit.setValue(1000)
+        self.tabs.add_named_tab('Reduction', self.slider_corr_limit)
         
+
+    def _add_ppi_tab(self):
+
+        self.process_group_ppi = VHGroup('PPI', orientation='G')
+        self.tabs.add_named_tab('PPI', self.process_group_ppi.gbox)
+
+        self.tabs.widget(self.tab_names.index('PPI')).layout().setAlignment(Qt.AlignTop)
+
+
         self.ppi_threshold = QSpinBox()
         self.ppi_threshold.setRange(0, 100)
         self.ppi_threshold.setSingleStep(1)
@@ -157,21 +169,25 @@ class HyperAnalysisWidget(QWidget):
         self.btn_ppi = QPushButton("PPI")
         self.process_group_ppi.glayout.addWidget(self.btn_ppi, 3, 0, 1, 2)
 
+    def _add_endmember_tab(self):
+
+        self.process_group_endmember = VHGroup('End-members', orientation='G')
+        self.tabs.add_named_tab('End Members', self.process_group_endmember.gbox)
+
         self.btn_update_endmembers = QPushButton("Compute end-members")
         self.process_group_endmember.glayout.addWidget(self.btn_update_endmembers, 0, 0, 1, 2)
         self.qspin_endm_eps = QDoubleSpinBox()
-        self.qspin_endm_eps.setRange(0, 1)
+        self.qspin_endm_eps.setRange(0, 10)
         self.qspin_endm_eps.setSingleStep(0.1)
         self.qspin_endm_eps.setValue(0.5)
         self.process_group_endmember.glayout.addWidget(QLabel('DBSCAN eps'), 1, 0, 1, 1)
         self.process_group_endmember.glayout.addWidget(self.qspin_endm_eps, 1, 1, 1, 1)
-        
-        self.btn_save_index_project = QPushButton("Save index project")
-        self.process_group_io.glayout.addWidget(self.btn_save_index_project)
-        self.btn_load_index_project = QPushButton("Load index project")
-        self.process_group_io.glayout.addWidget(self.btn_load_index_project)
 
-
+        self.ppi_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.tabs.add_named_tab('End Members', self.ppi_plot)
+        self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.ppi_boundaries_range.setValue((0, 0, 0))
+        self.tabs.add_named_tab('End Members', self.ppi_boundaries_range)
 
     def add_connections(self):
         """Add callbacks"""
