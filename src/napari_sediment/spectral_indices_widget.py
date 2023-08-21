@@ -383,7 +383,7 @@ class SpectralIndexWidget(QWidget):
 
         left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
         top_bottom_margin_fraction = self.spin_bottom_top_margin_fraction.value()
-        # w speace occupied by plot e.g. 0.25 mean plot takes has a width a quarter
+        # w space occupied by plot e.g. 0.25 mean plot takes has a width a quarter
         # of the image width
         plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
         font_factor = self.spin_font_factor.value()
@@ -399,10 +399,13 @@ class SpectralIndexWidget(QWidget):
         mpl_map = newmap.to_matplotlib()
 
         rgb_to_plot = self.viewer.layers['imcube'].data.copy()
+        rgb_to_plot = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
         rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
             rgb_to_plot,
             cmaps=['pure_red', 'pure_green', 'pure_blue'], 
-            rescale_type='limits', limits=[0,4000], proj_type='sum')
+            rescale_type='limits', 
+            limits=[self.viewer.layers[c].contrast_limits for c in ['red', 'green', 'blue']],
+            proj_type='sum')
 
         # The plot has the same height as the image and 6 times the width
         # Two two images take 1 width and the plot 4
