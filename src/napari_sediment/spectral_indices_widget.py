@@ -108,7 +108,8 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Plots', self.pixlabel)
         self.btn_create_index_plot = QPushButton("Create index plot")
         self.tabs.add_named_tab('Plots', self.btn_create_index_plot)
-
+        
+        self._connect_spin_bounds()
         self.add_connections()
 
     def _create_indices_tab(self):
@@ -187,10 +188,31 @@ class SpectralIndexWidget(QWidget):
         
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
-    def _on_click_select_export_folder(self):
+    def _connect_spin_bounds(self):
+
+        self.spin_index_left.valueChanged.connect(self._on_change_spin_bounds)
+        self.spin_index_middle.valueChanged.connect(self._on_change_spin_bounds)
+        self.spin_index_right.valueChanged.connect(self._on_change_spin_bounds)
+
+    def _disconnect_spin_bounds(self):
+            
+        self.spin_index_left.valueChanged.disconnect(self._on_change_spin_bounds)
+        self.spin_index_middle.valueChanged.disconnect(self._on_change_spin_bounds)
+        self.spin_index_right.valueChanged.disconnect(self._on_change_spin_bounds)
+
+    def _on_change_spin_bounds(self, event=None):
+
+        self.ppi_boundaries_range.setValue(
+            (self.spin_index_left.value(), self.spin_index_middle.value(),
+              self.spin_index_right.value()))
+    
+    def _on_click_select_export_folder(self, event=None, export_folder=None):
         """Interactively select folder to analyze"""
 
-        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        if export_folder is None:
+            self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        else:
+            self.export_folder = Path(export_folder)
         self.export_path_display.setText(self.export_folder.as_posix())
 
     def _on_click_select_index_file(self):
@@ -267,7 +289,8 @@ class SpectralIndexWidget(QWidget):
 
     def _on_change_ppi_boundaries(self, event=None):
         """Update the PPI plot when the PPI boundaries are changed."""
-
+        
+        #self._disconnect_spin_bounds()
         # update from interactive limit change
         if type(event) == tuple:
             current_triplet = np.array(self.ppi_boundaries_range.value(), dtype=np.uint16)
@@ -312,6 +335,8 @@ class SpectralIndexWidget(QWidget):
                 ], 'r--'
             )
             self.ppi_plot.canvas.figure.canvas.draw()
+        
+        #self._connect_spin_bounds()
 
     def create_index_plot(self):
         """Create the index plot."""
