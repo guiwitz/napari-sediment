@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
                             QComboBox, QLineEdit, QSizePolicy,
-                            QGridLayout, QCheckBox)
+                            QGridLayout, QCheckBox, QDoubleSpinBox)
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QPixmap
 from superqt import QLabeledDoubleRangeSlider
@@ -20,6 +20,7 @@ from .sediproc import find_index_of_band
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
 from .spectralindex import SpectralIndex
+from .rgb_widget import RGBWidget
 
 from napari_guitils.gui_structures import TabSet, VHGroup
 
@@ -47,7 +48,7 @@ class SpectralIndexWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["Main", "Indices", "IO", "ROI", "Plots"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, None, None])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, None, QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -59,6 +60,9 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Main', self.btn_load_project)
         self.qlist_channels = ChannelWidget(self)
         self.tabs.add_named_tab('Main', self.qlist_channels)
+
+        self.rgbwidget = RGBWidget(self)
+        self.tabs.add_named_tab('Main', self.rgbwidget.rgbmain_group.gbox)
 
         # indices tab
         self._create_indices_tab()
@@ -103,11 +107,38 @@ class SpectralIndexWidget(QWidget):
         self.pixlabel = QLabel()
         self.pixlabel.setSizePolicy(
             QSizePolicy.Expanding,
-            QSizePolicy.Expanding)
+            QSizePolicy.Expanding
+        )
+        self.pixlabel.setScaledContents(True)
+
         #self.pixlabel.resizeEvent = self._on_resize_preview
         self.tabs.add_named_tab('Plots', self.pixlabel)
         self.btn_create_index_plot = QPushButton("Create index plot")
-        self.tabs.add_named_tab('Plots', self.btn_create_index_plot)
+        self.tabs.add_named_tab('Plots', self.btn_create_index_plot, grid_pos=(0, 0, 1, 2))
+        self.spin_left_right_margin_fraction = QDoubleSpinBox()
+        self.spin_left_right_margin_fraction.setRange(0, 100)
+        self.spin_left_right_margin_fraction.setValue(0.1)
+        self.spin_left_right_margin_fraction.setSingleStep(0.1)
+        self.tabs.add_named_tab('Plots', QLabel('L/R Margin fraction'), grid_pos=(1, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_left_right_margin_fraction, grid_pos=(1, 1, 1, 1))
+        self.spin_bottom_top_margin_fraction = QDoubleSpinBox()
+        self.spin_bottom_top_margin_fraction.setRange(0, 100)
+        self.spin_bottom_top_margin_fraction.setValue(0.05)
+        self.spin_bottom_top_margin_fraction.setSingleStep(0.01)
+        self.tabs.add_named_tab('Plots', QLabel('B/T Margin fraction'), grid_pos=(2, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_bottom_top_margin_fraction, grid_pos=(2, 1, 1, 1))
+        self.spin_plot_image_w_fraction = QDoubleSpinBox()
+        self.spin_plot_image_w_fraction.setRange(0, 100)
+        self.spin_plot_image_w_fraction.setValue(0.25)
+        self.spin_plot_image_w_fraction.setSingleStep(0.1)
+        self.tabs.add_named_tab('Plots', QLabel('Plot width fraction'), grid_pos=(3, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_plot_image_w_fraction, grid_pos=(3, 1, 1, 1))
+        self.spin_font_factor = QDoubleSpinBox()
+        self.spin_font_factor.setRange(0, 100)
+        self.spin_font_factor.setValue(0.5)
+        self.spin_font_factor.setSingleStep(0.1)
+        self.tabs.add_named_tab('Plots', QLabel('Font factor'), grid_pos=(4, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_font_factor, grid_pos=(4, 1, 1, 1))
         
         self._connect_spin_bounds()
         self.add_connections()
@@ -252,18 +283,27 @@ class SpectralIndexWidget(QWidget):
         self.plot_endmembers()
         self._on_change_index_index()
 
-    def _add_analysis_roi(self, viewer, event):
+    def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
         
-        cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
         min_row = 0
         max_row = self.row_bounds[1] - self.row_bounds[0]
+        if roi_xpos is None:
+            cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+            
+            new_roi = [
+                [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
+                [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
+                [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
+                [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
+        
+        else:
+            new_roi = [
+                [min_row, roi_xpos-self.spin_roi_width.value()//2],
+                [max_row,roi_xpos-self.spin_roi_width.value()//2],
+                [max_row,roi_xpos+self.spin_roi_width.value()//2],
+                [min_row,roi_xpos+self.spin_roi_width.value()//2]]
 
-        new_roi = [
-            [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
-            [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
-            [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
-            [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
         
         if 'rois' not in self.viewer.layers:
             self.viewer.add_shapes(
@@ -341,6 +381,15 @@ class SpectralIndexWidget(QWidget):
     def create_index_plot(self):
         """Create the index plot."""
 
+        left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
+        top_bottom_margin_fraction = self.spin_bottom_top_margin_fraction.value()
+        # w speace occupied by plot e.g. 0.25 mean plot takes has a width a quarter
+        # of the image width
+        plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
+        font_factor = self.spin_font_factor.value()
+
+        if self.qcom_indices.currentText() not in self.viewer.layers:
+            self._on_click_compute_index(event=None)
         toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
 
@@ -362,18 +411,23 @@ class SpectralIndexWidget(QWidget):
         # that the axes fille the space of the full figure minus the margins
         im_w = toplot.shape[1]
         im_h = toplot.shape[0]
-        width_tot = 6*im_w
+        width_tot = (2 + plot_image_w_fraction) *im_w
 
-        to_add_top = 0.05*im_h
-        to_add_bottom = 0.05*im_h
-        to_add_left = 0.25 * width_tot
-        to_add_right = 0.25 * width_tot
+        to_add_top = top_bottom_margin_fraction*im_h
+        to_add_bottom = top_bottom_margin_fraction*im_h
+        to_add_left = left_right_margin_fraction * width_tot
+        to_add_right = left_right_margin_fraction * width_tot
 
+        # width_tot_margin 
+        # = 6 * im_w + (2*left_right_margin_fraction) * 6 * im_w 
+        # = 6 * im_w (1 + 2*left_right_margin_fraction)
         width_tot_margin = width_tot + to_add_left + to_add_right
         height_tot_margin = im_h + to_add_top + to_add_bottom
+        # left_margin = (0.25 * 6*im_w) / (9*im_w) = 0.5/3 * im_w
         left_margin = to_add_left / width_tot_margin
         bottom_margin = to_add_bottom / height_tot_margin
 
+        # quarter = (im_w) / (9*im_w) = 1/9
         quarter = im_w / width_tot_margin
 
         # The figure and axes are set explicitly to make sure that the axes fill the figure
@@ -382,7 +436,7 @@ class SpectralIndexWidget(QWidget):
         fig = plt.figure(figsize=fig_size)
         ax1 = fig.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
         ax2 = fig.add_axes(rect=(quarter+left_margin,bottom_margin,quarter,im_h / height_tot_margin))
-        ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, 4*quarter, im_h / height_tot_margin))
+        ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, plot_image_w_fraction*quarter, im_h / height_tot_margin))
 
         ax1.imshow(rgb_to_plot, aspect='auto')
         vmin = np.percentile(toplot, 0.1)
@@ -410,10 +464,14 @@ class SpectralIndexWidget(QWidget):
         ax1.set_xticks([])
         ax2.set_xticks([])
         ax2.set_yticks([])
+        for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
+            label.set_fontsize(int(font_factor*im_h))
+        
         ax2.set_ylim(len(proj),0)
-        ax1.set_ylabel('depth [mm]')
-        fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location)
-        fig.text(x=0, y=0, s='test')
+        ax1.set_ylabel('depth [mm]', fontsize=int(font_factor*im_h))
+        fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
+                     fontsize=int(font_factor*im_h))
+        #fig.text(x=0, y=0, s='test')
 
         fig.savefig(
             self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'),
@@ -421,7 +479,10 @@ class SpectralIndexWidget(QWidget):
 
         # update napari preview
         self.pixmap = QPixmap(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png').as_posix())
-        self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
+        if self.pixlabel.size().height() < self.pixlabel.size().width():
+            self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
+        else:
+            self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
 
     def _on_click_new_index(self, event):
         """Add new custom index"""
