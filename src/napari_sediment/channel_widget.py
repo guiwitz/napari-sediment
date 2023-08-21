@@ -38,6 +38,7 @@ class ChannelWidget(QListWidget):
         # get selected channels
         selected_channels = [item.text() for item in self.selectedItems()]
         new_channel_indices = [self.parent.imagechannels.channel_names.index(channel) for channel in selected_channels]
+        new_channel_indices = np.sort(new_channel_indices)
 
         roi = np.concatenate([self.parent.row_bounds, self.parent.col_bounds])
 
@@ -52,6 +53,7 @@ class ChannelWidget(QListWidget):
 
         if layer_name in self.parent.viewer.layers:
             self.parent.viewer.layers[layer_name].data = new_cube
+            self.parent.viewer.layers[layer_name].refresh()
         else:
             self.parent.viewer.add_image(
                 new_cube,
