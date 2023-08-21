@@ -34,6 +34,7 @@ from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
 from .widgets.mlwidget import MLWidget
 from .images import save_rgb_tiff_image
+from .rgb_widget import RGBWidget
 
 import napari
 
@@ -53,9 +54,6 @@ class SedimentWidget(QWidget):
         self.row_bounds = None
         self.col_bounds = None
         self.imagechannels = None
-        self.rgb = [640, 545, 460]
-        self.rgb_ch = None
-        self.rgb_names = None
         self.viewer2 = None
         #self.pixclass = None
         self.export_folder = None
@@ -135,51 +133,8 @@ class SedimentWidget(QWidget):
         self.btn_select_all = QPushButton('Select all')
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
-        self.rgbmain_group = VHGroup('RGB', orientation='G')
-        self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
-
-        self.rgb_bands_group = VHGroup('Select bands to display as RGB', orientation='G')
-        self.rgbmain_group.glayout.addWidget(self.rgb_bands_group.gbox, 0, 0, 1, 2)
-
-        self.btn_RGB = QPushButton('Load RGB')
-        self.btn_RGB.setToolTip("Load RGB channels")
-        self.spin_rchannel = QSpinBox()
-        self.spin_rchannel.setRange(0, 1000)
-        self.spin_rchannel.setValue(640)
-        self.spin_gchannel = QSpinBox()
-        self.spin_gchannel.setRange(0, 1000)
-        self.spin_gchannel.setValue(545)
-        self.spin_bchannel = QSpinBox()
-        self.spin_bchannel.setRange(0, 1000)
-        self.spin_bchannel.setValue(460)
-
-        self.rgb_bands_group.glayout.addWidget(QLabel('R'), 1, 0, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(self.spin_rchannel, 1, 1, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(QLabel('G'), 1, 2, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(self.spin_gchannel, 1, 3, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(QLabel('B'), 1, 4, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(self.spin_bchannel, 1, 5, 1, 1)
-        self.rgb_bands_group.glayout.addWidget(self.btn_RGB, 2, 0, 1, 6)
-
-        self.rgb_layer_group = VHGroup('Select layer to display as RGB', orientation='G')
-        self.rgbmain_group.glayout.addWidget(self.rgb_layer_group.gbox, 1, 0, 1, 2)
-
-        self.combo_layer_to_rgb = QComboBox()
-        self.rgb_layer_group.glayout.addWidget(QLabel('Layer to display'), 0, 0, 1, 1)
-        self.rgb_layer_group.glayout.addWidget(self.combo_layer_to_rgb, 0, 1, 1, 1)
-        self.btn_dislpay_as_rgb = QPushButton('Display layer as RGB')
-        self.rgb_layer_group.glayout.addWidget(self.btn_dislpay_as_rgb, 1, 0, 2, 2)
-
-        #self.btn_new_view = QPushButton('New view')
-        #self.main_group.glayout.addWidget(self.btn_new_view, 6, 0, 1, 2)
-        #self.btn_new_view.clicked.connect(self.new_view)
-        self.slider_contrast = QDoubleRangeSlider(Qt.Horizontal)
-        self.slider_contrast.setRange(0, 1)
-        self.slider_contrast.setSingleStep(0.01)
-        self.slider_contrast.setSliderPosition([0, 1])
-        self.rgbmain_group.glayout.addWidget(QLabel("RGB Contrast"), 2, 0, 1, 1)
-        self.rgbmain_group.glayout.addWidget(self.slider_contrast, 2, 1, 1, 1)
-
+        self.rgb_widget = RGBWidget(self)
+        self.tabs.add_named_tab('Main', self.rgb_widget.rgbmain_group.gbox)
 
 
     def _create_processing_tab(self):
@@ -414,17 +369,13 @@ class SedimentWidget(QWidget):
         self.btn_select_dark_for_white_file.clicked.connect(self._on_click_select_dark_for_white_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
-        self.btn_RGB.clicked.connect(self._on_click_RGB)
-        self.spin_rchannel.valueChanged.connect(self._on_change_rgb)
-        self.spin_gchannel.valueChanged.connect(self._on_change_rgb)
-        self.spin_bchannel.valueChanged.connect(self._on_change_rgb)
+        self.rgb_widget.btn_RGB.clicked.connect(self._update_threshold_limits)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
-        self.btn_dislpay_as_rgb.clicked.connect(self.display_as_rgb)
+        self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
-        self.slider_contrast.valueChanged.connect(self._on_change_contrast)
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
@@ -451,8 +402,8 @@ class SedimentWidget(QWidget):
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
         # layer callbacks
-        self.viewer.layers.events.inserted.connect(self._update_combo_layers)
-        self.viewer.layers.events.removed.connect(self._update_combo_layers)
+        self.viewer.layers.events.inserted.connect(self._update_combo_layers_destripe)
+        self.viewer.layers.events.removed.connect(self._update_combo_layers_destripe)
 
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
@@ -570,7 +521,8 @@ class SedimentWidget(QWidget):
         
         self.qlist_channels._update_channel_list()
 
-        self._on_click_RGB()
+        #self._on_click_RGB()
+        self.rgb_widget._on_click_RGB()
 
         #self._add_roi_layer()
         self._add_mask()
@@ -683,7 +635,7 @@ class SedimentWidget(QWidget):
         elif selected_layer == 'imcube_corrected':
             data_destripe = self.viewer.layers['imcube_corrected'].data.copy()
         elif selected_layer == 'RGB':
-            data_destripe = np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0)
+            data_destripe = np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0)
         
         for d in range(data_destripe.shape[0]):
             #data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
@@ -691,7 +643,7 @@ class SedimentWidget(QWidget):
             data_destripe[d] = savgol_destripe(data_destripe[d], width=width, order=2)
 
         if selected_layer == 'RGB':
-            for ind, x in enumerate(self.rgb_names):
+            for ind, x in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[x].data = data_destripe[ind]
         else:
             if 'imcube_destripe' in self.viewer.layers:
@@ -724,19 +676,14 @@ class SedimentWidget(QWidget):
             self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
 
-    def _update_combo_layers(self):
+    def _update_combo_layers_destripe(self):
         
-        admit_layers = ['imcube', 'imcube_corrected', 'RGB']
+        admit_layers = ['imcube', 'imcube_corrected']
         self.combo_layer_destripe.clear()
+        self.combo_layer_destripe.addItem('RGB')
         for a in admit_layers:
             if a in self.viewer.layers:
-                self.combo_layer_destripe.addItem(a)
-
-        admit_layers = ['imcube', 'imcube_corrected', 'imcube_destripe']
-        self.combo_layer_to_rgb.clear()
-        for a in admit_layers:
-            if a in self.viewer.layers:
-                self.combo_layer_to_rgb.addItem(a)        
+                self.combo_layer_destripe.addItem(a)      
         
 
     def _on_change_batch_wavelengths(self, event):
@@ -770,8 +717,6 @@ class SedimentWidget(QWidget):
     def get_summary_image(self):
         """Get summary image"""
 
-        #im = np.mean(np.stack([self.viewer.layers[x].data for x in self.rgb_names], axis=0), axis=0)
-        #return im[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
         im = np.mean(self.viewer.layers['imcube'].data, axis=0)
         return im
 
@@ -950,55 +895,6 @@ class SedimentWidget(QWidget):
         contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
         save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
         
-    def _on_change_rgb(self, event=None):
-
-        self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
-    
-    def _on_click_RGB(self, event=None):
-        """Load RGB image"""
-
-        #self.rgb_ch = [np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - x)) for x in self.rgb]
-        self.rgb_ch = [find_index_of_band(self.imagechannels.centers, x) for x in self.rgb]
-        self.rgb_names = [self.imagechannels.channel_names[x] for x in self.rgb_ch]
-
-        [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
-        self.qlist_channels._on_change_channel_selection()
-
-        self.display_as_rgb()
-
-        self._update_threshold_limits()
-
-    def display_as_rgb(self):
-
-        cmaps = ['red', 'green', 'blue']
-        layer_name = self.combo_layer_to_rgb.currentText()
-        for ind, cmap in enumerate(cmaps):
-            if cmap not in self.viewer.layers:
-                self.viewer.add_image(
-                    self.viewer.layers[layer_name].data[ind],
-                    name=cmap,
-                    colormap=cmap,
-                    blending='additive')
-            else:
-                self.viewer.layers[cmap].data = self.viewer.layers[layer_name].data[ind]
-            
-            self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
-            self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
-            
-        self._update_threshold_limits()
-
-    def _on_change_contrast(self, event=None):
-        """Update contrast limits of RGB channels"""
-        
-        rgb = ['red', 'green', 'blue']
-        for c in rgb:
-            contrast_limits = np.percentile(self.viewer.layers[c].data, (2,98))
-            contrast_range = contrast_limits[1] - contrast_limits[0]
-            newlimits = contrast_limits.copy()
-            newlimits[0] = contrast_limits[0] + self.slider_contrast.value()[0] * contrast_range
-            newlimits[1] = contrast_limits[0] + self.slider_contrast.value()[1] * contrast_range
-            self.viewer.layers[c].contrast_limits = newlimits
-
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
         self.qlist_channels._on_change_channel_selection()
