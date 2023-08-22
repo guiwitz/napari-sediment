@@ -5,22 +5,27 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
                             QComboBox, QLineEdit, QSizePolicy,
-                            QGridLayout, QCheckBox, QDoubleSpinBox)
+                            QGridLayout, QCheckBox, QDoubleSpinBox,
+                            QColorDialog)
 from qtpy.QtCore import Qt
-from qtpy.QtGui import QPixmap
+from qtpy.QtGui import QPixmap, QColor
 from superqt import QLabeledDoubleRangeSlider
 import pandas as pd
 from microfilm import colorify
+from cmap import Colormap
+from matplotlib_scalebar.scalebar import ScaleBar
+from napari_matplotlib.base import NapariMPLWidget
 
 from .parameters import Param
 from .parameters_endmembers import ParamEndMember
-from .io import load_project_params, load_endmember_params
+from .io import load_project_params, load_endmember_params, load_plots_params
 from .imchannels import ImChannels
 from .sediproc import find_index_of_band
 from .spectralplot import SpectralPlotter
 from .channel_widget import ChannelWidget
 from .spectralindex import SpectralIndex
 from .rgb_widget import RGBWidget
+from .parameters_plots import Paramplot
 
 from napari_guitils.gui_structures import TabSet, VHGroup
 
@@ -40,6 +45,8 @@ class SpectralIndexWidget(QWidget):
 
         self.params = Param()
         self.params_indices = ParamEndMember()
+        self.params_plots = Paramplot()
+
         self.ppi_boundary_lines = None
         self.end_members = None
         self.index_file = None
@@ -47,8 +54,8 @@ class SpectralIndexWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ["Main", "Indices", "IO", "ROI", "Plots"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, None, QGridLayout()])
+        self.tab_names = ["Main", "Indices", "IO", "ROI", "Plots", "Plotslive"]
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, None, QGridLayout(), None])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -111,34 +118,71 @@ class SpectralIndexWidget(QWidget):
         )
         self.pixlabel.setScaledContents(True)
 
+        #self.index_plot_live = SpectralPlotter(napari_viewer=self.viewer)
+        self.index_plot_live = NapariMPLWidget(napari_viewer=self.viewer)
+        self.index_plot_live.figure.set_layout_engine('none')
+        self.tabs.add_named_tab('Plotslive', self.index_plot_live)
+
         #self.pixlabel.resizeEvent = self._on_resize_preview
         self.tabs.add_named_tab('Plots', self.pixlabel)
         self.btn_create_index_plot = QPushButton("Create index plot")
-        self.tabs.add_named_tab('Plots', self.btn_create_index_plot, grid_pos=(0, 0, 1, 2))
+        self.tabs.add_named_tab('Plots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 2))
         self.spin_left_right_margin_fraction = QDoubleSpinBox()
         self.spin_left_right_margin_fraction.setRange(0, 100)
         self.spin_left_right_margin_fraction.setValue(0.1)
         self.spin_left_right_margin_fraction.setSingleStep(0.1)
-        self.tabs.add_named_tab('Plots', QLabel('L/R Margin fraction'), grid_pos=(1, 0, 1, 1))
-        self.tabs.add_named_tab('Plots', self.spin_left_right_margin_fraction, grid_pos=(1, 1, 1, 1))
+        self.tabs.add_named_tab('Plots', QLabel('L/R Margin fraction'), grid_pos=(2, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_left_right_margin_fraction, grid_pos=(2, 1, 1, 1))
         self.spin_bottom_top_margin_fraction = QDoubleSpinBox()
         self.spin_bottom_top_margin_fraction.setRange(0, 100)
         self.spin_bottom_top_margin_fraction.setValue(0.05)
         self.spin_bottom_top_margin_fraction.setSingleStep(0.01)
-        self.tabs.add_named_tab('Plots', QLabel('B/T Margin fraction'), grid_pos=(2, 0, 1, 1))
-        self.tabs.add_named_tab('Plots', self.spin_bottom_top_margin_fraction, grid_pos=(2, 1, 1, 1))
+        self.tabs.add_named_tab('Plots', QLabel('B/T Margin fraction'), grid_pos=(3, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_bottom_top_margin_fraction, grid_pos=(3, 1, 1, 1))
         self.spin_plot_image_w_fraction = QDoubleSpinBox()
         self.spin_plot_image_w_fraction.setRange(0, 100)
         self.spin_plot_image_w_fraction.setValue(0.25)
         self.spin_plot_image_w_fraction.setSingleStep(0.1)
-        self.tabs.add_named_tab('Plots', QLabel('Plot width fraction'), grid_pos=(3, 0, 1, 1))
-        self.tabs.add_named_tab('Plots', self.spin_plot_image_w_fraction, grid_pos=(3, 1, 1, 1))
+        self.tabs.add_named_tab('Plots', QLabel('Plot width fraction'), grid_pos=(4, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_plot_image_w_fraction, grid_pos=(4, 1, 1, 1))
         self.spin_font_factor = QDoubleSpinBox()
         self.spin_font_factor.setRange(0, 100)
         self.spin_font_factor.setValue(0.5)
         self.spin_font_factor.setSingleStep(0.1)
-        self.tabs.add_named_tab('Plots', QLabel('Font factor'), grid_pos=(4, 0, 1, 1))
-        self.tabs.add_named_tab('Plots', self.spin_font_factor, grid_pos=(4, 1, 1, 1))
+        self.tabs.add_named_tab('Plots', QLabel('Font factor'), grid_pos=(5, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_font_factor, grid_pos=(5, 1, 1, 1))
+        self.qcolor_plotline = QColorDialog()
+        self.btn_qcolor_plotline = QPushButton("Select plot line color")
+        self.tabs.add_named_tab('Plots', self.btn_qcolor_plotline, grid_pos=(6, 0, 1, 2))
+        self.qcolor_plotline.setCurrentColor(Qt.blue)
+        self.spin_plot_thickness = QDoubleSpinBox()
+        self.spin_plot_thickness.setRange(1, 10)
+        self.spin_plot_thickness.setValue(1)
+        self.spin_plot_thickness.setSingleStep(0.1)
+        self.tabs.add_named_tab('Plots', QLabel('Plot line thickness'), grid_pos=(7, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_plot_thickness, grid_pos=(7, 1, 1, 1))
+        #self.btn_reset_figure_size = QPushButton("Reset figure size")
+        #self.tabs.add_named_tab('Plots', self.btn_reset_figure_size, grid_pos=(9, 0, 1, 2))
+        self.spin_figure_size_factor = QDoubleSpinBox()
+        self.spin_figure_size_factor.setRange(1, 100)
+        self.spin_figure_size_factor.setValue(1)
+        self.spin_figure_size_factor.setSingleStep(1)
+        self.tabs.add_named_tab('Plots', QLabel('Figure size factor'), grid_pos=(8, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_figure_size_factor, grid_pos=(8, 1, 1, 1))
+        self.spin_scale_font_size = QSpinBox()
+        self.spin_scale_font_size.setRange(1, 100)
+        self.spin_scale_font_size.setValue(1)
+        self.spin_scale_font_size.setSingleStep(1)
+        self.tabs.add_named_tab('Plots', QLabel('Scale font size'), grid_pos=(9, 0, 1, 1))
+        self.tabs.add_named_tab('Plots', self.spin_scale_font_size, grid_pos=(9, 1, 1, 1))
+        self.btn_save_plot = QPushButton("Save plot")
+        self.tabs.add_named_tab('Plots', self.btn_save_plot, grid_pos=(10, 0, 1, 2))
+
+        self.btn_save_plot_params = QPushButton("Save plot parameters")
+        self.tabs.add_named_tab('Plots', self.btn_save_plot_params, grid_pos=(11, 0, 1, 2))
+        self.btn_load_plot_params = QPushButton("Load plot parameters")
+        self.tabs.add_named_tab('Plots', self.btn_load_plot_params, grid_pos=(12, 0, 1, 2))
+
         
         self._connect_spin_bounds()
         self.add_connections()
@@ -217,6 +261,13 @@ class SpectralIndexWidget(QWidget):
         self.btn_select_index_file.clicked.connect(self._on_click_select_index_file)
         self.btn_create_index_plot.clicked.connect(self.create_index_plot)
         
+        self.connect_plot_formatting()
+        self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
+        self.btn_save_plot.clicked.connect(self._on_click_save_plot)
+        #self.btn_reset_figure_size.clicked.connect(self._on_click_reset_figure_size)
+        self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
+        self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
+
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
     def _connect_spin_bounds(self):
@@ -271,6 +322,7 @@ class SpectralIndexWidget(QWidget):
         self.qlist_channels._update_channel_list()
 
         self.get_RGB()
+        self.rgbwidget.display_as_rgb()
 
         self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
         self.endmember_bands = self.end_members[:,-1]
@@ -325,7 +377,7 @@ class SpectralIndexWidget(QWidget):
 
         self.ppi_plot.axes.clear()
         self.ppi_plot.axes.plot(self.endmember_bands, self.end_members)
-        self.ppi_plot.canvas.figure.canvas.draw()
+        self.ppi_plot.figure.canvas.draw()
 
     def _on_change_ppi_boundaries(self, event=None):
         """Update the PPI plot when the PPI boundaries are changed."""
@@ -374,12 +426,74 @@ class SpectralIndexWidget(QWidget):
                     ymin_toplot, ymax_toplot
                 ], 'r--'
             )
-            self.ppi_plot.canvas.figure.canvas.draw()
+            self.ppi_plot.figure.canvas.draw()
         
         #self._connect_spin_bounds()
 
-    def create_index_plot(self):
+    def _update_save_plot_parameters(self):
+
+        self.params_plots.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
+        self.params_plots.plot_thickness = self.spin_plot_thickness.value()
+        self.params_plots.font_factor = self.spin_font_factor.value()
+        self.params_plots.scale_font_size = self.spin_scale_font_size.value()
+        self.params_plots.left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
+        self.params_plots.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
+        self.params_plots.plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
+        self.params_plots.figure_size_factor = self.spin_figure_size_factor.value()
+
+    def _on_click_save_plot_parameters(self, event=None, file_path=None):
+            
+        if file_path is None:
+            file_path = Path(str(QFileDialog.getSaveFileName(self, "Select plot parameters file")[0]))
+        self._update_save_plot_parameters()
+        self.params_plots.save_parameters(file_path)
+
+    def _on_click_load_plot_parameters(self, event=None, file_path=None):
+        
+        self.disconnect_plot_formatting()
+        if file_path is None:
+            file_path = Path(str(QFileDialog.getOpenFileName(self, "Select plot parameters file")[0]))
+        self.params_plots = load_plots_params(file_path=file_path)
+
+        self.spin_plot_thickness.setValue(self.params_plots.plot_thickness)
+        self.spin_font_factor.setValue(self.params_plots.font_factor)
+        self.spin_scale_font_size.setValue(self.params_plots.scale_font_size)
+        self.spin_left_right_margin_fraction.setValue(self.params_plots.left_right_margin_fraction)
+        self.spin_bottom_top_margin_fraction.setValue(self.params_plots.bottom_top_margin_fraction)
+        self.spin_plot_image_w_fraction.setValue(self.params_plots.plot_image_w_fraction)
+        self.spin_figure_size_factor.setValue(self.params_plots.figure_size_factor)
+        self.qcolor_plotline.setCurrentColor(QColor(*[int(x*255) for x in self.params_plots.color_plotline]))
+
+        self.connect_plot_formatting()
+        self.create_index_plot()
+
+    def disconnect_plot_formatting(self):
+
+        self.spin_plot_image_w_fraction.valueChanged.disconnect(self.create_index_plot)
+        self.spin_font_factor.valueChanged.disconnect(self.create_index_plot)
+        self.spin_bottom_top_margin_fraction.valueChanged.disconnect(self.create_index_plot)
+        self.spin_left_right_margin_fraction.valueChanged.disconnect(self.create_index_plot)
+        self.qcolor_plotline.currentColorChanged.disconnect(self.create_index_plot)
+        self.spin_plot_thickness.valueChanged.disconnect(self.create_index_plot)
+        self.spin_figure_size_factor.valueChanged.disconnect(self.create_index_plot)
+        self.spin_scale_font_size.valueChanged.disconnect(self.create_index_plot)
+
+    def connect_plot_formatting(self):
+
+        self.spin_bottom_top_margin_fraction.valueChanged.connect(self.create_index_plot)
+        self.spin_left_right_margin_fraction.valueChanged.connect(self.create_index_plot)
+        self.spin_plot_image_w_fraction.valueChanged.connect(self.create_index_plot)
+        self.spin_font_factor.valueChanged.connect(self.create_index_plot)
+        self.qcolor_plotline.currentColorChanged.connect(self.create_index_plot)
+        self.spin_plot_thickness.valueChanged.connect(self.create_index_plot)
+        self.spin_figure_size_factor.valueChanged.connect(self.create_index_plot)
+        self.spin_scale_font_size.valueChanged.connect(self.create_index_plot)
+
+
+    def create_index_plot(self, event=None):
         """Create the index plot."""
+
+        self._update_save_plot_parameters()
 
         left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
         top_bottom_margin_fraction = self.spin_bottom_top_margin_fraction.value()
@@ -394,7 +508,6 @@ class SpectralIndexWidget(QWidget):
         toplot[toplot == np.inf] = 0
 
         # get colormap
-        from cmap import Colormap
         newmap = Colormap(self.viewer.layers[self.qcom_indices.currentText()]._colormap.colors)
         mpl_map = newmap.to_matplotlib()
 
@@ -435,22 +548,41 @@ class SpectralIndexWidget(QWidget):
 
         # The figure and axes are set explicitly to make sure that the axes fill the figure
         # This is achieved using the add_axes method instead of subplots
-        fig_size = 15*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
-        fig = plt.figure(figsize=fig_size)
-        ax1 = fig.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
-        ax2 = fig.add_axes(rect=(quarter+left_margin,bottom_margin,quarter,im_h / height_tot_margin))
-        ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, plot_image_w_fraction*quarter, im_h / height_tot_margin))
+        self.fig_size = self.spin_figure_size_factor.value()*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+        self.index_plot_live.figure.clear()
+        #fig = self.index_plot_live.figure
+        self.index_plot_live.figure.set_size_inches(self.fig_size)
+        self.index_plot_live.figure.set_facecolor('white')
+        #fig = plt.figure(figsize=fig_size)
+        ax1 = self.index_plot_live.figure.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
+        ax2 = self.index_plot_live.figure.add_axes(rect=(quarter+left_margin,bottom_margin,quarter,im_h / height_tot_margin))
+        ax3 = self.index_plot_live.figure.add_axes(rect=(2*quarter+left_margin, bottom_margin, plot_image_w_fraction*quarter, im_h / height_tot_margin))
 
         ax1.imshow(rgb_to_plot, aspect='auto')
         vmin = np.percentile(toplot, 0.1)
         vmax = np.percentile(toplot, 99.9)
-        ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
+        #ax2.imshow(toplot, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
+        ax2.imshow(toplot, aspect='auto', cmap=mpl_map)
+        scalebar = ScaleBar(self.params.scale, "mm", 
+                            length_fraction=0.25, location='lower right',
+                            font_properties={'size': self.spin_scale_font_size.value()}
+                            )
+        scalebary = ScaleBar(self.params.scale, "mm", 
+                             length_fraction=0.25, location='lower left', rotation='vertical',
+                             font_properties={'size': self.spin_scale_font_size.value()}
+                             )
+
+        ax1.add_artist(scalebar)
+        ax1.add_artist(scalebary)
+
         if 'rois' in self.viewer.layers:
             roi = self.viewer.layers['rois'].data[0]
             colmin = int(roi[0,1])
             colmax = int(roi[3,1])
             proj = toplot[:,colmin:colmax].mean(axis=1)
-            ax3.plot(proj, np.arange(len(proj)),linewidth=0.5)
+            ax3.plot(proj, np.arange(len(proj)),
+                     color=np.array(self.qcolor_plotline.currentColor().getRgb())[0:3]/255,
+                     linewidth=self.spin_plot_thickness.value())
             roi = np.concatenate([roi, roi[[0]]])
             ax2.plot(roi[:,1], roi[:,0], 'r')
 
@@ -472,20 +604,68 @@ class SpectralIndexWidget(QWidget):
         
         ax2.set_ylim(len(proj),0)
         ax1.set_ylabel('depth [mm]', fontsize=int(font_factor*im_h))
-        fig.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
+        self.index_plot_live.figure.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
                      fontsize=int(font_factor*im_h))
         #fig.text(x=0, y=0, s='test')
 
-        fig.savefig(
-            self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png'),
-            dpi=500, bbox_inches="tight")
+        self.index_plot_live.figure.savefig(
+            self.export_folder.joinpath('temp.png'),
+            dpi=100, bbox_inches="tight")
 
         # update napari preview
-        self.pixmap = QPixmap(self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png').as_posix())
+        self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
         if self.pixlabel.size().height() < self.pixlabel.size().width():
             self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
         else:
             self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
+
+        self.ax1 = ax1
+        self.ax2 = ax2
+        self.ax3 = ax3
+
+        #self.index_plot_live.figure.canvas.draw()
+        #self.index_plot_live.figure.canvas.flush_events()
+
+        #vsize = self.viewer.window.geometry()
+        #self.viewer.window.resize(vsize[2]-10,vsize[3]-10)
+        #self.viewer.window.resize(vsize[2],vsize[3])
+
+    def _on_click_reset_figure_size(self, event=None):
+        """Reset figure size to default"""
+
+        self.index_plot_live.figure.set_size_inches(self.fig_size)
+        self.index_plot_live.figure.canvas.draw()
+        self.index_plot_live.figure.canvas.flush_events()
+
+        vsize = self.viewer.window.geometry()
+        self.viewer.window.resize(vsize[2]-10,vsize[3]-10)
+        self.viewer.window.resize(vsize[2],vsize[3])
+
+    def _on_click_save_plot(self, event=None, export_file=None):
+        
+        if export_file is None:
+            export_file = self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
+        self.index_plot_live.figure.savefig(
+            fname=export_file, dpi=500, bbox_inches="tight")
+
+    def _on_click_open_plotline_color_dialog(self, event=None):
+        """Show label color dialog"""
+        
+        self.qcolor_plotline.show()
+
+    def _on_adjust_font_size(self, event=None):
+
+        im_h = self.viewer.layers['imcube'].data.shape[-2]
+        font_factor = self.spin_font_factor.value()
+        for label in (self.ax1.get_yticklabels() + 
+                      self.ax3.get_yticklabels() + 
+                      self.ax3.get_xticklabels()):
+            label.set_fontsize(int(font_factor*im_h))
+
+        self.index_plot_live.figure.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
+                     fontsize=int(font_factor*im_h))
+
+        self.index_plot_live.canvas.draw()
 
     def _on_click_new_index(self, event):
         """Add new custom index"""

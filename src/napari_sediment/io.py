@@ -6,6 +6,7 @@ from pathlib import Path
 import zarr
 from .parameters import Param
 from .parameters_endmembers import ParamEndMember
+from .parameters_plots import Paramplot
 
 def save_mask(mask, filename):
    
@@ -66,6 +67,19 @@ def load_endmember_params(folder):
     params = load_params_yml(params, file_name='Parameters_indices.yml')
     
     return params
+
+def load_plots_params(file_path):
+    """Load plot parameters from yaml file in a given folder."""
+
+    file_path = Path(file_path)
+    params_plots = Paramplot()
+    with open(file_path) as file:
+        documents = yaml.full_load(file)
+    for k in documents.keys():
+        setattr(params_plots, k, documents[k])
+    
+    return params_plots
+
 
 
 def get_mask_path(export_folder):
