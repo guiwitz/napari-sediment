@@ -31,6 +31,9 @@ class RGBWidget(QWidget):
         self.rgb_bands_group = VHGroup('Select bands to display as RGB', orientation='G')
         self.rgbmain_group.glayout.addWidget(self.rgb_bands_group.gbox, 0, 0, 1, 2)
 
+        self.btn_default_rgb = QPushButton('Default RGB')
+        self.btn_default_rgb.setToolTip("Set default RGB channels")
+        self.rgb_bands_group.glayout.addWidget(self.btn_default_rgb, 0, 0, 1, 6)
         self.btn_RGB = QPushButton('Load RGB')
         self.btn_RGB.setToolTip("Load RGB channels")
         self.spin_rchannel = QSpinBox()
@@ -76,6 +79,7 @@ class RGBWidget(QWidget):
         self.spin_gchannel.valueChanged.connect(self._on_change_rgb)
         self.spin_bchannel.valueChanged.connect(self._on_change_rgb)
         self.btn_dislpay_as_rgb.clicked.connect(self.display_as_rgb)
+        self.btn_default_rgb.clicked.connect(self._set_rgb_default)
         self.slider_contrast.valueChanged.connect(self._on_change_contrast)
 
         self.viewer.layers.events.inserted.connect(self._update_combo_layers)
@@ -86,6 +90,11 @@ class RGBWidget(QWidget):
 
         self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
     
+    def _set_rgb_default(self):
+
+        self.spin_rchannel.setValue(640)
+        self.spin_gchannel.setValue(545)
+        self.spin_bchannel.setValue(460)
 
     def _on_click_RGB(self, event=None):
         """Load RGB image"""
