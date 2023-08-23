@@ -38,8 +38,6 @@ class SpectralIndexWidget(QWidget):
         
         self.viewer = napari_viewer
 
-        self.rgb = [640, 545, 460]
-
         self.index_triplets = []
         self.create_index_list()
 
@@ -367,8 +365,7 @@ class SpectralIndexWidget(QWidget):
 
     def get_RGB(self):
         
-        self.rgb_ch = [np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - x)) for x in self.rgb]
-        self.rgb_names = [self.imagechannels.channel_names[x] for x in self.rgb_ch]
+        self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgbwidget.rgb)
         [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
         self.qlist_channels._on_change_channel_selection()
 
@@ -446,6 +443,7 @@ class SpectralIndexWidget(QWidget):
         self.params_plots.red_conrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
         self.params_plots.green_conrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
         self.params_plots.blue_conrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
+        self.params_plots.rgb_bands = self.rgbwidget.rgb
 
     def _on_click_save_plot_parameters(self, event=None, file_path=None):
             
@@ -475,6 +473,8 @@ class SpectralIndexWidget(QWidget):
         self.viewer.layers['red'].contrast_limits = self.params_plots.red_conrast_limits
         self.viewer.layers['green'].contrast_limits = self.params_plots.green_conrast_limits
         self.viewer.layers['blue'].contrast_limits = self.params_plots.blue_conrast_limits
+        self.rgbwidget.rgb = self.params_plots.rgb_bands
+        self.rgbwidget._on_click_RGB()
 
         self.connect_plot_formatting()
         self.create_index_plot()
