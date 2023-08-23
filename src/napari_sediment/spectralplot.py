@@ -12,8 +12,6 @@ def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale
 
     left_right_margin_fraction = format_dict['left_right_margin_fraction']
     bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
-    # w space occupied by plot e.g. 0.25 mean plot takes has a width a quarter
-    # of the image width
     plot_image_w_fraction = format_dict['plot_image_w_fraction']
     font_factor = format_dict['font_factor']
     color_plotline = format_dict['color_plotline']
