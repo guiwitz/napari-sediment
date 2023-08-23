@@ -603,10 +603,12 @@ class SedimentWidget(QWidget):
         self.mainroi_min_row = min_row
         self.mainroi_max_row = max_row
 
-    def _add_analysis_roi(self, viewer, event):
+    def _add_analysis_roi(self, viewer=None, event=None, cursor_pos=None):
         """Add roi to layer"""
 
-        cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+        if cursor_pos is None:
+            cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+            
         if self.mainroi_min_row is None:
             min_row = 0
             max_row = self.imagechannels.nrows
