@@ -100,8 +100,8 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('IO', self.btn_import_index_settings)
         self.index_file_display = QLineEdit("No file selected")
         self.tabs.add_named_tab('IO', self.index_file_display)
-        self.btn_select_index_file = QPushButton("Select index file")
-        self.tabs.add_named_tab('IO', self.btn_select_index_file)
+        #self.btn_select_index_file = QPushButton("Select index file")
+        #self.tabs.add_named_tab('IO', self.btn_select_index_file)
 
         self.spin_roi_width = QSpinBox()
         self.spin_roi_width.setRange(1, 1000)
@@ -258,7 +258,7 @@ class SpectralIndexWidget(QWidget):
         self.qcom_indices.activated.connect(self._on_change_index_index)
         self.btn_export_index_settings.clicked.connect(self._on_click_export_index_settings)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
-        self.btn_select_index_file.clicked.connect(self._on_click_select_index_file)
+        #self.btn_select_index_file.clicked.connect(self._on_click_select_index_file)
         self.btn_create_index_plot.clicked.connect(self.create_index_plot)
         
         self.connect_plot_formatting()
@@ -829,12 +829,16 @@ class SpectralIndexWidget(QWidget):
             self.index_pick_group.glayout.addWidget(newbox, ind, 1, 1, 1)
 
 
-    def _on_click_export_index_settings(self, event=None):
+    def _on_click_export_index_settings(self, event=None, file_path=None):
         """Export index setttings"""
 
         index_series = [pd.Series(asdict(x)) for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         index_table = pd.DataFrame(index_series)
-        index_table.to_csv(self.export_folder.joinpath('index_settings.csv'), index=False)
+        if file_path is None:
+            file_path = Path(str(QFileDialog.getSaveFileName(self, "Select index settings file")[0]))
+        if file_path.suffix != '.csv':
+            file_path = file_path.with_suffix('.csv')
+        index_table.to_csv(file_path, index=False)
 
     def _on_click_import_index_settings(self, event=None):
         """Load index settings from file."""
