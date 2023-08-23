@@ -440,6 +440,12 @@ class SpectralIndexWidget(QWidget):
         self.params_plots.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
         self.params_plots.plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
         self.params_plots.figure_size_factor = self.spin_figure_size_factor.value()
+        for key in self.index_collection:
+            if key in self.viewer.layers:
+                self.params_plots.index_colormap[key] = self.viewer.layers[key].colormap.name
+        self.params_plots.red_conrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
+        self.params_plots.green_conrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
+        self.params_plots.blue_conrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
 
     def _on_click_save_plot_parameters(self, event=None, file_path=None):
             
@@ -463,6 +469,12 @@ class SpectralIndexWidget(QWidget):
         self.spin_plot_image_w_fraction.setValue(self.params_plots.plot_image_w_fraction)
         self.spin_figure_size_factor.setValue(self.params_plots.figure_size_factor)
         self.qcolor_plotline.setCurrentColor(QColor(*[int(x*255) for x in self.params_plots.color_plotline]))
+        for key in self.params_plots.index_colormap:
+            if key in self.viewer.layers:
+                self.viewer.layers[key].colormap = self.params_plots.index_colormap[key]
+        self.viewer.layers['red'].contrast_limits = self.params_plots.red_conrast_limits
+        self.viewer.layers['green'].contrast_limits = self.params_plots.green_conrast_limits
+        self.viewer.layers['blue'].contrast_limits = self.params_plots.blue_conrast_limits
 
         self.connect_plot_formatting()
         self.create_index_plot()

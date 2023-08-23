@@ -37,6 +37,10 @@ class Paramplot:
     plot_thickness: float = None
     figure_size_factor: float = None
     scale_font_size: int = None
+    index_colormap: dict = field(default_factory=dict)
+    red_conrast_limits: list = field(default_factory=list)
+    green_conrast_limits: list = field(default_factory=list)
+    blue_conrast_limits: list = field(default_factory=list)
     
     def save_parameters(self, save_path):
         """Save parameters as yml file.
