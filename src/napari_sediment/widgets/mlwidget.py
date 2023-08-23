@@ -92,7 +92,9 @@ class MLWidget(QWidget):
     def get_data(self):
 
         reduce_fact = self.spin_downscale.value()
-        data = self.viewer.layers['imcube'].data
+        #data = self.viewer.layers['imcube'].data
+        data = self.parent.rgb_widget.get_current_rgb_cube()
+
         if len(data) !=3:
             raise ValueError('Only three channel images are supported')
         
