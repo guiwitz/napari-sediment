@@ -151,3 +151,13 @@ class ImChannels:
                     data[ind,:,:] = self.channel_array[c]
 
         return data
+    
+    def get_indices_of_bands(self, bands):
+        """
+        Get indices and names of bands closest to those passed in bands.
+        """
+
+        bands_indices = [np.argmin(np.abs(np.array(self.channel_names).astype(float) - x)) for x in bands]
+        bands_names = [self.channel_names[x] for x in bands_indices]
+
+        return bands_indices, bands_names
