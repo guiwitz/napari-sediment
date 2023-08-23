@@ -100,7 +100,12 @@ class RGBWidget(QWidget):
 
         self.display_as_rgb(channels=rgb_indices_in_imcube)
 
+    def get_current_rgb_cube(self):
 
+        rgb_indices_in_imcube = [list(self.parent.channel_indices).index(x) for x in self.rgb_ch]
+        rgb_cube = np.array([self.viewer.layers['imcube'].data[ind] for ind in rgb_indices_in_imcube])
+        return rgb_cube
+    
     def _on_change_contrast(self, event=None):
         """Update contrast limits of RGB channels"""
         
