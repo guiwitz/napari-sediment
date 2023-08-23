@@ -21,7 +21,7 @@ from .parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, load_plots_params
 from .imchannels import ImChannels
 from .sediproc import find_index_of_band
-from .spectralplot import SpectralPlotter
+from .spectralplot import SpectralPlotter, plot_spectral_profile
 from .channel_widget import ChannelWidget
 from .spectralindex import SpectralIndex
 from .rgb_widget import RGBWidget
@@ -507,7 +507,7 @@ class SpectralIndexWidget(QWidget):
 
         self._update_save_plot_parameters()
 
-        left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
+        """left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
         top_bottom_margin_fraction = self.spin_bottom_top_margin_fraction.value()
         # w space occupied by plot e.g. 0.25 mean plot takes has a width a quarter
         # of the image width
@@ -618,11 +618,22 @@ class SpectralIndexWidget(QWidget):
         ax1.set_ylabel('depth [mm]', fontsize=int(font_factor*im_h))
         self.index_plot_live.figure.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
                      fontsize=int(font_factor*im_h))
-        #fig.text(x=0, y=0, s='test')
+        """
+        rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
+        if self.qcom_indices.currentText() not in self.viewer.layers:
+            self._on_click_compute_index(event=None)
+        toplot = self.viewer.layers[self.qcom_indices.currentText()].data
+        toplot[toplot == np.inf] = 0
+        format_dict = asdict(self.params_plots)
+        _, self.ax1, self.ax2, self.ax2 = plot_spectral_profile(
+            rgb_image=rgb_image, index_image=toplot, index_name=self.qcom_indices.currentText(),
+                                format_dict=format_dict, scale=self.params.scale,
+                                location=self.params.location, fig=self.index_plot_live.figure, 
+                                roi=self.viewer.layers['rois'].data[0])
 
         self.index_plot_live.figure.savefig(
             self.export_folder.joinpath('temp.png'),
-            dpi=100, bbox_inches="tight")
+            dpi=100)#, bbox_inches="tight")
 
         # update napari preview
         self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
@@ -630,10 +641,6 @@ class SpectralIndexWidget(QWidget):
             self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
         else:
             self.pixlabel.setPixmap(self.pixmap.scaledToHeight(self.pixlabel.size().height()))
-
-        self.ax1 = ax1
-        self.ax2 = ax2
-        self.ax3 = ax3
 
         #self.index_plot_live.figure.canvas.draw()
         #self.index_plot_live.figure.canvas.flush_events()
@@ -658,7 +665,7 @@ class SpectralIndexWidget(QWidget):
         if export_file is None:
             export_file = self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
         self.index_plot_live.figure.savefig(
-            fname=export_file, dpi=500, bbox_inches="tight")
+            fname=export_file, dpi=500)#, bbox_inches="tight")
 
     def _on_click_open_plotline_color_dialog(self, event=None):
         """Show label color dialog"""
