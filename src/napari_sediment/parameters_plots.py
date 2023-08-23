@@ -26,6 +26,16 @@ class Paramplot:
         factor to scale the figure size
     scale_font_size: int
         font size of the scale bar
+    index_colormap: str
+        colormap for index
+    red_conrast_limits: list
+        contrast limits for red channel
+    green_conrast_limits: list
+        contrast limits for green channel
+    blue_conrast_limits: list
+        contrast limits for blue channel
+    rgb_bands: list
+        list of rgb bands
     
     """
 
@@ -41,6 +51,7 @@ class Paramplot:
     red_conrast_limits: list = field(default_factory=list)
     green_conrast_limits: list = field(default_factory=list)
     blue_conrast_limits: list = field(default_factory=list)
+    rgb_bands: list = field(default_factory=list)
     
     def save_parameters(self, save_path):
         """Save parameters as yml file.
