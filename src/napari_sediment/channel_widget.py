@@ -16,9 +16,9 @@ class ChannelWidget(QListWidget):
         super().__init__(parent)
 
         self.parent = parent
+        self.channel_indices = None
         
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-
         self.itemClicked.connect(self._on_change_channel_selection)
 
         self.parent_type = None
@@ -46,8 +46,8 @@ class ChannelWidget(QListWidget):
             channels=new_channel_indices,
             roi=roi)
 
-        self.parent.channel_indices = new_channel_indices
-        self.parent.bands = self.parent.imagechannels.centers[np.array(self.parent.channel_indices).astype(int)]
+        self.channel_indices = new_channel_indices
+        self.parent.bands = self.parent.imagechannels.centers[np.array(self.channel_indices).astype(int)]
         
         layer_name = 'imcube'
         if layer_name in self.parent.viewer.layers:

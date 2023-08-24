@@ -47,9 +47,7 @@ class SedimentWidget(QWidget):
         self.viewer = napari_viewer
         self.params = Param()
         self.current_image_name = None
-        self.channel_indices = None
         self.metadata = None
-        self.image_indices = None
         self.imhdr_path = None
         self.row_bounds = None
         self.col_bounds = None
@@ -494,8 +492,6 @@ class SedimentWidget(QWidget):
     def open_file(self):
         """Open file in napari"""
 
-        self.channel_indices = None
-        self.image_indices = None
         # clear existing layers.
         while len(self.viewer.layers) > 0:
             self.viewer.layers.clear()
@@ -662,7 +658,8 @@ class SedimentWidget(QWidget):
         
         selected_layer = self.combo_layer_destripe.currentText()
         if selected_layer == 'imcube':
-            channel_indices = self.channel_indices
+            self.qlist_channels.channel_in
+            channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
             channel_indices = self.rgb_widget.rgb_ch
 
@@ -933,11 +930,6 @@ class SedimentWidget(QWidget):
         if self.imagechannels is None:
             return None
         return self.imagechannels.channel_names[index]
-
-    def _get_all_channel_names(self):
-
-        ch_names = [self._get_channel_name_from_index(ch_ind) for ch_ind in self.channel_indices]
-        return ch_names
     
     def _shift_move_callback(self, viewer, event):
         """Receiver for napari.viewer.mouse_move_callbacks, checks for 'Shift' event modifier.

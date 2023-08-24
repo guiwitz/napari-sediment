@@ -32,7 +32,6 @@ class HyperAnalysisWidget(QWidget):
         self.viewer = napari_viewer
         self.params = Param()
         self.params_endmembers = ParamEndMember()
-        self.channel_indices = None
         self.eigen_line = None
         self.corr_line = None
         self.corr_limit_line = None
@@ -294,7 +293,9 @@ class HyperAnalysisWidget(QWidget):
         """Save parameters and stacks related to denoising/reduction"""
 
         self.params_endmembers.project_path = self.export_folder.as_posix()
-        self.params_endmembers.min_max_channel = [int(self.channel_indices[0]), int(self.channel_indices[-1])]
+        self.params_endmembers.min_max_channel = [
+            int(self.qlist_channels.channel_indices[0]),
+            int(self.qlist_channels.channel_indices[-1])]
         self.params_endmembers.eigen_threshold = float(self.spin_eigen_threshold.value())
         self.params_endmembers.correlation_threshold = float(self.spin_correlation_threshold.value())
         self.params_endmembers.ppi_iterations = self.ppi_iterations.value()
