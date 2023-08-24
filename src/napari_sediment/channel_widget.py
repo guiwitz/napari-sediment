@@ -50,7 +50,6 @@ class ChannelWidget(QListWidget):
         self.parent.bands = self.parent.imagechannels.centers[np.array(self.parent.channel_indices).astype(int)]
         
         layer_name = 'imcube'
-
         if layer_name in self.parent.viewer.layers:
             self.parent.viewer.layers[layer_name].data = new_cube
             self.parent.viewer.layers[layer_name].refresh()
