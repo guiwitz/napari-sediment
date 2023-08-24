@@ -1,6 +1,5 @@
-import numpy as np
-
-from napari_sediment import ExampleQWidget, example_magic_widget
+from pathlib import Path
+from napari_sediment.sediment_widget import SedimentWidget
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
@@ -8,29 +7,14 @@ from napari_sediment import ExampleQWidget, example_magic_widget
 def test_example_q_widget(make_napari_viewer, capsys):
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
-    viewer.add_image(np.random.random((100, 100)))
+    self = SedimentWidget(viewer)
 
-    # create our widget, passing in the viewer
-    my_widget = ExampleQWidget(viewer)
-
-    # call our widget method
-    my_widget._on_click()
-
-    # read captured output and check that it's as we expected
-    captured = capsys.readouterr()
-    assert captured.out == "napari has 1 layers\n"
-
-
-def test_example_magic_widget(make_napari_viewer, capsys):
-    viewer = make_napari_viewer()
-    layer = viewer.add_image(np.random.random((100, 100)))
-
-    # this time, our widget will be a MagicFactory or FunctionGui instance
-    my_widget = example_magic_widget()
-
-    # if we "call" this object, it'll execute our function
-    my_widget(viewer.layers[0])
-
-    # read captured output and check that it's as we expected
-    captured = capsys.readouterr()
-    assert captured.out == f"you have selected {layer}\n"
+    imhdr_path = Path('/Users/gw18g940/Desktop/Test_data/Zahajska/synthetic/Synthetic1/Synthetic1_123/capture/Synthetic1_123.hdr')
+    self.set_paths(imhdr_path)
+    self._on_select_file()
+    
+    assert 'red' in viewer.layers
+    assert 'green' in viewer.layers
+    assert 'blue' in viewer.layers
+    assert 'mask' in viewer.layers
+    assert len(self.imagechannels.channel_names) == 80, f"Expected 80 channels got {len(self.imagechannels.channel_names)}"
