@@ -527,12 +527,37 @@ def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
     return labels
 
 def find_index_of_band(band_list, band_value):
-    """Find index of band in list of bands"""
+    """Find index of band in list of bands
     
+    Parameters
+    ----------
+    band_list : list of float
+        List of real bands values
+    band_value : float or list/array of float
+        Band value(s) to find index of in band_list
+    
+    Returns
+    -------
+    band_index : int or list of int
+        Index of band in band_list. If band_value is a list/array,
+        returns a list of indices. Otherwise, returns a single index.
+
+    """
+    
+    if not isinstance(band_value, (list, np.ndarray)):
+        band_value = np.array([band_value])
+    band_value = np.array(band_value)
+    if band_value.ndim != 1:
+        raise ValueError('band_value must be 1D')
+
     band_list = np.array(band_list)
-    band_index = np.argmin(np.abs(band_list-band_value))
+    band_index = [np.argmin(np.abs(band_list-b)) for b in band_value]
+
+    if len(band_index) == 1:
+        band_index = band_index[0]
     
     return band_index
+
 
 def custom_ppi(X, niters=1000, threshold=0, centered=False):
 
