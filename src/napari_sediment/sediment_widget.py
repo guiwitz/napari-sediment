@@ -70,7 +70,6 @@ class SedimentWidget(QWidget):
 
         self.main_layout.addWidget(self.tabs)
 
-
         self._create_main_tab()
         self._create_options_tab()
         self._create_processing_tab()
@@ -164,9 +163,11 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(QLabel('Dark ref for White'), 2, 0, 1, 1)
         self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file, 2, 2, 1, 1)
-
+        self.combo_layer_background = QComboBox()
+        self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
         self.btn_background_correct = QPushButton("Correct imcube")
-        self.background_group.glayout.addWidget(self.btn_background_correct, 3, 0, 1, 3)
+        self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
 
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
@@ -404,6 +405,8 @@ class SedimentWidget(QWidget):
         # layer callbacks
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_destripe)
         self.viewer.layers.events.removed.connect(self._update_combo_layers_destripe)
+        self.viewer.layers.events.inserted.connect(self._update_combo_layers_background)
+        self.viewer.layers.events.removed.connect(self._update_combo_layers_background)
 
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
@@ -647,29 +650,43 @@ class SedimentWidget(QWidget):
         if selected_layer == 'RGB':
             for ind, x in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[x].data = data_destripe[ind]
+        
+        if 'imcube_destripe' in self.viewer.layers:
+            self.viewer.layers['imcube_destripe'].data = data_destripe
         else:
-            if 'imcube_destripe' in self.viewer.layers:
-                self.viewer.layers['imcube_destripe'].data = data_destripe
-            else:
-                self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+            self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
 
 
     def _on_click_background_correct(self, event=None):
         """White correct image"""
-                
-            
+        
+        selected_layer = self.combo_layer_destripe.currentText()
+        if selected_layer == 'imcube':
+            channel_indices = self.channel_indices
+        elif selected_layer == 'RGB':
+            channel_indices = self.rgb_widget.rgb_ch
+
         col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
         white_data, dark_data, dark_for_white_data = load_white_dark(
             white_file_path=self.white_file_path,
             dark_for_im_file_path=self.dark_for_im_file_path,
             dark_for_white_file_path=self.dark_for_white_file_path,
-            channel_indices=self.channel_indices,
+            channel_indices=channel_indices,
             col_bounds=col_bounds,
             clean_white=True
             )
 
-        im_corr = white_dark_correct(
-            self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+        if selected_layer == 'imcube':
+            im_corr = white_dark_correct(
+                self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+        elif selected_layer == 'RGB':
+            im_corr = white_dark_correct(
+                np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0), 
+                white_data, dark_data, dark_for_white_data)
+            
+            for ind, c in enumerate(['red', 'green', 'blue']):
+                self.viewer.layers[c].data = im_corr[ind]
+                self.viewer.layers[c].refresh()
 
         if 'imcube_corrected' in self.viewer.layers:
             self.viewer.layers['imcube_corrected'].data = im_corr
@@ -685,7 +702,16 @@ class SedimentWidget(QWidget):
         self.combo_layer_destripe.addItem('RGB')
         for a in admit_layers:
             if a in self.viewer.layers:
-                self.combo_layer_destripe.addItem(a)      
+                self.combo_layer_destripe.addItem(a)
+
+    def _update_combo_layers_background(self):
+        
+        admit_layers = ['imcube']
+        self.combo_layer_background.clear()
+        self.combo_layer_background.addItem('RGB')
+        for a in admit_layers:
+            if a in self.viewer.layers:
+                self.combo_layer_background.addItem(a)      
         
 
     def _on_change_batch_wavelengths(self, event):

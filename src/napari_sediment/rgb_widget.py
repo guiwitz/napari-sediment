@@ -23,7 +23,7 @@ class RGBWidget(QWidget):
 
         self.parent = parent
         self.viewer = parent.viewer
-        self.rgb = [640, 545, 460]
+        self.rgb =self.parent.params.rgb
 
         self.rgbmain_group = VHGroup('RGB', orientation='G')
         #self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
@@ -78,7 +78,7 @@ class RGBWidget(QWidget):
         self.spin_rchannel.valueChanged.connect(self._on_change_rgb)
         self.spin_gchannel.valueChanged.connect(self._on_change_rgb)
         self.spin_bchannel.valueChanged.connect(self._on_change_rgb)
-        self.btn_dislpay_as_rgb.clicked.connect(self.display_as_rgb)
+        self.btn_dislpay_as_rgb.clicked.connect(self.display_imcube_indices_as_rgb)
         self.btn_default_rgb.clicked.connect(self._set_rgb_default)
         self.slider_contrast.valueChanged.connect(self._on_change_contrast)
 
@@ -89,6 +89,7 @@ class RGBWidget(QWidget):
     def _on_change_rgb(self, event=None):
 
         self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
+        self.parent.params.rgb = self.rgb
     
     def _set_rgb_default(self):
 
@@ -99,20 +100,13 @@ class RGBWidget(QWidget):
     def _on_click_RGB(self, event=None):
         """Load RGB image"""
 
-        self.rgb_ch = [find_index_of_band(self.parent.imagechannels.centers, x) for x in self.rgb]
-        self.rgb_names = [self.parent.imagechannels.channel_names[x] for x in self.rgb_ch]
-
-        [self.parent.qlist_channels.item(x).setSelected(True) for x in self.rgb_ch]
-        self.parent.qlist_channels._on_change_channel_selection()
-
-        rgb_indices_in_imcube = [list(self.parent.channel_indices).index(x) for x in self.rgb_ch]
-
-        self.display_as_rgb(channels=rgb_indices_in_imcube)
+        self.rgb_ch, self.rgb_names = self.parent.imagechannels.get_indices_of_bands(self.rgb)
+        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch)
+        self.add_rgb_cube_to_viewer(rgb_cube)
 
     def get_current_rgb_cube(self):
 
-        rgb_indices_in_imcube = [list(self.parent.channel_indices).index(x) for x in self.rgb_ch]
-        rgb_cube = np.array([self.viewer.layers['imcube'].data[ind] for ind in rgb_indices_in_imcube])
+        rgb_cube = np.array([self.viewer.layers[c].data for c in ['red', 'green', 'blue']])
         return rgb_cube
     
     def _on_change_contrast(self, event=None):
@@ -136,21 +130,35 @@ class RGBWidget(QWidget):
             if a in self.viewer.layers:
                 self.combo_layer_to_rgb.addItem(a)
 
-    def display_as_rgb(self, channels=None):
+    def load_and_display_rgb_bands(self):
+
+        self.rgb_ch, self.rgb_names = self.parent.imagechannels.get_indices_of_bands(self.rgb)
+        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch)
+        
+        self.add_rgb_cube_to_viewer(rgb_cube)
+
+    def display_imcube_indices_as_rgb(self, event=None, channels=None):
 
         if channels is None:
             channels = [0, 1, 2]
-        cmaps = ['red', 'green', 'blue']
+
         layer_name = self.combo_layer_to_rgb.currentText()
-        for ind, cmap in zip(channels, cmaps):
+        rgb_cube = np.array([self.viewer.layers[layer_name].data[ind] for ind in channels])
+
+        self.add_rgb_cube_to_viewer(rgb_cube)
+
+    def add_rgb_cube_to_viewer(self, rgb_cube):
+        
+        cmaps = ['red', 'green', 'blue']
+        for ind, cmap in enumerate(cmaps):
             if cmap not in self.viewer.layers:
                 self.viewer.add_image(
-                    self.viewer.layers[layer_name].data[ind],
+                    rgb_cube[ind],
                     name=cmap,
                     colormap=cmap,
                     blending='additive')
             else:
-                self.parent.viewer.layers[cmap].data = self.viewer.layers[layer_name].data[ind]
+                self.parent.viewer.layers[cmap].data = rgb_cube[ind]
             
             self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
             self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
