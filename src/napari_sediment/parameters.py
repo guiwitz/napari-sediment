@@ -26,6 +26,8 @@ class Param:
         scale of the image in mm/px
     location: str
         location of the sample
+    rgb: list
+        list of rgb bands
     
     """
     project_path: str = None
@@ -37,6 +39,10 @@ class Param:
     rois: list = field(default_factory=list)
     scale: float = 1
     location: str = ''
+    rgb: list = field(default_factory=list)
+
+    def __post_init__(self):
+        self.rgb = [640, 545, 460]
     
     def save_parameters(self, alternate_path=None):
         """Save parameters as yml file.
