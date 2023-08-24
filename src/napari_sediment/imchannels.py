@@ -1,6 +1,7 @@
 import numpy as np
 from dataclasses import dataclass, field
 from ._reader import read_spectral
+from .sediproc import find_index_of_band
 
 
 @dataclass
@@ -157,7 +158,8 @@ class ImChannels:
         Get indices and names of bands closest to those passed in bands.
         """
 
-        bands_indices = [np.argmin(np.abs(np.array(self.channel_names).astype(float) - x)) for x in bands]
+        bands_indices = find_index_of_band(self.centers, bands)
+        #bands_indices = [np.argmin(np.abs(np.array(self.channel_names).astype(float) - x)) for x in bands]
         bands_names = [self.channel_names[x] for x in bands_indices]
 
         return bands_indices, bands_names
