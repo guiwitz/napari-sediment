@@ -24,6 +24,7 @@ def napari_get_reader(path):
         If the path is a recognized format, return a function that accepts the
         same path or list of paths, and returns a list of layer data tuples.
     """
+
     if isinstance(path, list):
         # reader plugins may be handed single path, or a list of paths.
         # if it is a list, it is assumed to be an image stack...
@@ -31,7 +32,7 @@ def napari_get_reader(path):
         path = path[0]
 
     # if we know we cannot read the file, we immediately return None.
-    if not path.endswith(".npy"):
+    if not path.endswith(".hdr") and not path.endswith(".zarr"):
         return None
 
     # otherwise we return the *function* that can read ``path``.
@@ -68,10 +69,11 @@ def reader_function(path):
     #data = np.squeeze(np.stack(arrays))
 
     # optional kwargs for the corresponding viewer.add_* method
-    add_kwargs = {'channel_axis': 0, 'name': metadata['wavelength']}
+    add_kwargs = {'name': metadata['wavelength'], 'channel_axis': 2}
 
     layer_type = "image"  # optional, default is "image"
-    return [(array, add_kwargs, layer_type)]
+    array = np.moveaxis(array, 2, 0)
+    return [(array, {}, layer_type)]
 
 def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
 
