@@ -213,10 +213,15 @@ class SedimentWidget(QWidget):
             
         self.tabs.widget(self.tab_names.index('Mask')).layout().setAlignment(Qt.AlignTop)
         
-        self.mask_generation_group = VHGroup('1. Create one or more masks', orientation='G')
+        self.mask_layersel_group = VHGroup('1. Select layer to use', orientation='G')
+        self.tabs.add_named_tab('Mask', self.mask_layersel_group.gbox)
+        self.combo_layer_mask = QComboBox()
+        self.mask_layersel_group.glayout.addWidget(self.combo_layer_mask)
+
+        self.mask_generation_group = VHGroup('2. Create one or more masks', orientation='G')
         self.tabs.add_named_tab('Mask', self.mask_generation_group.gbox)
 
-        self.mask_assemble_group = VHGroup('2. Assemble masks', orientation='G')
+        self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
         self.tabs.add_named_tab('Mask', self.mask_assemble_group.gbox)
         
         self.mask_group_border = VHGroup('Border mask', orientation='G')
@@ -384,6 +389,7 @@ class SedimentWidget(QWidget):
         #self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
+        self.combo_layer_mask.currentIndexChanged.connect(self._on_select_layer_for_mask)
 
         # ROI
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
@@ -522,6 +528,10 @@ class SedimentWidget(QWidget):
 
         #self._on_click_RGB()
         self.rgb_widget._on_click_RGB()
+        # add imcube from RGB
+        [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
+        self.qlist_channels._on_change_channel_selection()
+        self._update_threshold_limits()
 
         #self._add_roi_layer()
         self._add_mask()
@@ -658,7 +668,6 @@ class SedimentWidget(QWidget):
         
         selected_layer = self.combo_layer_destripe.currentText()
         if selected_layer == 'imcube':
-            self.qlist_channels.channel_in
             channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
             channel_indices = self.rgb_widget.rgb_ch
@@ -696,10 +705,12 @@ class SedimentWidget(QWidget):
         
         admit_layers = ['imcube', 'imcube_corrected']
         self.combo_layer_destripe.clear()
+        self.combo_layer_mask.clear()
         self.combo_layer_destripe.addItem('RGB')
         for a in admit_layers:
             if a in self.viewer.layers:
                 self.combo_layer_destripe.addItem(a)
+                self.combo_layer_mask.addItem(a)
 
     def _update_combo_layers_background(self):
         
@@ -739,11 +750,21 @@ class SedimentWidget(QWidget):
             destripe=self.check_batch_destripe.isChecked())
 
 
-    def get_summary_image(self):
+    def get_summary_image_for_mask(self):
         """Get summary image"""
 
-        im = np.mean(self.viewer.layers['imcube'].data, axis=0)
+        selected_layer = self.combo_layer_mask.currentText()
+        im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
         return im
+    
+    def _on_select_layer_for_mask(self):
+        
+        selected_layer = self.combo_layer_mask.currentText()
+        if selected_layer in self.viewer.layers:
+            im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
+            self.slider_mask_threshold.setRange(im.min(), im.max())
+            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
+
 
     def translate_layer(self, mask_name):
         """Translate mask"""
@@ -754,7 +775,7 @@ class SedimentWidget(QWidget):
     def _on_click_remove_borders(self):
         """Remove borders from image"""
         
-        im = self.get_summary_image()
+        im = self.get_summary_image_for_mask()
 
         first_row, last_row = remove_top_bottom(im)
         first_col, last_col = remove_left_right(im)
@@ -771,14 +792,14 @@ class SedimentWidget(QWidget):
 
     def _update_threshold_limits(self):
         
-        im = self.get_summary_image()
+        im = self.get_summary_image_for_mask()
         self.slider_mask_threshold.setRange(im.min(), im.max())
         self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
     def _on_click_automated_threshold(self):
         """Automatically set threshold for mask based on mean RGB pixel intensity"""
 
-        im = self.get_summary_image()
+        im = self.get_summary_image_for_mask()
         if 'border-mask' in self.viewer.layers:
             pix_selected = im[self.viewer.layers['border-mask'].data == 0]
         else:
@@ -797,7 +818,7 @@ class SedimentWidget(QWidget):
     def _on_click_update_mask(self):
         """Update mask based on current threshold"""
         
-        data = self.get_summary_image()
+        data = self.get_summary_image_for_mask()
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         self.update_mask(mask)
         self.translate_layer('mask')
