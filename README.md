@@ -26,10 +26,10 @@ The sediment widget allows the user to import an HDR image and to normalize it u
 You can find a detailed documentation [here](https://guiwitz.github.io/napari-sediment).
 ## Installation
 
-Create a conda environment and activate it:
+Create a conda environment and activate it. We highly recommend to use the new conda version called mamba to speed up the installation process. You can install it from [here](https://github.com/conda-forge/miniforge#mambaforge). If you don't use mamba, replace the mamba command by conda in the following instructions:
 
-    conda create -n sediment python=3.9 napari -c conda-forge
-    conda activate sediment
+    mamba create -n sediment python=3.9 napari pyqt -c conda-forge
+    mamba activate sediment
 
 Then you can install `napari-sediment` use:
 
