@@ -63,7 +63,7 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['Main', 'Processing', 'Mask', 'ROI', 'Export', 'Plotting','Options']
+        self.tab_names = ['&Main', '&Processing', 'Mas&k', '&ROI', '&Export', 'P&lotting','&Options']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
@@ -86,7 +86,7 @@ class SedimentWidget(QWidget):
 
         # file selection
         self.files_group = VHGroup('Files and folders', orientation='G')
-        self.tabs.add_named_tab('Main', self.files_group.gbox)
+        self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
         self.btn_select_imhdr_file = QPushButton("Select imhdr file")
         self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
@@ -103,7 +103,7 @@ class SedimentWidget(QWidget):
 
         # metadata
         self.metadata_group = VHGroup('Metadata', orientation='G')
-        self.tabs.add_named_tab('Main', self.metadata_group.gbox)
+        self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
 
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
@@ -119,7 +119,7 @@ class SedimentWidget(QWidget):
 
         # channel selection
         self.main_group = VHGroup('Bands', orientation='G')
-        self.tabs.add_named_tab('Main', self.main_group.gbox)
+        self.tabs.add_named_tab('&Main', self.main_group.gbox)
 
         self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
         self.qlist_channels = ChannelWidget(self)
@@ -131,15 +131,15 @@ class SedimentWidget(QWidget):
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
         self.rgb_widget = RGBWidget(self)
-        self.tabs.add_named_tab('Main', self.rgb_widget.rgbmain_group.gbox)
+        self.tabs.add_named_tab('&Main', self.rgb_widget.rgbmain_group.gbox)
 
 
     def _create_processing_tab(self):
         
-        self.tabs.widget(self.tab_names.index('Processing')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('&Processing')).layout().setAlignment(Qt.AlignTop)
 
         self.background_group = VHGroup('Background correction', orientation='G')
-        self.tabs.add_named_tab('Processing', self.background_group.gbox)
+        self.tabs.add_named_tab('&Processing', self.background_group.gbox)
 
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
@@ -169,7 +169,7 @@ class SedimentWidget(QWidget):
 
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
-        self.tabs.add_named_tab('Processing', self.destripe_group.gbox)
+        self.tabs.add_named_tab('&Processing', self.destripe_group.gbox)
         self.combo_layer_destripe = QComboBox()
         self.destripe_group.glayout.addWidget(QLabel('Layer'), 0, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 1, 1, 1)
@@ -183,7 +183,7 @@ class SedimentWidget(QWidget):
 
 
         self.batch_group = VHGroup('Batch', orientation='G')
-        self.tabs.add_named_tab('Processing', self.batch_group.gbox)
+        self.tabs.add_named_tab('&Processing', self.batch_group.gbox)
         self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
@@ -211,18 +211,18 @@ class SedimentWidget(QWidget):
 
     def _create_mask_tab(self):
             
-        self.tabs.widget(self.tab_names.index('Mask')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('Mas&k')).layout().setAlignment(Qt.AlignTop)
         
         self.mask_layersel_group = VHGroup('1. Select layer to use', orientation='G')
-        self.tabs.add_named_tab('Mask', self.mask_layersel_group.gbox)
+        self.tabs.add_named_tab('Mas&k', self.mask_layersel_group.gbox)
         self.combo_layer_mask = QComboBox()
         self.mask_layersel_group.glayout.addWidget(self.combo_layer_mask)
 
         self.mask_generation_group = VHGroup('2. Create one or more masks', orientation='G')
-        self.tabs.add_named_tab('Mask', self.mask_generation_group.gbox)
+        self.tabs.add_named_tab('Mas&k', self.mask_generation_group.gbox)
 
         self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
-        self.tabs.add_named_tab('Mask', self.mask_assemble_group.gbox)
+        self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
         
         self.mask_group_border = VHGroup('Border mask', orientation='G')
         self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
@@ -282,42 +282,42 @@ class SedimentWidget(QWidget):
         
     def _create_roi_tab(self):
 
-        self.tabs.widget(self.tab_names.index('ROI')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
 
-        self.roi_group = VHGroup('Main ROI', orientation='G')
-        self.tabs.add_named_tab('ROI', self.roi_group.gbox)
-        self.btn_add_main_roi = QPushButton("Add main ROI")
-        self.btn_add_main_roi.setToolTip("Maximal ROI only removing fully masked border")
+        self.roi_group = VHGroup('&Main &ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
+        self.btn_add_main_roi = QPushButton("Add main &ROI")
+        self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
         self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
 
-        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
-        self.tabs.add_named_tab('ROI', self.subroi_group.gbox)
-        #self.btn_add_sub_roi = QPushButton("Add analysis ROI")
+        self.subroi_group = VHGroup('Sub-&ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
+        #self.btn_add_sub_roi = QPushButton("Add analysis &ROI")
         #self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
         self.subroi_group.glayout.addWidget(QLabel(
-            'Set desired sub-ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
+            'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
         self.spin_roi_width = QSpinBox()
         self.spin_roi_width.setRange(1, 1000)
         self.spin_roi_width.setValue(20)
-        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
+        self.subroi_group.glayout.addWidget(QLabel('Sub-&ROI width'), 1, 0, 1, 1)
         self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
 
     def _create_export_tab(self):
 
-        self.tabs.widget(self.tab_names.index('Export')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('&Export')).layout().setAlignment(Qt.AlignTop)
 
         self.mask_group_project = VHGroup('Project', orientation='G')
-        self.tabs.add_named_tab('Export', self.mask_group_project.gbox)
-        self.btn_export = QPushButton("Export Project")
+        self.tabs.add_named_tab('&Export', self.mask_group_project.gbox)
+        self.btn_export = QPushButton("&Export Project")
         self.btn_export.setToolTip(
-            "Export all info necessary for next steps and to reload the project")
+            "&Export all info necessary for next steps and to reload the project")
         self.mask_group_project.glayout.addWidget(self.btn_export)
         self.btn_import = QPushButton("Import Project")
         self.mask_group_project.glayout.addWidget(self.btn_import)
 
         # io
-        self.mask_group_export = VHGroup('Mask', orientation='G')
-        self.tabs.add_named_tab('Export', self.mask_group_export.gbox)
+        self.mask_group_export = VHGroup('Mas&k', orientation='G')
+        self.tabs.add_named_tab('&Export', self.mask_group_export.gbox)
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
@@ -325,7 +325,7 @@ class SedimentWidget(QWidget):
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
         self.mask_group_capture = VHGroup('Other exports', orientation='G')
-        self.tabs.add_named_tab('Export', self.mask_group_capture.gbox)
+        self.tabs.add_named_tab('&Export', self.mask_group_capture.gbox)
         self.btn_snapshot = QPushButton("Snapshot")
         self.btn_snapshot.setToolTip("Save snapshot of current viewer")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
@@ -340,7 +340,7 @@ class SedimentWidget(QWidget):
         
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
-        #self.tabs.add_named_tab('Options', self.crop_group.gbox)
+        #self.tabs.add_named_tab('&Options', self.crop_group.gbox)
 
         self.check_use_external_ref = QCheckBox("Use external reference")
         self.check_use_external_ref.setChecked(True)
@@ -360,7 +360,7 @@ class SedimentWidget(QWidget):
 
         # Plot tab
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('Plotting', self.scan_plot)
+        self.tabs.add_named_tab('P&lotting', self.scan_plot)
 
 
     def add_connections(self):
@@ -391,7 +391,7 @@ class SedimentWidget(QWidget):
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
         self.combo_layer_mask.currentIndexChanged.connect(self._on_select_layer_for_mask)
 
-        # ROI
+        # &ROI
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
 
         # capture
@@ -569,7 +569,7 @@ class SedimentWidget(QWidget):
 
 
     def _add_roi_layer(self):
-        """Add ROI layers to napari viewer"""
+        """Add &ROI layers to napari viewer"""
 
         if 'main-roi' not in self.viewer.layers:
             self.roi_layer = self.viewer.add_shapes(
@@ -1005,7 +1005,7 @@ class SedimentWidget(QWidget):
         self.params.save_parameters()
 
     def export_project(self):
-        """Export data"""
+        """&Export data"""
 
         if self.export_folder is None:
             self._on_click_select_export_folder()
