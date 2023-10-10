@@ -213,7 +213,7 @@ class SpectralIndexWidget(QWidget):
         #self.tabs.add_named_tab('P&lots', self.btn_reset_figure_size, grid_pos=(9, 0, 1, 2))
         self.spin_figure_size_factor = QDoubleSpinBox()
         self.spin_figure_size_factor.setRange(1, 100)
-        self.spin_figure_size_factor.setValue(1)
+        self.spin_figure_size_factor.setValue(10)
         self.spin_figure_size_factor.setSingleStep(1)
         self.tabs.add_named_tab('P&lots', QLabel('Figure size factor'), grid_pos=(9, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.spin_figure_size_factor, grid_pos=(9, 1, 1, 1))
