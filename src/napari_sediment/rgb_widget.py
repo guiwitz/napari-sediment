@@ -130,10 +130,10 @@ class RGBWidget(QWidget):
             if a in self.viewer.layers:
                 self.combo_layer_to_rgb.addItem(a)
 
-    def load_and_display_rgb_bands(self):
+    def load_and_display_rgb_bands(self, roi=None):
 
         self.rgb_ch, self.rgb_names = self.parent.imagechannels.get_indices_of_bands(self.rgb)
-        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch)
+        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
         
         self.add_rgb_cube_to_viewer(rgb_cube)
 

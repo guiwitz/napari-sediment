@@ -42,7 +42,8 @@ class Paramplot:
     left_right_margin_fraction: float = None
     bottom_top_margin_fraction: float = None
     plot_image_w_fraction: float = None
-    font_factor: float = None
+    title_font_factor: float = None
+    label_font_factor: float = None
     color_plotline: list = field(default_factory=list)
     plot_thickness: float = None
     figure_size_factor: float = None

@@ -13,7 +13,8 @@ def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale
     left_right_margin_fraction = format_dict['left_right_margin_fraction']
     bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
     plot_image_w_fraction = format_dict['plot_image_w_fraction']
-    font_factor = format_dict['font_factor']
+    title_font_factor = format_dict['title_font_factor']
+    label_font_factor = format_dict['label_font_factor']
     color_plotline = format_dict['color_plotline']
     plot_thickness = format_dict['plot_thickness']
     figure_size_factor = format_dict['figure_size_factor']
@@ -120,12 +121,12 @@ def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale
     ax2.set_xticks([])
     ax2.set_yticks([])
     for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
-        label.set_fontsize(int(font_factor*im_h))
+        label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
     
     ax2.set_ylim(len(proj),0)
-    ax1.set_ylabel('depth [mm]', fontsize=int(font_factor*im_h))
+    ax1.set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
     fig.suptitle(index_name + '\n' + location,
-                    fontsize=int(font_factor*im_h))
+                    fontsize=int(fig_size[1] * 72 * title_font_factor))
 
     return fig, ax1, ax2, ax3
 
