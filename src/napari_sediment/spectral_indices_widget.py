@@ -487,7 +487,7 @@ class SpectralIndexWidget(QWidget):
         self.params_plots.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
         self.params_plots.plot_thickness = self.spin_plot_thickness.value()
         self.params_plots.title_font_factor = self.spin_title_font_factor.value()
-        self.params_plots.label_font_factor = self.spin_title_font_factor.value()
+        self.params_plots.label_font_factor = self.spin_label_font_factor.value()
         self.params_plots.scale_font_size = self.spin_scale_font_size.value()
         self.params_plots.left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
         self.params_plots.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
