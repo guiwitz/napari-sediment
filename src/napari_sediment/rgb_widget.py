@@ -18,12 +18,12 @@ class RGBWidget(QWidget):
     - an attribute called row_bounds and col_bounds, which are the current crop
     bounds."""
 
-    def __init__(self, parent):
-        super().__init__(parent)
+    def __init__(self, viewer, imagechannels=None):
+        super().__init__()
 
-        self.parent = parent
-        self.viewer = parent.viewer
-        self.rgb =self.parent.params.rgb
+        self.viewer = viewer
+        self.imagechannels = imagechannels
+        self.rgb = [640, 545, 460]
 
         self.rgbmain_group = VHGroup('RGB', orientation='G')
         #self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
@@ -89,8 +89,13 @@ class RGBWidget(QWidget):
     def _on_change_rgb(self, event=None):
 
         self.rgb = [self.spin_rchannel.value(), self.spin_gchannel.value(), self.spin_bchannel.value()]
-        self.parent.params.rgb = self.rgb
     
+    def set_rgb(self, rgb):
+            
+        self.spin_rchannel.setValue(rgb[0])
+        self.spin_gchannel.setValue(rgb[1])
+        self.spin_bchannel.setValue(rgb[2])
+
     def _set_rgb_default(self):
 
         self.spin_rchannel.setValue(640)
@@ -100,8 +105,8 @@ class RGBWidget(QWidget):
     def _on_click_RGB(self, event=None):
         """Load RGB image"""
 
-        self.rgb_ch, self.rgb_names = self.parent.imagechannels.get_indices_of_bands(self.rgb)
-        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch)
+        self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
+        rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch)
         self.add_rgb_cube_to_viewer(rgb_cube)
 
     def get_current_rgb_cube(self):
@@ -132,8 +137,8 @@ class RGBWidget(QWidget):
 
     def load_and_display_rgb_bands(self, roi=None):
 
-        self.rgb_ch, self.rgb_names = self.parent.imagechannels.get_indices_of_bands(self.rgb)
-        rgb_cube = self.parent.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
+        self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
+        rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
         
         self.add_rgb_cube_to_viewer(rgb_cube)
 
@@ -158,7 +163,7 @@ class RGBWidget(QWidget):
                     colormap=cmap,
                     blending='additive')
             else:
-                self.parent.viewer.layers[cmap].data = rgb_cube[ind]
+                self.viewer.layers[cmap].data = rgb_cube[ind]
             
             self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
             self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))

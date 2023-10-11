@@ -122,7 +122,8 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('&Main', self.main_group.gbox)
 
         self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
-        self.qlist_channels = ChannelWidget(self)
+        self.qlist_channels = ChannelWidget(self.viewer, translate=True)
+        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
         self.qlist_channels.setToolTip(
             "Select one or more (hold shift) bands to load. Loaded bands are displayed in the imcube layer.")
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
@@ -130,16 +131,16 @@ class SedimentWidget(QWidget):
         self.btn_select_all = QPushButton('Select all')
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
-        self.rgb_widget = RGBWidget(self)
+        self.rgb_widget = RGBWidget(viewer=self.viewer)
         self.tabs.add_named_tab('&Main', self.rgb_widget.rgbmain_group.gbox)
 
 
     def _create_processing_tab(self):
         
-        self.tabs.widget(self.tab_names.index('&Processing')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('Pro&cessing')).layout().setAlignment(Qt.AlignTop)
 
         self.background_group = VHGroup('Background correction', orientation='G')
-        self.tabs.add_named_tab('&Processing', self.background_group.gbox)
+        self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
@@ -169,7 +170,7 @@ class SedimentWidget(QWidget):
 
 
         self.destripe_group = VHGroup('Destripe', orientation='G')
-        self.tabs.add_named_tab('&Processing', self.destripe_group.gbox)
+        self.tabs.add_named_tab('Pro&cessing', self.destripe_group.gbox)
         self.combo_layer_destripe = QComboBox()
         self.destripe_group.glayout.addWidget(QLabel('Layer'), 0, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 1, 1, 1)
@@ -183,7 +184,7 @@ class SedimentWidget(QWidget):
 
 
         self.batch_group = VHGroup('Batch', orientation='G')
-        self.tabs.add_named_tab('&Processing', self.batch_group.gbox)
+        self.tabs.add_named_tab('Pro&cessing', self.batch_group.gbox)
         self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
@@ -524,13 +525,13 @@ class SedimentWidget(QWidget):
         self.row_bounds = [0, self.imagechannels.nrows]
         self.col_bounds = [0, self.imagechannels.ncols]
         
-        self.qlist_channels._update_channel_list()
+        self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
 
-        #self._on_click_RGB()
+        self.rgb_widget.imagechannels = self.imagechannels
         self.rgb_widget._on_click_RGB()
         # add imcube from RGB
         [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
         self._update_threshold_limits()
 
         #self._add_roi_layer()
@@ -565,7 +566,7 @@ class SedimentWidget(QWidget):
                     self.viewer.layers[l].data = self.viewer.layers[l].data[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
                 self.translate_layer(l)
         
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
 
     def _add_roi_layer(self):
@@ -940,10 +941,14 @@ class SedimentWidget(QWidget):
         image_list = [self.viewer.layers[c].data for c in rgb]
         contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
         save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
-        
+
+    def _on_change_select_bands(self, event=None):
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+
     def _on_click_select_all(self):
         self.qlist_channels.selectAll()
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
 
     def _get_channel_name_from_index(self, index):
@@ -1001,6 +1006,7 @@ class SedimentWidget(QWidget):
         self.params.rois = rois
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
+        self.params.rgb = self.rgb_widget.rgb
 
         self.params.save_parameters()
 
@@ -1027,6 +1033,10 @@ class SedimentWidget(QWidget):
         self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
         self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
 
+        # set defaults
+        self.rgb_widget.set_rgb(self.params.rgb)
+
+        # load data
         self._on_select_file()
         self._on_click_load_mask()
 
@@ -1036,14 +1046,15 @@ class SedimentWidget(QWidget):
 
         # rois
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
-        mainroi[0] = mainroi[0].astype(int)
-        rois = [np.array(x).reshape(4,2) for x in self.params.rois]
-        self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b', edge_width=10)
-        self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
-
-        self.set_main_roi_bounds(
+        if mainroi:
+            mainroi[0] = mainroi[0].astype(int)
+            self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b', edge_width=10)
+            self.set_main_roi_bounds(
             min_col=mainroi[0][:,1].min(),
             max_col=mainroi[0][:,1].max(),
             min_row=mainroi[0][:,0].min(),
             max_row=mainroi[0][:,0].max()
         )
+        rois = [np.array(x).reshape(4,2) for x in self.params.rois]
+        if rois:
+            self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)

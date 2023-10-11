@@ -39,7 +39,6 @@ class HyperAnalysisWidget(QWidget):
         self.export_folder = None
         self.selected_bands = None
         self.end_members = None
-        self.bands = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -67,7 +66,8 @@ class HyperAnalysisWidget(QWidget):
         self.tabs.add_named_tab('Main', self.main_group.gbox)
 
         self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
-        self.qlist_channels = ChannelWidget(self)
+        self.qlist_channels = ChannelWidget(self.viewer)
+        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.btn_select_all = QPushButton("Select all")
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
@@ -240,7 +240,7 @@ class HyperAnalysisWidget(QWidget):
             self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
         else:
             self.imagechannels = ImChannels(self.imhdr_path)
-        self.qlist_channels._update_channel_list()
+        self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
 
     def import_index_project(self):
         """Import pre-processed project (corrected roi and mask) as well as denoised
@@ -258,7 +258,7 @@ class HyperAnalysisWidget(QWidget):
         # update selected channels
         for i in range(self.params_endmembers.min_max_channel[0], self.params_endmembers.min_max_channel[1]+1):
             self.qlist_channels.item(i).setSelected(True)
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
         # load stacks
         self.load_stacks()
@@ -281,7 +281,7 @@ class HyperAnalysisWidget(QWidget):
 
         if self.end_members is not None:
             self.plot_endmembers()
-            self.ppi_boundaries_range.setRange(self.bands[0],self.bands[-1])
+            self.ppi_boundaries_range.setRange(self.qlist_channels.bands[0],self.qlist_channels.bands[-1])
             self.ppi_boundaries_range.setValue(self.params_endmembers.index_boundaries)
         else:
             if 'pure' in self.viewer.layers:
@@ -341,7 +341,7 @@ class HyperAnalysisWidget(QWidget):
             df.to_csv(self.export_folder.joinpath('correlation.csv'), index=False)
         if self.end_members is not None:
             df = pd.DataFrame(self.end_members, columns=np.arange(self.end_members.shape[1]))
-            df['bands'] = self.bands
+            df['bands'] = self.qlist_channels.bands
             df.to_csv(self.export_folder.joinpath('end_members.csv'), index=False)
 
     def load_plots(self):
@@ -368,9 +368,13 @@ class HyperAnalysisWidget(QWidget):
         else:
             self.viewer.add_labels(mask, name='mask')
 
-    def _on_click_select_all(self):
+    def _on_change_select_bands(self, event=None):
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+
+    def _on_click_select_all(self, event=None):
         self.qlist_channels.selectAll()
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
     def _on_click_mnfr(self):
         """Compute MNFR transform and compute vertical correlation. Keep all bands."""
@@ -509,14 +513,15 @@ class HyperAnalysisWidget(QWidget):
         labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())
 
         # compute band location
-        self.ppi_boundaries_range.setRange(min=self.bands[0],max=self.bands[-1])
-        self.ppi_boundaries_range.setValue((self.bands[0], (self.bands[-1]+self.bands[0])/2, self.bands[-1]))
+        bands = self.qlist_channels.bands
+        self.ppi_boundaries_range.setRange(min=bands[0],max=bands[-1])
+        self.ppi_boundaries_range.setValue((bands[0], (bands[-1]+bands[0])/2, bands[-1]))
 
         self.end_members = []
         for ind in range(0, labels.max()+1):
             
             endmember = vects_image[:, labels==ind].mean(axis=1)
-            self.end_members.append(remove_continuum(spectra=endmember, bands=self.bands))
+            self.end_members.append(remove_continuum(spectra=endmember, bands=bands))
 
         self.end_members = np.stack(self.end_members, axis=1)
     
@@ -524,7 +529,7 @@ class HyperAnalysisWidget(QWidget):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
 
         self.ppi_plot.axes.clear()
-        self.ppi_plot.axes.plot(self.bands, self.end_members)
+        self.ppi_plot.axes.plot(self.qlist_channels.bands, self.end_members)
         self.ppi_plot.canvas.figure.canvas.draw()
 
     def _on_change_ppi_boundaries(self, event):
@@ -565,7 +570,7 @@ class HyperAnalysisWidget(QWidget):
             ]
 
             spectral_pixel = spectral_pixel.astype(np.float64)
-            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=self.bands)
+            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=self.qlist_channels.bands)
 
             self.scan_plot.axes.clear()
             self.scan_plot.axes.plot(spectral_pixel)
