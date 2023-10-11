@@ -12,67 +12,70 @@ class ChannelWidget(QListWidget):
     - an attribute called row_bounds and col_bounds, which are the current crop
     bounds."""
 
-    def __init__(self, parent):
-        super().__init__(parent)
+    def __init__(self, viewer, imagechannels=None, translate=False):
+        super().__init__()
 
-        self.parent = parent
+        self.viewer = viewer
+        self.imagechannels = imagechannels
+        self.translate = translate
+
         self.channel_indices = None
         
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.itemClicked.connect(self._on_change_channel_selection)
-
-        self.parent_type = None
-        if self.parent.__class__.__name__ == 'HyperAnalysisWidget':
-            self.parent_type = 'hyperanalysis'
-        elif self.parent.__class__.__name__ == 'SpectralIndexWidget':
-            self.parent_type = 'spectralindex'
-        elif self.parent.__class__.__name__ == 'SedimentWidget':
-            self.parent_type = 'sediment'
+        #self.itemClicked.connect(self._on_change_channel_selection)
 
 
-    def _on_change_channel_selection(self):
+    def _on_change_channel_selection(self, row_bounds, col_bounds):
         """Load images upon of change in channel selection.
         Considers crop bounds.
         """
 
         # get selected channels
         selected_channels = [item.text() for item in self.selectedItems()]
-        new_channel_indices = [self.parent.imagechannels.channel_names.index(channel) for channel in selected_channels]
+        new_channel_indices = [self.imagechannels.channel_names.index(channel) for channel in selected_channels]
         new_channel_indices = np.sort(new_channel_indices)
 
-        roi = np.concatenate([self.parent.row_bounds, self.parent.col_bounds])
+        roi = np.concatenate([row_bounds, col_bounds])
 
-        new_cube = self.parent.imagechannels.get_image_cube(
+        new_cube = self.imagechannels.get_image_cube(
             channels=new_channel_indices,
             roi=roi)
 
         self.channel_indices = new_channel_indices
-        self.parent.bands = self.parent.imagechannels.centers[np.array(self.channel_indices).astype(int)]
+        self.bands = self.imagechannels.centers[np.array(self.channel_indices).astype(int)]
         
         layer_name = 'imcube'
-        if layer_name in self.parent.viewer.layers:
-            self.parent.viewer.layers[layer_name].data = new_cube
-            self.parent.viewer.layers[layer_name].refresh()
+        if layer_name in self.viewer.layers:
+            self.viewer.layers[layer_name].data = new_cube
+            self.viewer.layers[layer_name].refresh()
         else:
-            self.parent.viewer.add_image(
+            self.viewer.add_image(
                 new_cube,
                 name=layer_name,
                 rgb=False,
             )
-        if self.parent_type == 'sediment':
-            self.parent.viewer.layers[layer_name].translate = (0, self.parent.row_bounds[0], self.parent.col_bounds[0])
+        if self.translate:
+            self.viewer.layers[layer_name].translate = (0, row_bounds[0], col_bounds[0])
 
         # put mask as top layer
-        if 'mask' in self.parent.viewer.layers:
-            mask_ind = [x.name for x in self.parent.viewer.layers].index('mask')
-            self.parent.viewer.layers.move(mask_ind, len(self.parent.viewer.layers))
+        if 'mask' in self.viewer.layers:
+            mask_ind = [x.name for x in self.viewer.layers].index('mask')
+            self.viewer.layers.move(mask_ind, len(self.viewer.layers))
 
-    def _update_channel_list(self):
+    def get_selected_channel_bands(self):
+        
+        bands = self.imagechannels.centers[np.array(self.channel_indices).astype(int)]
+        return bands
+
+    def _update_channel_list(self, imagechannels=None):
         """Update channel list"""
+
+        if imagechannels is not None:
+            self.imagechannels = imagechannels
 
         # clear existing items
         self.clear()
 
         # add new items
-        for channel in self.parent.imagechannels.channel_names:
+        for channel in self.imagechannels.channel_names:
             self.addItem(channel)

@@ -97,10 +97,11 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('&Main', self.export_path_display)
         self.btn_load_project = QPushButton("Load project")
         self.tabs.add_named_tab('&Main', self.btn_load_project)
-        self.qlist_channels = ChannelWidget(self)
+        self.qlist_channels = ChannelWidget(self.viewer)
+        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
         self.tabs.add_named_tab('&Main', self.qlist_channels)
 
-        self.rgbwidget = RGBWidget(self)
+        self.rgbwidget = RGBWidget(viewer=self.viewer)
         self.tabs.add_named_tab('&Main', self.rgbwidget.rgbmain_group.gbox)
 
         # indices tab
@@ -366,7 +367,8 @@ class SpectralIndexWidget(QWidget):
         self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
         
         self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
-        self.qlist_channels._update_channel_list()
+        self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
+        self.rgbwidget.imagechannels = self.imagechannels
 
         self.get_RGB()
         self.rgbwidget.load_and_display_rgb_bands(roi=np.concatenate([self.row_bounds, self.col_bounds]))
@@ -416,7 +418,11 @@ class SpectralIndexWidget(QWidget):
         
         rgb_ch, rgb_names = self.imagechannels.get_indices_of_bands(self.rgbwidget.rgb)
         [self.qlist_channels.item(x).setSelected(True) for x in rgb_ch]
-        self.qlist_channels._on_change_channel_selection()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+
+    def _on_change_select_bands(self, event=None):
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
     def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
@@ -481,7 +487,7 @@ class SpectralIndexWidget(QWidget):
         self.params_plots.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
         self.params_plots.plot_thickness = self.spin_plot_thickness.value()
         self.params_plots.title_font_factor = self.spin_title_font_factor.value()
-        self.params_plots.label_font_factor = self.spin_title_font_factor.value()
+        self.params_plots.label_font_factor = self.spin_label_font_factor.value()
         self.params_plots.scale_font_size = self.spin_scale_font_size.value()
         self.params_plots.left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
         self.params_plots.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
