@@ -236,12 +236,17 @@ class SedimentWidget(QWidget):
         self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
         
-        self.mask_generation_group.glayout.addWidget(self.mask_group_border.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_manual.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_auto.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_ml.gbox)
+        self.mask_tabs = TabSet(['Border', 'Manual', 'Auto', 'ML'])
+        self.mask_generation_group.glayout.addWidget(self.mask_tabs)
+        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
+        self.mask_tabs.add_named_tab('Manual', self.mask_group_manual.gbox)
+        self.mask_tabs.add_named_tab('Auto', self.mask_group_auto.gbox)
+        self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
+            g.glayout.setAlignment(Qt.AlignTop)
         
         # border
+        
         self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
@@ -272,7 +277,9 @@ class SedimentWidget(QWidget):
         #self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
         # ml
-        self.mlwidget = MLWidget(self, self.viewer)
+        from .classifier import ConvPaintSpectralWidget
+        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
+        #self.mlwidget = MLWidget(self, self.viewer)
         self.mask_group_ml.glayout.addWidget(self.mlwidget)
         
         # combine

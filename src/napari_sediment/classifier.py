@@ -8,6 +8,8 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
+from napari_convpaint.conv_paint import ConvPaintWidget
+
 
 class Classifier():
     """Class to segment image using pixel classification based on VGG16 features.
@@ -116,5 +118,37 @@ class Classifier():
         predicted_image = np.reshape(predictions, [self.data.shape[1], self.data.shape[2]])
 
         return predicted_image
+    
 
-            
+class ConvPaintSpectralWidget(ConvPaintWidget):
+    def __init__(self, viewer):
+        super().__init__(viewer)
+
+        self.viewer = viewer
+        self.check_dims_is_channels.setChecked(True)
+        self.check_dims_is_channels.hide()
+        self.check_use_project.hide()
+        self.prediction_all_btn.hide()
+        self.update_model_on_project_btn.hide()
+        self.tabs.setTabVisible(1, False)
+
+
+        self.tabs.widget(0).layout().removeWidget(self.prediction_btn)
+        self.tabs.add_named_tab('Annotation', self.prediction_btn, grid_pos=[2,1,1,1])
+
+        self.tabs.widget(0).layout().removeWidget(self.check_use_default_model)
+        self.tabs.add_named_tab('Annotation', self.check_use_default_model, grid_pos=[5,0,1,1])
+
+        self.viewer.layers.events.inserted.connect(self.connect_mask_layer)
+
+    def connect_mask_layer(self, event):
+        
+        if 'prediction' in self.viewer.layers:
+            self.viewer.layers['prediction'].events.data.connect(self.update_ml_mask)
+
+    def update_ml_mask(self, event):
+        
+        if 'ml-mask' in self.viewer.layers:
+            self.viewer.layers['ml-mask'].data = (self.viewer.layers['prediction'].data == 1).astype(np.uint8)
+        else:
+            self.viewer.add_labels((self.viewer.layers['prediction'].data==1).astype(np.uint8), name='ml-mask')
