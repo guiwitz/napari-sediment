@@ -29,7 +29,7 @@ from .sediproc import (white_dark_correct, load_white_dark,
                        find_index_of_band, savgol_destripe)
 from .imchannels import ImChannels
 from .io import save_mask, load_mask, get_mask_path, load_project_params
-from .parameters import Param
+from .parameters.parameters import Param
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .widgets.mlwidget import MLWidget

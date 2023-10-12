@@ -11,8 +11,8 @@ from spectral.algorithms import ppi
 import zarr
 import pandas as pd
 
-from .parameters import Param
-from .parameters_endmembers import ParamEndMember
+from .parameters.parameters import Param
+from .parameters.parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, save_image_to_zarr
 from .imchannels import ImChannels
 from .sediproc import white_dark_correct, spectral_clustering

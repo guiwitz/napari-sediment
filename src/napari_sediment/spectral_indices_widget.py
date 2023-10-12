@@ -16,8 +16,8 @@ from cmap import Colormap
 from matplotlib_scalebar.scalebar import ScaleBar
 from napari_matplotlib.base import NapariMPLWidget
 
-from .parameters import Param
-from .parameters_endmembers import ParamEndMember
+from .parameters.parameters import Param
+from .parameters.parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, load_plots_params
 from .imchannels import ImChannels
 from .sediproc import find_index_of_band
@@ -25,7 +25,7 @@ from .spectralplot import SpectralPlotter, plot_spectral_profile
 from .widgets.channel_widget import ChannelWidget
 from .spectralindex import SpectralIndex
 from .widgets.rgb_widget import RGBWidget
-from .parameters_plots import Paramplot
+from .parameters.parameters_plots import Paramplot
 
 from napari_guitils.gui_structures import TabSet, VHGroup
 

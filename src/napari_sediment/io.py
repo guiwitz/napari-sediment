@@ -4,9 +4,9 @@ import yaml
 from pathlib import Path
 
 import zarr
-from .parameters import Param
-from .parameters_endmembers import ParamEndMember
-from .parameters_plots import Paramplot
+from .parameters.parameters import Param
+from .parameters.parameters_endmembers import ParamEndMember
+from .parameters.parameters_plots import Paramplot
 
 def save_mask(mask, filename):
    
