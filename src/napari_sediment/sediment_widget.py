@@ -32,7 +32,6 @@ from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters.parameters import Param
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
-from .widgets.mlwidget import MLWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
 
@@ -279,7 +278,6 @@ class SedimentWidget(QWidget):
         # ml
         from .classifier import ConvPaintSpectralWidget
         self.mlwidget = ConvPaintSpectralWidget(self.viewer)
-        #self.mlwidget = MLWidget(self, self.viewer)
         self.mask_group_ml.glayout.addWidget(self.mlwidget)
         
         # combine
