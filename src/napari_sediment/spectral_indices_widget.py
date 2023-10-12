@@ -22,9 +22,9 @@ from .io import load_project_params, load_endmember_params, load_plots_params
 from .imchannels import ImChannels
 from .sediproc import find_index_of_band
 from .spectralplot import SpectralPlotter, plot_spectral_profile
-from .channel_widget import ChannelWidget
+from .widgets.channel_widget import ChannelWidget
 from .spectralindex import SpectralIndex
-from .rgb_widget import RGBWidget
+from .widgets.rgb_widget import RGBWidget
 from .parameters_plots import Paramplot
 
 from napari_guitils.gui_structures import TabSet, VHGroup

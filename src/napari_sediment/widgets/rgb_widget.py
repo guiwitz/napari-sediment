@@ -6,7 +6,7 @@ import numpy as np
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
-from .sediproc import find_index_of_band
+from ..sediproc import find_index_of_band
 
 
 

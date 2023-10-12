@@ -18,7 +18,7 @@ from .imchannels import ImChannels
 from .sediproc import white_dark_correct, spectral_clustering
 from ._reader import read_spectral
 from .spectralplot import SpectralPlotter
-from .channel_widget import ChannelWidget
+from .widgets.channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
 from napari_guitils.gui_structures import TabSet, VHGroup
 

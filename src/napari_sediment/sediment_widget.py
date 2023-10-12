@@ -31,10 +31,10 @@ from .imchannels import ImChannels
 from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters import Param
 from .spectralplot import SpectralPlotter
-from .channel_widget import ChannelWidget
+from .widgets.channel_widget import ChannelWidget
 from .widgets.mlwidget import MLWidget
 from .images import save_rgb_tiff_image
-from .rgb_widget import RGBWidget
+from .widgets.rgb_widget import RGBWidget
 
 import napari
 
