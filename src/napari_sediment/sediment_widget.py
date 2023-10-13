@@ -691,6 +691,13 @@ class SedimentWidget(QWidget):
         if selected_layer == 'imcube':
             im_corr = white_dark_correct(
                 self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+            
+            if 'imcube_corrected' in self.viewer.layers:
+                self.viewer.layers['imcube_corrected'].data = im_corr
+            else:
+                self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+                self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
+
         elif selected_layer == 'RGB':
             im_corr = white_dark_correct(
                 np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0), 
@@ -699,12 +706,6 @@ class SedimentWidget(QWidget):
             for ind, c in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[c].data = im_corr[ind]
                 self.viewer.layers[c].refresh()
-
-        if 'imcube_corrected' in self.viewer.layers:
-            self.viewer.layers['imcube_corrected'].data = im_corr
-        else:
-            self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
-            self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
 
     def _update_combo_layers_destripe(self):
