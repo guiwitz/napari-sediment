@@ -68,7 +68,7 @@ class SedimentWidget(QWidget):
         self.main_layout.addWidget(self.tabs)
 
         self._create_main_tab()
-        #self._create_options_tab()
+        self._create_options_tab()
         self._create_processing_tab()
         self._create_mask_tab()
         self._create_roi_tab()
