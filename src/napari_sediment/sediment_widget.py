@@ -62,13 +62,13 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export', 'P&lotting','&Options']
+        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export', 'P&lotting']#,'&Options']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
 
         self._create_main_tab()
-        self._create_options_tab()
+        #self._create_options_tab()
         self._create_processing_tab()
         self._create_mask_tab()
         self._create_roi_tab()
