@@ -20,28 +20,15 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         super().__init__(viewer)
 
         self.viewer = viewer
-        #self.check_dims_is_channels.setChecked(True)
-        #self.check_dims_is_channels.hide()
         self.check_use_project.hide()
         self.prediction_all_btn.hide()
         self.update_model_on_project_btn.hide()
         self.tabs.setTabVisible(1, False)
 
-
-        #self.tabs.widget(0).layout().removeWidget(self.prediction_btn)
-        #self.tabs.add_named_tab('Annotation', self.prediction_btn, grid_pos=[2,1,1,1])
-
-        #self.tabs.widget(0).layout().removeWidget(self.check_use_default_model)
-        #self.tabs.add_named_tab('Annotation', self.check_use_default_model, grid_pos=[5,0,1,1])
-
-        self.viewer.layers.events.inserted.connect(self.connect_mask_layer)
-
-    def connect_mask_layer(self, event):
-        
-        if 'segmentation' in self.viewer.layers:
-            self.viewer.layers['segmentation'].events.data.connect(self.update_ml_mask)
+        self.prediction_btn.clicked.connect(self.update_ml_mask)
 
     def update_ml_mask(self, event):
+        """Add ml-mask layer to viewer when segmenting"""
         
         if 'ml-mask' in self.viewer.layers:
             self.viewer.layers['ml-mask'].data = (self.viewer.layers['segmentation'].data == 1).astype(np.uint8)
