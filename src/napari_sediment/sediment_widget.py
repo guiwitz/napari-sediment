@@ -11,7 +11,8 @@ from pathlib import Path
 import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
-                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
+                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
+                            QScrollArea)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
@@ -246,7 +247,12 @@ class SedimentWidget(QWidget):
         self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
         self.mask_tabs.add_named_tab('Manual', self.mask_group_manual.gbox)
         self.mask_tabs.add_named_tab('Auto', self.mask_group_auto.gbox)
-        self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.mask_group_ml.gbox)
+        self.mask_tabs.add_named_tab('ML', scroll)
+
         for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
             g.glayout.setAlignment(Qt.AlignTop)
         
@@ -692,7 +698,7 @@ class SedimentWidget(QWidget):
     def _on_click_background_correct(self, event=None):
         """White correct image"""
         
-        selected_layer = self.combo_layer_destripe.currentText()
+        selected_layer = self.combo_layer_background.currentText()
         if selected_layer == 'imcube':
             channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
