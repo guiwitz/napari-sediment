@@ -11,7 +11,8 @@ from pathlib import Path
 import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
-                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
+                            QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
+                            QScrollArea)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 
@@ -32,7 +33,6 @@ from .io import save_mask, load_mask, get_mask_path, load_project_params
 from .parameters.parameters import Param
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
-from .widgets.mlwidget import MLWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
 
@@ -63,7 +63,7 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export', 'P&lotting','&Options']
+        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export', 'P&lotting']#,'&Options']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
@@ -131,9 +131,15 @@ class SedimentWidget(QWidget):
         self.btn_select_all = QPushButton('Select all')
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
+        self.check_sync_bands_rgb = QCheckBox("Sync bands with RGB")
+        self.check_sync_bands_rgb.setToolTip("Display same bands in RGB as in imcube")
+        self.check_sync_bands_rgb.setChecked(True)
+        self.main_group.glayout.addWidget(self.check_sync_bands_rgb, 3, 0, 1, 2)
+        self.qlist_channels.setEnabled(False)
+
         self.rgb_widget = RGBWidget(viewer=self.viewer)
         self.tabs.add_named_tab('&Main', self.rgb_widget.rgbmain_group.gbox)
-
+        self.rgb_widget.btn_RGB.clicked.connect(self._on_click_sync_RGB)
 
     def _create_processing_tab(self):
         
@@ -165,7 +171,7 @@ class SedimentWidget(QWidget):
         self.combo_layer_background = QComboBox()
         self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
         self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
-        self.btn_background_correct = QPushButton("Correct imcube")
+        self.btn_background_correct = QPushButton("Correct")
         self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
 
 
@@ -236,12 +242,22 @@ class SedimentWidget(QWidget):
         self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
         
-        self.mask_generation_group.glayout.addWidget(self.mask_group_border.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_manual.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_auto.gbox)
-        self.mask_generation_group.glayout.addWidget(self.mask_group_ml.gbox)
+        self.mask_tabs = TabSet(['Border', 'Manual', 'Auto', 'ML'])
+        self.mask_generation_group.glayout.addWidget(self.mask_tabs)
+        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
+        self.mask_tabs.add_named_tab('Manual', self.mask_group_manual.gbox)
+        self.mask_tabs.add_named_tab('Auto', self.mask_group_auto.gbox)
+        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.mask_group_ml.gbox)
+        self.mask_tabs.add_named_tab('ML', scroll)
+
+        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
+            g.glayout.setAlignment(Qt.AlignTop)
         
         # border
+        
         self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
@@ -272,7 +288,8 @@ class SedimentWidget(QWidget):
         #self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
         # ml
-        self.mlwidget = MLWidget(self, self.viewer)
+        from .classifier import ConvPaintSpectralWidget
+        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
         self.mask_group_ml.glayout.addWidget(self.mlwidget)
         
         # combine
@@ -376,6 +393,7 @@ class SedimentWidget(QWidget):
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
         self.rgb_widget.btn_RGB.clicked.connect(self._update_threshold_limits)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
+        self.check_sync_bands_rgb.stateChanged.connect(self._on_click_sync_RGB)
         self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
         self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
@@ -538,6 +556,18 @@ class SedimentWidget(QWidget):
         self._add_mask()
         self._update_range_wavelength()
 
+    def _on_click_sync_RGB(self, event=None):
+        """Select same channels for imcube as loaded for RGB"""
+        
+        if not self.check_sync_bands_rgb.isChecked():
+            self.qlist_channels.setEnabled(True)
+        else:
+            self.qlist_channels.setEnabled(False)
+            self.qlist_channels.clearSelection()
+            [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
+            self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+            self._update_threshold_limits()
+
     def _update_range_wavelength(self):
         """Update range of wavelength slider"""
         
@@ -654,20 +684,21 @@ class SedimentWidget(QWidget):
             width = self.qspin_destripe_width.value()
             data_destripe[d] = savgol_destripe(data_destripe[d], width=width, order=2)
 
-        if selected_layer == 'RGB':
+        if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
             for ind, x in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[x].data = data_destripe[ind]
         
-        if 'imcube_destripe' in self.viewer.layers:
-            self.viewer.layers['imcube_destripe'].data = data_destripe
-        else:
-            self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+        if (selected_layer == 'None') or (selected_layer == 'imcube') | (selected_layer == 'imcube_corrected') | (self.check_sync_bands_rgb.isChecked()):
+            if 'imcube_destripe' in self.viewer.layers:
+                self.viewer.layers['imcube_destripe'].data = data_destripe
+            else:
+                self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
 
 
     def _on_click_background_correct(self, event=None):
         """White correct image"""
         
-        selected_layer = self.combo_layer_destripe.currentText()
+        selected_layer = self.combo_layer_background.currentText()
         if selected_layer == 'imcube':
             channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
@@ -683,10 +714,17 @@ class SedimentWidget(QWidget):
             clean_white=True
             )
 
-        if selected_layer == 'imcube':
+        if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
             im_corr = white_dark_correct(
                 self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
-        elif selected_layer == 'RGB':
+            
+            if 'imcube_corrected' in self.viewer.layers:
+                self.viewer.layers['imcube_corrected'].data = im_corr
+            else:
+                self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+                self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
+
+        if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
             im_corr = white_dark_correct(
                 np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0), 
                 white_data, dark_data, dark_for_white_data)
@@ -694,12 +732,6 @@ class SedimentWidget(QWidget):
             for ind, c in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[c].data = im_corr[ind]
                 self.viewer.layers[c].refresh()
-
-        if 'imcube_corrected' in self.viewer.layers:
-            self.viewer.layers['imcube_corrected'].data = im_corr
-        else:
-            self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
-            self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
 
     def _update_combo_layers_destripe(self):
