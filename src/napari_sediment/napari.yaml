@@ -14,6 +14,9 @@ contributions:
     - id: napari-sediment.make_spectralindexwidget
       python_name: napari_sediment.spectral_indices_widget:SpectralIndexWidget
       title: Make Spectral Indices QWidget
+    - id: napari-sediment.make_batchwidget
+      python_name: napari_sediment.batch_widget:BatchWidget
+      title: Make Batch QWidget
   readers:
     - command: napari-sediment.get_reader
       accepts_directories: false
@@ -25,3 +28,5 @@ contributions:
       display_name: HyperAnalysis
     - command: napari-sediment.make_spectralindexwidget
       display_name: SpectralIndices
+    - command: napari-sediment.make_batchwidget
+      display_name: Batch

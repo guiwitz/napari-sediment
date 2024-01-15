@@ -56,43 +56,77 @@ class SpectralIndex:
 
 
 def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannels):
-        """Compute the index RAB.
-        
-        Parameters
-        ----------
-        left: float
-            left band
-        trough: float
-            trough band
-        right: float
+    """Compute the index RAB.
+    
+    Parameters
+    ----------
+    left: float
+        left band
+    trough: float
+        trough band
+    right: float
 
-        Returns
-        -------
-        RABD: float
-            RABD index
-        """
+    Returns
+    -------
+    RABD: float
+        RABD index
+    """
 
-        ltr = [left, trough, right]
-        # find indices from the end-members plot (in case not all bands were used
-        # This is not necessary as bands will not be skipped in the middle of the spectrum
-        #ltr_endmember_indices = find_index_of_band(self.endmember_bands, ltr)
-        # find band indices in the complete dataset
-        ltr_stack_indices = find_index_of_band(imagechannels.centers,ltr)
+    ltr = [left, trough, right]
+    # find indices from the end-members plot (in case not all bands were used
+    # This is not necessary as bands will not be skipped in the middle of the spectrum
+    #ltr_endmember_indices = find_index_of_band(self.endmember_bands, ltr)
+    # find band indices in the complete dataset
+    ltr_stack_indices = find_index_of_band(imagechannels.centers,ltr)
 
-        # number of bands between edges and trough
-        #X_left = ltr_endmember_indices[1]-ltr_endmember_indices[0]
-        #X_right = ltr_endmember_indices[2]-ltr_endmember_indices[1]
-        X_left = ltr_stack_indices[1]-ltr_stack_indices[0]
-        X_right = ltr_stack_indices[2]-ltr_stack_indices[1]
+    # number of bands between edges and trough
+    #X_left = ltr_endmember_indices[1]-ltr_endmember_indices[0]
+    #X_right = ltr_endmember_indices[2]-ltr_endmember_indices[1]
+    X_left = ltr_stack_indices[1]-ltr_stack_indices[0]
+    X_right = ltr_stack_indices[2]-ltr_stack_indices[1]
 
-        # load the correct bands
-        roi = np.concatenate([row_bounds, col_bounds])
-        ltr_cube = imagechannels.get_image_cube(
-            channels=ltr_stack_indices, roi=roi)
-        ltr_cube = ltr_cube.astype(np.float32)
+    # load the correct bands
+    roi = np.concatenate([row_bounds, col_bounds])
+    ltr_cube = imagechannels.get_image_cube(
+        channels=ltr_stack_indices, roi=roi)
+    ltr_cube = ltr_cube.astype(np.float32)
 
-        # compute indices
-        RABD = ((ltr_cube[0] * X_right + ltr_cube[2] * X_left) / (X_left + X_right)) / ltr_cube[1] 
+    # compute indices
+    RABD = ((ltr_cube[0] * X_right + ltr_cube[2] * X_left) / (X_left + X_right)) / ltr_cube[1] 
 
-        return RABD
+    return RABD
+
+def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
+    """Compute the index RAB."""
+
+    ltr = [left, right]
+    # find band indices in the complete dataset
+    ltr_stack_indices = [find_index_of_band(imagechannels.centers, x) for x in ltr]
+    # main roi
+    roi = np.concatenate([row_bounds, col_bounds])
+    # number of bands between edges and trough
+    R0_RN_cube = imagechannels.get_image_cube(channels=ltr_stack_indices, roi=roi)
+    R0_RN_cube = R0_RN_cube.astype(np.float32)
+    num_bands = ltr_stack_indices[1] - ltr_stack_indices[0]
+    line = (R0_RN_cube[1] - R0_RN_cube[0])/num_bands
+    RABA_array = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]))
+    for i in range(num_bands):
+        Ri = imagechannels.get_image_cube(channels=[ltr_stack_indices[0]+i], roi=roi)
+        Ri = Ri.astype(np.float32)
+        RABA_array += ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
+
+    return RABA_array
+    
+def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
+
+    ltr = [left, right]
+    # find band indices in the complete dataset
+    ltr_stack_indices = [find_index_of_band(imagechannels.centers, x) for x in ltr]
+    # main roi
+    roi = np.concatenate([row_bounds, col_bounds])
+    numerator_denominator = imagechannels.get_image_cube(channels=ltr_stack_indices, roi=roi)
+    numerator_denominator = numerator_denominator.astype(np.float32)
+    ratio = numerator_denominator[0] / numerator_denominator[1]
+    return ratio
+
         
