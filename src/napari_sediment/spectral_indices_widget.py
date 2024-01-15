@@ -575,7 +575,7 @@ class SpectralIndexWidget(QWidget):
         toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
         format_dict = asdict(self.params_plots)
-        _, self.ax1, self.ax2, self.ax2 = plot_spectral_profile(
+        _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
             rgb_image=rgb_image, index_image=toplot, index_name=self.qcom_indices.currentText(),
                                 format_dict=format_dict, scale=self.params.scale,
                                 location=self.params.location, fig=self.index_plot_live.figure, 
@@ -726,10 +726,10 @@ class SpectralIndexWidget(QWidget):
                 right=self.spin_index_right.value())
             self.viewer.add_image(raba_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
         elif self.current_index_type == 'Ratio':
-            ratio_indeces = self.compute_index_ratio(
+            ratio_indices = self.compute_index_ratio(
                 left=self.spin_index_left.value(),
                 right=self.spin_index_right.value())
-            self.viewer.add_image(ratio_indeces, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
+            self.viewer.add_image(ratio_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
         else:
             print('index type: {self.current_index_type}')
 
@@ -846,7 +846,8 @@ class SpectralIndexWidget(QWidget):
             self.index_pick_group.glayout.itemAt(i).widget().setParent(None)
 
         # import table, populate combobox, export tick boxes and index_collection
-        index_table = pd.read_csv(self.export_folder.joinpath('index_settings.csv'))
+        #index_table = pd.read_csv(self.export_folder.joinpath('index_settings.csv'))
+        index_table = pd.read_csv(self.index_file)
         index_table = index_table.replace(np.nan, None)
         for _, index_row in index_table.iterrows():
             row_dict = index_row.to_dict()
