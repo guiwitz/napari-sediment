@@ -76,6 +76,26 @@ def reader_function(path):
     return [(array, {}, layer_type)]
 
 def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
+    """Read spectral data from an hdr or zarr file.
+
+    Parameters
+    ----------
+    path: str
+        path to hdr or zarr file
+    bands: list of int
+        list of bands indices to read
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    
+    Returns
+    -------
+    data: ndarray
+        spectral data
+    metadata: dict
+        metadata with keys 'wavelength' (list of str), 'centers' (list of float)
+    """
 
     path = Path(path)
     if path.suffix == '.hdr':

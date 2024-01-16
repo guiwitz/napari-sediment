@@ -103,7 +103,7 @@ class RGBWidget(QWidget):
         self.spin_bchannel.setValue(460)
 
     def _on_click_RGB(self, event=None):
-        """Load RGB image"""
+        """Load RGB image. Band indices are in self.rgb which are set by the spin boxes"""
 
         self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
         rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch)

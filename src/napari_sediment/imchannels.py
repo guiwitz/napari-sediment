@@ -25,7 +25,7 @@ class ImChannels:
         number of rows in the image
     ncols: int
         number of columns in the image
-    centers: array
+    centers: array of float
         band centers of the channels
     
     """
@@ -62,7 +62,7 @@ class ImChannels:
         Parameters
         ----------
         channels: list of int
-            list of channels to get
+            indices of channel to get
         roi: array
             [row_start, row_end, col_start, col_end], None means full image
         
@@ -112,12 +112,12 @@ class ImChannels:
 
     def get_image_cube(self, channels=None, roi=None):
         """
-        Get channels from the image.
+        Get image stack containing the selected channels indices.
         
         Parameters
         ----------
         channels: list of int
-            list of channels to get
+            indices of channel to get
         roi: array
             [row_start, row_end, col_start, col_end], None means full image
 
@@ -155,7 +155,23 @@ class ImChannels:
     
     def get_indices_of_bands(self, bands):
         """
-        Get indices and names of bands closest to those passed in bands.
+        Given the bands centers of the dataset and a set of band values to recover
+        find the indices of the closest bands in the dataset. E.g if the dataset
+        has bands [450, 500, 550, 600] and bands = [460, 550], the function will
+        return [0, 2]. Those bands indices can then be used e.g by get_image_cube
+
+        Parameters
+        ----------
+        bands: list of float
+            list of band values for which to find the index of the closest
+            bands in the dataset
+
+        Returns
+        -------
+        bands_indices: list of int
+            list of indices of the bands in the dataset closest to the desired bands
+        bands_names: list of str
+            list of band names corresponding to bands_indices
         """
 
         bands_indices = find_index_of_band(self.centers, bands)
