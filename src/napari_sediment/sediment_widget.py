@@ -35,6 +35,7 @@ from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
+from .utils import update_contrast_on_layer
 
 import napari
 
@@ -731,6 +732,7 @@ class SedimentWidget(QWidget):
             
             for ind, c in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[c].data = im_corr[ind]
+                update_contrast_on_layer(self.viewer.layers[c])
                 self.viewer.layers[c].refresh()
 
 
