@@ -3,6 +3,7 @@ from qtpy.QtWidgets import (QComboBox, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 import numpy as np
+import dask.array as da
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
@@ -165,6 +166,10 @@ class RGBWidget(QWidget):
             else:
                 self.viewer.layers[cmap].data = rgb_cube[ind]
             
-            self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
-            self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
+            if isinstance(self.viewer.layers['red'].data, da.Array):
+                self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min().compute(), self.viewer.layers[cmap].data.max().compute())
+                self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data.compute(), (2,98))
+            else:       
+                self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
+                self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
             
