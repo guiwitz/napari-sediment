@@ -56,7 +56,7 @@ class SpectralIndex:
 
 
 def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannels):
-    """Compute the index RAB.
+    """Compute the index RABD.
     
     Parameters
     ----------
@@ -65,6 +65,13 @@ def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannel
     trough: float
         trough band
     right: float
+        right band
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
 
     Returns
     -------
@@ -97,7 +104,26 @@ def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannel
     return RABD
 
 def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
-    """Compute the index RAB."""
+    """Compute the index RABA.
+    
+    Parameters
+    ----------
+    left: float
+        left band
+    right: float
+        right band
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
+
+    Returns
+    -------
+    RABA: float
+        RABA index
+    """
 
     ltr = [left, right]
     # find band indices in the complete dataset
@@ -118,7 +144,26 @@ def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
     return RABA_array
     
 def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
+    """Compute the index ratio.
+        
+    Parameters
+    ----------
+    left: float
+        left band
+    right: float
+        right band
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
 
+    Returns
+    -------
+    ratio: float
+        ratio index
+    """
     ltr = [left, right]
     # find band indices in the complete dataset
     ltr_stack_indices = [find_index_of_band(imagechannels.centers, x) for x in ltr]
