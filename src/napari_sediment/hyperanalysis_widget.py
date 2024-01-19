@@ -378,8 +378,8 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_mnfr(self):
         """Compute MNFR transform and compute vertical correlation. Keep all bands."""
-
-        data = np.moveaxis(self.viewer.layers['imcube'].data,0,2).astype(np.float32)
+        
+        data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
         signal = calc_stats(
             image=data,
             mask=self.viewer.layers['mask'].data,

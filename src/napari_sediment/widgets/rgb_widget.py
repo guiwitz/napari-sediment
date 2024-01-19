@@ -3,7 +3,6 @@ from qtpy.QtWidgets import (QComboBox, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 import numpy as np
-import dask.array as da
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
