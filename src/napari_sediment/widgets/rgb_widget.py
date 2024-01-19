@@ -7,8 +7,8 @@ import dask.array as da
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
-from ..sediproc import find_index_of_band
 from ..utils import update_contrast_on_layer
+
 class RGBWidget(QWidget):
     """Widget to handle channel selection and display. Works only i parent widget
     has:
