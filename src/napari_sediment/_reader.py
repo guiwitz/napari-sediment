@@ -130,8 +130,11 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
         if col_bounds is None:
             col_bounds = (0, zarr_image.shape[2])
 
-        data = zarr_image.get_orthogonal_selection(
-            (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
+        #data = zarr_image.get_orthogonal_selection(
+        #    (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
+        import dask.array as da
+        zarr_image = da.from_zarr(path)
+        data = zarr_image[bands, row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
             
         data = np.moveaxis(data, 0, 2)
         

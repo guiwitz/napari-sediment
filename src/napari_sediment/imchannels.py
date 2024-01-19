@@ -139,17 +139,24 @@ class ImChannels:
             data = np.stack([self.channel_array[c] for c in channels], axis=0)
         else:
             full = [0, self.nrows, 0, self.ncols]
+            data = []
             for ind, r in enumerate(roi):
                 if r is None:
                     roi[ind] = full[ind]
-            data = np.zeros(
+            '''data = np.zeros(
                 shape=(len(channels), roi[1]-roi[0], roi[3]-roi[2]),
                 dtype=self.channel_array[channels[0]].dtype)
             for ind, c in enumerate(channels):
                 if self.rois[c] is None:
                     data[ind,:,:] = self.channel_array[c][roi[0]:roi[1], roi[2]:roi[3]]
                 else:
-                    data[ind,:,:] = self.channel_array[c]
+                    data[ind,:,:] = self.channel_array[c]'''
+            for ind, c in enumerate(channels):
+                if self.rois[c] is None:
+                    data.append(self.channel_array[c][roi[0]:roi[1], roi[2]:roi[3]])
+                else:
+                    data.append(self.channel_array[c])
+            data = np.stack(data, axis=0)
 
         return data
     
