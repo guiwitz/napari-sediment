@@ -703,7 +703,7 @@ class SedimentWidget(QWidget):
         if selected_layer == 'imcube':
             channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
-            channel_indices = self.rgb_widget.rgb_ch
+            channel_indices = np.sort(self.rgb_widget.rgb_ch)
 
         col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
         white_data, dark_data, dark_for_white_data = load_white_dark(
@@ -726,11 +726,15 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
         if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
+            sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
+            rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
+            rgb_sorted = [str(x) for x in rgb_sorted]
+
             im_corr = white_dark_correct(
-                np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0), 
+                np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
                 white_data, dark_data, dark_for_white_data)
             
-            for ind, c in enumerate(['red', 'green', 'blue']):
+            for ind, c in enumerate(rgb_sorted):
                 self.viewer.layers[c].data = im_corr[ind]
                 update_contrast_on_layer(self.viewer.layers[c])
                 self.viewer.layers[c].refresh()
