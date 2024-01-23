@@ -333,6 +333,10 @@ class SedimentWidget(QWidget):
         self.mask_group_project.glayout.addWidget(self.btn_export)
         self.btn_import = QPushButton("Import Project")
         self.mask_group_project.glayout.addWidget(self.btn_import)
+        self.check_load_corrected = QCheckBox("Load corrected data")
+        self.check_load_corrected.setToolTip("Load corrected data instead of raw")
+        self.check_load_corrected.setChecked(False)
+        self.mask_group_project.glayout.addWidget(self.check_load_corrected)
 
         # io
         self.mask_group_export = VHGroup('Mas&k', orientation='G')
@@ -532,7 +536,15 @@ class SedimentWidget(QWidget):
         # reset acquisition index if new image is selected
         if image_name != self.current_image_name:
             self.current_image_name = image_name
-            self.imagechannels = ImChannels(self.imhdr_path)
+            #self.imagechannels = ImChannels(self.imhdr_path)
+            if self.check_load_corrected.isChecked():
+                if not self.export_folder.joinpath('corrected.zarr').exists():
+                    warnings.warn('Corrected image not found. Loading raw image instead.')
+                    self.imagechannels = ImChannels(self.imhdr_path)
+                else:
+                    self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
+            else:
+                self.imagechannels = ImChannels(self.imhdr_path)
 
         self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
         self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
@@ -786,7 +798,9 @@ class SedimentWidget(QWidget):
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
             band_indices=bands_to_correct,
             background_correction=self.check_batch_white.isChecked(),
-            destripe=self.check_batch_destripe.isChecked())
+            destripe=self.check_batch_destripe.isChecked(),
+            use_dask=True
+            )
 
 
     def get_summary_image_for_mask(self):
@@ -1083,6 +1097,7 @@ class SedimentWidget(QWidget):
         self.spinbox_metadata_scale.setValue(self.params.scale)
 
         # rois
+        self._add_roi_layer()
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
         if mainroi:
             mainroi[0] = mainroi[0].astype(int)
