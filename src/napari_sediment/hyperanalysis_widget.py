@@ -378,8 +378,8 @@ class HyperAnalysisWidget(QWidget):
 
     def _on_click_mnfr(self):
         """Compute MNFR transform and compute vertical correlation. Keep all bands."""
-
-        data = np.moveaxis(self.viewer.layers['imcube'].data,0,2).astype(np.float32)
+        
+        data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
         signal = calc_stats(
             image=data,
             mask=self.viewer.layers['mask'].data,
@@ -404,7 +404,7 @@ class HyperAnalysisWidget(QWidget):
     def _compute_mnfr_bands(self):
         """Extract actual MNFR bands and plot them"""
 
-        data = np.moveaxis(self.viewer.layers['imcube'].data,0,2).astype(np.float32)
+        data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
         self.image_mnfr = self.mnfr.reduce(data, num=data.shape[2])#, num=last_index)
 
         if 'mnfr' in self.viewer.layers:
@@ -504,10 +504,11 @@ class HyperAnalysisWidget(QWidget):
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
 
-        pure = self.viewer.layers['pure'].data
+        pure = np.asarray(self.viewer.layers['pure'].data)
         # recover pixel vectors from denoised image and actual image
         vects = self.viewer.layers['denoised'].data[:, pure > self.ppi_threshold.value()]
-        vects_image = self.viewer.layers['imcube'].data[:,pure > self.ppi_threshold.value()] 
+        imcube_data = np.asarray(self.viewer.layers['imcube'].data)
+        vects_image = imcube_data[:,pure > self.ppi_threshold.value()] 
         
         # compute clustering
         labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())

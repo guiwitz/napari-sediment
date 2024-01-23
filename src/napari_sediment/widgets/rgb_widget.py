@@ -6,9 +6,7 @@ import numpy as np
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
-from ..sediproc import find_index_of_band
-
-
+from ..utils import update_contrast_on_layer
 
 class RGBWidget(QWidget):
     """Widget to handle channel selection and display. Works only i parent widget
@@ -165,6 +163,4 @@ class RGBWidget(QWidget):
             else:
                 self.viewer.layers[cmap].data = rgb_cube[ind]
             
-            self.viewer.layers[cmap].contrast_limits_range = (self.viewer.layers[cmap].data.min(), self.viewer.layers[cmap].data.max())
-            self.viewer.layers[cmap].contrast_limits = np.percentile(self.viewer.layers[cmap].data, (2,98))
-            
+            update_contrast_on_layer(self.viewer.layers[cmap])

@@ -1,12 +1,4 @@
-from torchvision import models
-from torch import nn
-from collections import OrderedDict
-import torch
 import numpy as np
-import skimage
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
 
 from napari_convpaint.conv_paint import ConvPaintWidget
 
@@ -16,8 +8,8 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
     and some defaults like multi-channel image and RGB input are set. Also adds
     an ml-mask layer to the viewer."""
     
-    def __init__(self, viewer):
-        super().__init__(viewer)
+    def __init__(self, viewer, parent=None, project=False, third_party=True):
+        super().__init__(viewer, parent, project, third_party)
 
         self.viewer = viewer
         self.check_use_project.hide()
@@ -26,7 +18,19 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         self.tabs.setTabVisible(1, False)
 
         self.prediction_btn.clicked.connect(self.update_ml_mask)
+        
+        self.add_connections_local()
 
+    def add_connections_local(self):
+        
+        self.select_layer_widget.changed.connect(self.default_to_multi_channel)
+
+    def default_to_multi_channel(self, event=None):
+
+        if self.select_layer_widget.value.ndim == 3:
+            
+            self.radio_multi_channel.setChecked(True)
+        
     def update_ml_mask(self, event):
         """Add ml-mask layer to viewer when segmenting"""
         

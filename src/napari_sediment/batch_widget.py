@@ -178,7 +178,8 @@ class BatchWidget(QWidget):
                             imagechannels=imagechannels)
                 
                     self.rgb_ch, self.rgb_names = imagechannels.get_indices_of_bands(self.params_plots.rgb_bands)
-                    self.rgb_cube = imagechannels.get_image_cube(self.rgb_ch)
+                    self.rgb_cube = np.asarray(imagechannels.get_image_cube(self.rgb_ch))
+                    index_data = np.asarray(index_data)
 
                     self.export_rgb_image_scaled(f'{f.name}_{spectral_name}')
 
@@ -197,17 +198,18 @@ class BatchWidget(QWidget):
                         dpi=100)#, bbox_inches="tight")
                     
     def export_rgb_image_scaled(self, image_name):
-
-        limits = [[np.percentile(x, 2), np.percentile(x,98)] for x in self.rgb_cube]
-        microim = microshow(self.rgb_cube, cmaps=['pure_red', 'pure_green', 'pure_blue'], limits=limits)
+        
+        data = np.asarray(self.rgb_cube)
+        limits = [[np.percentile(x, 2), np.percentile(x,98)] for x in data]
+        microim = microshow(data, cmaps=['pure_red', 'pure_green', 'pure_blue'], limits=limits)
         microim.savefig(self.export_folder.joinpath(f'{image_name}_rgb.png'),dpi=300)
         
-        im_sqrt = np.sqrt(self.rgb_cube)
+        im_sqrt = np.sqrt(data)
         limits = [[np.percentile(x, 2), np.percentile(x,98)] for x in im_sqrt]
         microim = microshow(im_sqrt, cmaps=['pure_red', 'pure_green', 'pure_blue'], limits=limits)
         microim.savefig(self.export_folder.joinpath(f'{image_name}_rgb_qrt.png'),dpi=300)
 
-        im_log = np.log(self.rgb_cube)
+        im_log = np.log(data)
         limits = [[np.percentile(x, 2), np.percentile(x,98)] for x in im_log]
         microim = microshow(im_log, cmaps=['pure_red', 'pure_green', 'pure_blue'], limits=limits)
         microim.savefig(self.export_folder.joinpath(f'{image_name}_rgb_log.png'),dpi=300)

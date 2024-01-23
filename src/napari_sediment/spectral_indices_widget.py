@@ -1,6 +1,7 @@
 from pathlib import Path
 from dataclasses import asdict
 import numpy as np
+import dask.array as da
 import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
@@ -574,6 +575,12 @@ class SpectralIndexWidget(QWidget):
             self._on_click_compute_index(event=None)
         toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
+
+        if isinstance(rgb_image[0], da.Array):
+            rgb_image = [x.compute() for x in rgb_image]
+        if isinstance(toplot, da.Array):
+            toplot = toplot.compute()
+
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
             rgb_image=rgb_image, index_image=toplot, index_name=self.qcom_indices.currentText(),

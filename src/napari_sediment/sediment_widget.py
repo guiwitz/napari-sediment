@@ -35,6 +35,7 @@ from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
+from .utils import update_contrast_on_layer
 
 import napari
 
@@ -332,6 +333,10 @@ class SedimentWidget(QWidget):
         self.mask_group_project.glayout.addWidget(self.btn_export)
         self.btn_import = QPushButton("Import Project")
         self.mask_group_project.glayout.addWidget(self.btn_import)
+        self.check_load_corrected = QCheckBox("Load corrected data")
+        self.check_load_corrected.setToolTip("Load corrected data instead of raw")
+        self.check_load_corrected.setChecked(False)
+        self.mask_group_project.glayout.addWidget(self.check_load_corrected)
 
         # io
         self.mask_group_export = VHGroup('Mas&k', orientation='G')
@@ -531,7 +536,15 @@ class SedimentWidget(QWidget):
         # reset acquisition index if new image is selected
         if image_name != self.current_image_name:
             self.current_image_name = image_name
-            self.imagechannels = ImChannels(self.imhdr_path)
+            #self.imagechannels = ImChannels(self.imhdr_path)
+            if self.check_load_corrected.isChecked():
+                if not self.export_folder.joinpath('corrected.zarr').exists():
+                    warnings.warn('Corrected image not found. Loading raw image instead.')
+                    self.imagechannels = ImChannels(self.imhdr_path)
+                else:
+                    self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
+            else:
+                self.imagechannels = ImChannels(self.imhdr_path)
 
         self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
         self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
@@ -702,7 +715,7 @@ class SedimentWidget(QWidget):
         if selected_layer == 'imcube':
             channel_indices = self.qlist_channels.channel_indices
         elif selected_layer == 'RGB':
-            channel_indices = self.rgb_widget.rgb_ch
+            channel_indices = np.sort(self.rgb_widget.rgb_ch)
 
         col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
         white_data, dark_data, dark_for_white_data = load_white_dark(
@@ -725,12 +738,17 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
         if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
+            sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
+            rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
+            rgb_sorted = [str(x) for x in rgb_sorted]
+
             im_corr = white_dark_correct(
-                np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0), 
+                np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
                 white_data, dark_data, dark_for_white_data)
             
-            for ind, c in enumerate(['red', 'green', 'blue']):
+            for ind, c in enumerate(rgb_sorted):
                 self.viewer.layers[c].data = im_corr[ind]
+                update_contrast_on_layer(self.viewer.layers[c])
                 self.viewer.layers[c].refresh()
 
 
@@ -780,7 +798,9 @@ class SedimentWidget(QWidget):
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
             band_indices=bands_to_correct,
             background_correction=self.check_batch_white.isChecked(),
-            destripe=self.check_batch_destripe.isChecked())
+            destripe=self.check_batch_destripe.isChecked(),
+            use_dask=True
+            )
 
 
     def get_summary_image_for_mask(self):
@@ -1077,6 +1097,7 @@ class SedimentWidget(QWidget):
         self.spinbox_metadata_scale.setValue(self.params.scale)
 
         # rois
+        self._add_roi_layer()
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
         if mainroi:
             mainroi[0] = mainroi[0].astype(int)
