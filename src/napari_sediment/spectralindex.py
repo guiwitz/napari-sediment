@@ -135,11 +135,14 @@ def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
     R0_RN_cube = R0_RN_cube.astype(np.float32)
     num_bands = ltr_stack_indices[1] - ltr_stack_indices[0]
     line = (R0_RN_cube[1] - R0_RN_cube[0])/num_bands
-    RABA_array = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]))
+    RABA_array = None
     for i in range(num_bands):
         Ri = imagechannels.get_image_cube(channels=[ltr_stack_indices[0]+i], roi=roi)
         Ri = Ri.astype(np.float32)
-        RABA_array += ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
+        if RABA_array is None:
+            RABA_array = ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
+        else:
+            RABA_array += ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
 
     return RABA_array
     
