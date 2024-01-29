@@ -190,7 +190,7 @@ class SedimentWidget(QWidget):
         self.destripe_group.glayout.addWidget(self.btn_destripe, 2, 0, 1, 2)
 
 
-        self.batch_group = VHGroup('Batch', orientation='G')
+        self.batch_group = VHGroup('Correct full dataset', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.batch_group.gbox)
         self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
