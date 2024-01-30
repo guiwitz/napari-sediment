@@ -35,7 +35,10 @@ class ChannelWidget(QListWidget):
         new_channel_indices = [self.imagechannels.channel_names.index(channel) for channel in selected_channels]
         new_channel_indices = np.sort(new_channel_indices)
 
-        roi = np.concatenate([row_bounds, col_bounds])
+        if (row_bounds is None) or (col_bounds is None):
+            roi = None
+        else:
+            roi = np.concatenate([row_bounds, col_bounds])
 
         new_cube = self.imagechannels.get_image_cube(
             channels=new_channel_indices,
