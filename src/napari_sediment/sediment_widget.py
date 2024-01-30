@@ -427,6 +427,8 @@ class SedimentWidget(QWidget):
         self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
+        self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
@@ -802,12 +804,22 @@ class SedimentWidget(QWidget):
 
     def _on_change_batch_wavelengths(self, event):
 
+        self.spin_batch_wavelengths_min.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
         self.spin_batch_wavelengths_max.setMinimum(self.slider_batch_wavelengths.minimum())
         self.spin_batch_wavelengths_max.setMaximum(self.slider_batch_wavelengths.maximum())
         self.spin_batch_wavelengths_min.setMinimum(self.slider_batch_wavelengths.minimum())
         self.spin_batch_wavelengths_min.setMaximum(self.slider_batch_wavelengths.maximum())
         self.spin_batch_wavelengths_max.setValue(self.slider_batch_wavelengths.value()[1])
         self.spin_batch_wavelengths_min.setValue(self.slider_batch_wavelengths.value()[0])
+        self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+
+    def _on_change_spin_batch_wavelengths(self, event):
+
+        self.slider_batch_wavelengths.valueChanged.disconnect(self._on_change_batch_wavelengths)
+        self.slider_batch_wavelengths.setSliderPosition([self.spin_batch_wavelengths_min.value(), self.spin_batch_wavelengths_max.value()])
+        self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
 
     def _on_click_batch_correct(self):
 
