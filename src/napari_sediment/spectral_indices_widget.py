@@ -156,6 +156,8 @@ class SpectralIndexWidget(QWidget):
         self.button_zoom_out = QPushButton('Zoom OUT', self) 
         self.button_zoom_out.clicked.connect(self.on_zoom_out)
         self.scale = 1.0
+        self.pix_width = None
+        self.pix_height = None
 
         self.scrollArea = QScrollArea()
         self.scrollArea.setWidget(self.pixlabel)
@@ -594,8 +596,12 @@ class SpectralIndexWidget(QWidget):
             dpi=100)#, bbox_inches="tight")
 
         # update napari preview
+        if self.pix_width is None:
+            self.pix_width = self.pixlabel.size().width()
+            self.pix_height = self.pixlabel.size().height()
         self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
-        self.pixlabel.setPixmap(self.pixmap.scaled(self.pixlabel.size().width(), self.pixlabel.size().height(), Qt.KeepAspectRatio))
+        #self.pixlabel.setPixmap(self.pixmap.scaled(self.pixlabel.size().width(), self.pixlabel.size().height(), Qt.KeepAspectRatio))
+        self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
 
         '''if self.pixlabel.size().height() < self.pixlabel.size().width():
             self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
