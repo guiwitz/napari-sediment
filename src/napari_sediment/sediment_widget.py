@@ -1005,16 +1005,23 @@ class SedimentWidget(QWidget):
             mask = self.viewer.layers['clean-mask'].data
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
-        else:
+        elif 'mask' in self.viewer.layers:
             mask = self.viewer.layers['mask'].data
+        else:
+            warnings.warn('No mask found')
+            pass
 
         save_mask(mask, get_mask_path(self.export_folder))
 
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask = load_mask(get_mask_path(self.export_folder))
-        self.update_mask(mask)
+        mask_path = get_mask_path(self.export_folder)
+        if mask_path.exists():
+            mask = load_mask(mask_path)
+            self.update_mask(mask)
+        else:
+            warnings.warn('No mask found')
 
     def _on_click_snapshot(self):
         """Save snapshot of viewer"""
