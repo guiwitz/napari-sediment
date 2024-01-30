@@ -15,6 +15,8 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QScrollArea)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
+from napari.qt import get_current_stylesheet
+from napari.settings import get_settings
 
 import numpy as np
 #import pystripe
@@ -36,6 +38,7 @@ from .widgets.channel_widget import ChannelWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
 from .utils import update_contrast_on_layer
+from .batch_preproc import BatchPreprocWidget
 
 import napari
 
@@ -215,6 +218,26 @@ class SedimentWidget(QWidget):
         self.check_batch_destripe.setChecked(True)
         self.batch_group.glayout.addWidget(self.check_batch_white, 2, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 1, 1, 1)
+
+        self.btn_show_multiexp_batch = QPushButton("Show batch")
+        self.batch_group.glayout.addWidget(self.btn_show_multiexp_batch, 3, 0, 1, 1)
+        self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
+        self.multiexp_batch = None
+
+    def _on_click_multiexp_batch(self):
+
+        if self.multiexp_batch is None:
+            self.multiexp_batch = BatchPreprocWidget(
+                self.viewer,
+                background_correct=self.check_batch_white.isChecked(),
+                destripe=self.check_batch_destripe.isChecked(),
+                savgol_window=self.qspin_destripe_width.value(),
+                min_band=self.slider_batch_wavelengths.value()[0],
+                max_band=self.slider_batch_wavelengths.value()[1],
+            )
+            self.multiexp_batch.setStyleSheet(get_current_stylesheet())
+
+        self.multiexp_batch.show()
 
 
     def _create_mask_tab(self):

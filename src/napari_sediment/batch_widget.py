@@ -14,8 +14,6 @@ from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RAB
 from .spectralplot import plot_spectral_profile  
 from .imchannels import ImChannels
 from .io import load_project_params, load_plots_params
-from .widgets.rgb_widget import RGBWidget
-
 
 class BatchWidget(QWidget):
     """
@@ -42,7 +40,7 @@ class BatchWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ["&Main", "&Options"]
+        self.tab_names = ["&Main", "Options"]
         self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout()])
 
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
@@ -99,6 +97,7 @@ class BatchWidget(QWidget):
         else:
             self.export_folder = Path(export_folder)
         self.export_path_display.setText(self.export_folder.as_posix())
+
 
     def _on_click_select_data_folder(self, event=None, data_folder=None):
         """Interactively select folder to analyze"""
