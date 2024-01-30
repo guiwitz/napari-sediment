@@ -568,7 +568,7 @@ class HyperAnalysisWidget(QWidget):
             self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
             spectral_pixel = self.viewer.layers['imcube'].data[
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
-            ]
+            ].compute()
 
             spectral_pixel = spectral_pixel.astype(np.float64)
             spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=self.qlist_channels.bands)
