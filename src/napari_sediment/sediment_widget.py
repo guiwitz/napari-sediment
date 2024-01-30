@@ -638,15 +638,16 @@ class SedimentWidget(QWidget):
     def _add_roi_layer(self):
         """Add &ROI layers to napari viewer"""
 
+        edge_width = self.viewer.layers['imcube'].data.shape[1]//100
         if 'main-roi' not in self.viewer.layers:
             self.roi_layer = self.viewer.add_shapes(
                 ndim = 2,
-                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=10)
+                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
         
         if 'rois' not in self.viewer.layers:
             self.roi_layer = self.viewer.add_shapes(
                 ndim = 2,
-                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
+                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
          
     def _on_click_add_main_roi(self):
 
@@ -696,7 +697,10 @@ class SedimentWidget(QWidget):
             [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
             [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
             [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
-        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
+        
+        if not 'rois' in self.viewer.layers:
+            self._add_roi_layer()
+        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r')
 
 
     def _add_mask(self):

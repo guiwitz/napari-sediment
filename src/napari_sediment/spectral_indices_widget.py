@@ -390,6 +390,7 @@ class SpectralIndexWidget(QWidget):
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
         
+        edge_width = self.viewer.layers['imcube'].data.shape[1]//100
         min_row = 0
         max_row = self.row_bounds[1] - self.row_bounds[0]
         if roi_xpos is None:
@@ -412,9 +413,9 @@ class SpectralIndexWidget(QWidget):
         if 'rois' not in self.viewer.layers:
             self.viewer.add_shapes(
                 ndim = 2,
-                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
+                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
          
-        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
+        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r')
 
 
     def get_RGB(self):
