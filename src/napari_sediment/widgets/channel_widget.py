@@ -25,7 +25,7 @@ class ChannelWidget(QListWidget):
         #self.itemClicked.connect(self._on_change_channel_selection)
 
 
-    def _on_change_channel_selection(self, row_bounds, col_bounds):
+    def _on_change_channel_selection(self, row_bounds=None, col_bounds=None):
         """Load images upon of change in channel selection.
         Considers crop bounds.
         """
