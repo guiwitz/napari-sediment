@@ -81,12 +81,13 @@ class BatchPreprocWidget(QWidget):
 
         self.options_group = VHGroup('Options', orientation='G')
         self.tabs.add_named_tab('&Preprocessing', self.options_group.gbox)
-        self.check_do_destripe = QCheckBox("Destripe")
-        self.check_do_destripe.setChecked(destripe)
-        self.options_group.glayout.addWidget(self.check_do_destripe, 0, 0, 1, 1)
         self.check_do_background_correction = QCheckBox("Background correction")
         self.check_do_background_correction.setChecked(background_correct)
-        self.options_group.glayout.addWidget(self.check_do_background_correction, 1, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.check_do_background_correction, 0, 0, 1, 1)
+        
+        self.check_do_destripe = QCheckBox("Destripe")
+        self.check_do_destripe.setChecked(destripe)
+        self.options_group.glayout.addWidget(self.check_do_destripe, 1, 0, 1, 1)
         self.qspin_destripe_width = QSpinBox()
         self.qspin_destripe_width.setRange(1, 1000)
         if savgol_window is not None:
@@ -101,16 +102,23 @@ class BatchPreprocWidget(QWidget):
             self.qspin_min_band.setValue(min_band)
         else:
             self.qspin_min_band.setValue(0)
-        self.options_group.glayout.addWidget(QLabel('Min band'), 3, 0, 1, 1)
-        self.options_group.glayout.addWidget(self.qspin_min_band, 3, 1, 1, 1)
+
+        self.check_do_min_max = QCheckBox("Crop bands")
+        self.check_do_min_max.setChecked(False)
+        self.options_group.glayout.addWidget(self.check_do_min_max, 3, 0, 1, 1)
+
+        self.options_group.glayout.addWidget(QLabel('Min band'), 4, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.qspin_min_band, 4, 1, 1, 1)
         self.qspin_max_band = QSpinBox()
         self.qspin_max_band.setRange(0, 1000)
         if max_band is not None:
             self.qspin_max_band.setValue(max_band)
         else:
             self.qspin_max_band.setValue(1000)
-        self.options_group.glayout.addWidget(QLabel('Max band'), 4, 0, 1, 1)
-        self.options_group.glayout.addWidget(self.qspin_max_band, 4, 1, 1, 1)
+        self.options_group.glayout.addWidget(QLabel('Max band'), 5, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.qspin_max_band, 5, 1, 1, 1)
+        self.qspin_max_band.setEnabled(False)
+        self.qspin_min_band.setEnabled(False)
 
         self.add_connections()
 
@@ -122,6 +130,15 @@ class BatchPreprocWidget(QWidget):
         self.btn_select_preproc_export_folder.clicked.connect(self._on_click_select_preproc_export_folder)
         self.btn_preproc_folder.clicked.connect(self._on_click_batch_correct)
         self.file_list.currentTextChanged.connect(self._on_change_filelist)
+        self.check_do_min_max.stateChanged.connect(self._on_change_min_max)
+
+    def _on_change_min_max(self, event=None):
+        if self.check_do_min_max.isChecked():
+            self.qspin_max_band.setEnabled(True)
+            self.qspin_min_band.setEnabled(True)
+        else:
+            self.qspin_max_band.setEnabled(False)
+            self.qspin_min_band.setEnabled(False)
 
     def _on_change_select_bands(self, event=None):
 
@@ -210,9 +227,11 @@ class BatchPreprocWidget(QWidget):
             acquistion_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
             wr_beginning = wr_folder.name.split(background_text)[0]
 
-            '''min_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[0]))
-            max_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[1]))
-            bands_to_correct = np.arange(min_band, max_band+1)'''
+            min_max_band = None
+            if self.check_do_min_max.isChecked():
+                min_band = self.qspin_min_band.value()
+                max_band = self.qspin_max_band.value()
+                min_max_band = [min_band, max_band]  
             
             correct_save_to_zarr(
                 imhdr_path=imhdr_path,
@@ -221,7 +240,8 @@ class BatchPreprocWidget(QWidget):
                 dark_for_white_file_path=dark_for_white_file_path,
                 zarr_path=self.preproc_export_path.joinpath(wr_beginning).joinpath('corrected.zarr'),
                 band_indices=None,
-                background_correction=True,#self.check_batch_white.isChecked(),
-                destripe=False,#self.check_batch_destripe.isChecked(),
+                min_max_bands=min_max_band,
+                background_correction=self.check_do_background_correction.isChecked(),
+                destripe=self.check_do_destripe.isChecked(),
                 use_dask=True
                 )

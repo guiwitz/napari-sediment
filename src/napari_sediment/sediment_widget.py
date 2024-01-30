@@ -814,16 +814,15 @@ class SedimentWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
-        min_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[0]))
-        max_band = np.argmin(np.abs(np.array(self.imagechannels.channel_names).astype(float) - self.slider_batch_wavelengths.value()[1]))
-        bands_to_correct = np.arange(min_band, max_band+1)
+        min_max_band = [self.slider_batch_wavelengths.value()[0], self.slider_batch_wavelengths.value()[1]]
         correct_save_to_zarr(
             imhdr_path=self.imhdr_path,
             white_file_path=self.white_file_path,
             dark_for_im_file_path=self.dark_for_im_file_path,
             dark_for_white_file_path=self.dark_for_white_file_path,
             zarr_path=self.export_folder.joinpath('corrected.zarr'),
-            band_indices=bands_to_correct,
+            band_indices=None,
+            min_max_bands=min_max_band,
             background_correction=self.check_batch_white.isChecked(),
             destripe=self.check_batch_destripe.isChecked(),
             use_dask=True
