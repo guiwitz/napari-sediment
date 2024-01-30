@@ -11,6 +11,7 @@ from .folder_list_widget import FolderListWidget
 from .sediproc import correct_save_to_zarr
 from .io import get_data_background_path
 from .widgets.channel_widget import ChannelWidget
+from .parameters.parameters import Param
 
 class BatchPreprocWidget(QWidget):
     """
@@ -168,9 +169,6 @@ class BatchPreprocWidget(QWidget):
         self.dark_for_im_file_path_display.setText(self.dark_for_im_file_path.as_posix())
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
 
-        if not self.preproc_export_path.joinpath(wr_beginning).is_dir():
-            self.preproc_export_path.joinpath(wr_beginning).mkdir()
-
         # clear existing layers.
         while len(self.viewer.layers) > 0:
             self.viewer.layers.clear()
@@ -188,9 +186,10 @@ class BatchPreprocWidget(QWidget):
     def _on_click_select_main_folder(self, event=None, main_folder=None):
         
         if main_folder is None:
-            main_folder = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+            main_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         else:
             main_folder = Path(main_folder)
+        self.main_path_display.setText(main_folder.as_posix())
         self.file_list.update_from_path(main_folder)
 
     def _on_click_select_preproc_export_folder(self, event=None, preproc_export_path=None):
@@ -226,19 +225,33 @@ class BatchPreprocWidget(QWidget):
 
             acquistion_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
             wr_beginning = wr_folder.name.split(background_text)[0]
+            export_folder = self.preproc_export_path.joinpath(wr_beginning)
+
+            if not export_folder.is_dir():
+                export_folder.mkdir()
 
             min_max_band = None
             if self.check_do_min_max.isChecked():
                 min_band = self.qspin_min_band.value()
                 max_band = self.qspin_max_band.value()
-                min_max_band = [min_band, max_band]  
+                min_max_band = [min_band, max_band]
+
+            param = Param(
+                project_path=export_folder,
+                file_path=imhdr_path,
+                white_path=white_file_path,
+                dark_for_im_path=dark_for_im_file_path,
+                dark_for_white_path=dark_for_white_file_path,
+                main_roi=[],
+                rois=[])
+            param.save_parameters()
             
             correct_save_to_zarr(
                 imhdr_path=imhdr_path,
                 white_file_path=white_file_path,
                 dark_for_im_file_path=dark_for_im_file_path,
                 dark_for_white_file_path=dark_for_white_file_path,
-                zarr_path=self.preproc_export_path.joinpath(wr_beginning).joinpath('corrected.zarr'),
+                zarr_path=export_folder.joinpath('corrected.zarr'),
                 band_indices=None,
                 min_max_bands=min_max_band,
                 background_correction=self.check_do_background_correction.isChecked(),
