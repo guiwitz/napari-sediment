@@ -562,7 +562,7 @@ class SedimentWidget(QWidget):
         if image_name != self.current_image_name:
             self.current_image_name = image_name
             #self.imagechannels = ImChannels(self.imhdr_path)
-            if self.check_load_corrected.isChecked():
+            if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
                 if not self.export_folder.joinpath('corrected.zarr').exists():
                     warnings.warn('Corrected image not found. Loading raw image instead.')
                     self.imagechannels = ImChannels(self.imhdr_path)
@@ -640,7 +640,7 @@ class SedimentWidget(QWidget):
     def _add_roi_layer(self):
         """Add &ROI layers to napari viewer"""
 
-        edge_width = self.viewer.layers['imcube'].data.shape[1]//100
+        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
         if 'main-roi' not in self.viewer.layers:
             self.roi_layer = self.viewer.add_shapes(
                 ndim = 2,
@@ -673,7 +673,7 @@ class SedimentWidget(QWidget):
             [self.mainroi_max_row,self.mainroi_max_col],
             [self.mainroi_min_row,self.mainroi_max_col]]
         self.viewer.layers['main-roi'].data = []
-        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b', edge_width=10)
+        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
 
     def set_main_roi_bounds(self, min_col, max_col, min_row, max_row):
             
@@ -974,7 +974,7 @@ class SedimentWidget(QWidget):
         if 'ml-mask' in self.viewer.layers:
             mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
         
-        mask_complete = (mask_complete>0).astype(np.uint8)
+        mask_complete = np.asarray((mask_complete>0),np.uint8)
 
         if 'complete-mask' in self.viewer.layers:
             self.viewer.layers['complete-mask'].data = mask_complete
@@ -1146,7 +1146,7 @@ class SedimentWidget(QWidget):
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
         if mainroi:
             mainroi[0] = mainroi[0].astype(int)
-            self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b', edge_width=10)
+            self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b')
             self.set_main_roi_bounds(
             min_col=mainroi[0][:,1].min(),
             max_col=mainroi[0][:,1].max(),
@@ -1155,4 +1155,4 @@ class SedimentWidget(QWidget):
         )
         rois = [np.array(x).reshape(4,2) for x in self.params.rois]
         if rois:
-            self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
+            self.viewer.layers['rois'].add_rectangles(rois, edge_color='r')
