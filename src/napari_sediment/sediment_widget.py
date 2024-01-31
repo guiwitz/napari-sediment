@@ -326,13 +326,13 @@ class SedimentWidget(QWidget):
 
         self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
 
-        self.roi_group = VHGroup('&Main &ROI', orientation='G')
+        self.roi_group = VHGroup('Main ROI', orientation='G')
         self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
-        self.btn_add_main_roi = QPushButton("Add main &ROI")
+        self.btn_add_main_roi = QPushButton("Add main ROI")
         self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
         self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
 
-        self.subroi_group = VHGroup('Sub-&ROI', orientation='G')
+        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
         self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
         #self.btn_add_sub_roi = QPushButton("Add analysis &ROI")
         #self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
@@ -341,7 +341,7 @@ class SedimentWidget(QWidget):
         self.spin_roi_width = QSpinBox()
         self.spin_roi_width.setRange(1, 1000)
         self.spin_roi_width.setValue(20)
-        self.subroi_group.glayout.addWidget(QLabel('Sub-&ROI width'), 1, 0, 1, 1)
+        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
         self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
 
     def _create_export_tab(self):
@@ -350,7 +350,7 @@ class SedimentWidget(QWidget):
 
         self.mask_group_project = VHGroup('Project', orientation='G')
         self.tabs.add_named_tab('&Export', self.mask_group_project.gbox)
-        self.btn_export = QPushButton("&Export Project")
+        self.btn_export = QPushButton("Export Project")
         self.btn_export.setToolTip(
             "&Export all info necessary for next steps and to reload the project")
         self.mask_group_project.glayout.addWidget(self.btn_export)
@@ -362,7 +362,7 @@ class SedimentWidget(QWidget):
         self.mask_group_project.glayout.addWidget(self.check_load_corrected)
 
         # io
-        self.mask_group_export = VHGroup('Mas&k', orientation='G')
+        self.mask_group_export = VHGroup('Mask', orientation='G')
         self.tabs.add_named_tab('&Export', self.mask_group_export.gbox)
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
