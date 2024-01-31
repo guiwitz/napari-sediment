@@ -390,7 +390,7 @@ class SpectralIndexWidget(QWidget):
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
         
-        edge_width = self.viewer.layers['imcube'].data.shape[1]//100
+        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
         min_row = 0
         max_row = self.row_bounds[1] - self.row_bounds[0]
         if roi_xpos is None:
