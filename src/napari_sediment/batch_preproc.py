@@ -39,7 +39,7 @@ class BatchPreprocWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ["&Preprocessing", "Options"]
+        self.tab_names = ["&Preprocessing", "Paths"]
         self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout()])
 
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
@@ -47,38 +47,29 @@ class BatchPreprocWidget(QWidget):
 
         self.main_layout.addWidget(self.tabs)
 
-        self.btn_select_main_folder = QPushButton("Select main folder")
-        self.tabs.add_named_tab('&Preprocessing', self.btn_select_main_folder)
-        self.main_path_display = QLineEdit("No path")
-        self.tabs.add_named_tab('&Preprocessing', self.main_path_display)
+        self.data_selection_group = VHGroup('Select data', orientation='G')
+        self.export_group = VHGroup('Export location', orientation='G')
+        self.tabs.add_named_tab('&Preprocessing', self.data_selection_group.gbox)
+        self.tabs.add_named_tab('&Preprocessing', self.export_group.gbox)
 
+        self.btn_select_main_folder = QPushButton("Select main folder")
+        self.data_selection_group.glayout.addWidget(self.btn_select_main_folder)
+        self.main_path_display = QLineEdit("No path")
+        self.data_selection_group.glayout.addWidget(self.main_path_display)
+        self.data_selection_group.glayout.addWidget(QLabel('Available folders'))
         self.file_list = FolderListWidget(napari_viewer)
-        self.tabs.add_named_tab('&Preprocessing', self.file_list)
+        self.data_selection_group.glayout.addWidget(self.file_list)
         self.file_list.setMaximumHeight(100)
 
-        self.selected_data_folder = QLineEdit("No path")
-        self.selected_reference_folder = QLineEdit("No path")
-        self.imhdr_path_display = QLineEdit("No file selected")
-        self.white_file_path_display = QLineEdit("No file selected")
-        self.dark_for_white_file_path_display = QLineEdit("No file selected")
-        self.dark_for_im_file_path_display = QLineEdit("No file selected")
-        self.tabs.add_named_tab('&Preprocessing', self.selected_data_folder)
-        self.tabs.add_named_tab('&Preprocessing', self.selected_reference_folder)
-        self.tabs.add_named_tab('&Preprocessing', self.imhdr_path_display)
-        self.tabs.add_named_tab('&Preprocessing', self.white_file_path_display)
-        self.tabs.add_named_tab('&Preprocessing', self.dark_for_white_file_path_display)
-        self.tabs.add_named_tab('&Preprocessing', self.dark_for_im_file_path_display)
+        self.data_selection_group.glayout.addWidget(QLabel('Bands to display'))
+        self.qlist_channels = ChannelWidget(self.viewer, translate=False)
+        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
+        self.data_selection_group.glayout.addWidget(self.qlist_channels)
 
         self.btn_select_preproc_export_folder = QPushButton("Select export folder")
         self.preproc_export_path_display = QLineEdit("No path")
-        self.tabs.add_named_tab('&Preprocessing', self.btn_select_preproc_export_folder)
-        self.tabs.add_named_tab('&Preprocessing', self.preproc_export_path_display)
-        self.btn_preproc_folder = QPushButton("Preprocess")
-        self.tabs.add_named_tab('&Preprocessing', self.btn_preproc_folder)
-
-        self.qlist_channels = ChannelWidget(self.viewer, translate=False)
-        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
-        self.tabs.add_named_tab('&Preprocessing', self.qlist_channels)
+        self.export_group.glayout.addWidget(self.btn_select_preproc_export_folder)
+        self.export_group.glayout.addWidget(self.preproc_export_path_display)
 
         self.options_group = VHGroup('Options', orientation='G')
         self.tabs.add_named_tab('&Preprocessing', self.options_group.gbox)
@@ -120,6 +111,28 @@ class BatchPreprocWidget(QWidget):
         self.options_group.glayout.addWidget(self.qspin_max_band, 5, 1, 1, 1)
         self.qspin_max_band.setEnabled(False)
         self.qspin_min_band.setEnabled(False)
+
+        self.btn_preproc_folder = QPushButton("Preprocess")
+        self.tabs.add_named_tab('&Preprocessing', self.btn_preproc_folder)
+
+        self.selected_data_folder = QLineEdit("No path")
+        self.selected_reference_folder = QLineEdit("No path")
+        self.imhdr_path_display = QLineEdit("No file selected")
+        self.white_file_path_display = QLineEdit("No file selected")
+        self.dark_for_white_file_path_display = QLineEdit("No file selected")
+        self.dark_for_im_file_path_display = QLineEdit("No file selected")
+        self.tabs.add_named_tab('Paths', QLabel('Data folder'))
+        self.tabs.add_named_tab('Paths', self.selected_data_folder)
+        self.tabs.add_named_tab('Paths', QLabel('Reference folder'))
+        self.tabs.add_named_tab('Paths', self.selected_reference_folder)
+        self.tabs.add_named_tab('Paths', QLabel('hdr file'))
+        self.tabs.add_named_tab('Paths', self.imhdr_path_display)
+        self.tabs.add_named_tab('Paths', QLabel('White ref'))
+        self.tabs.add_named_tab('Paths', self.white_file_path_display)
+        self.tabs.add_named_tab('Paths', QLabel('Dark for white ref'))
+        self.tabs.add_named_tab('Paths', self.dark_for_white_file_path_display)
+        self.tabs.add_named_tab('Paths', QLabel('Darf for image ref'))
+        self.tabs.add_named_tab('Paths', self.dark_for_im_file_path_display)
 
         self.add_connections()
 
@@ -244,7 +257,6 @@ class BatchPreprocWidget(QWidget):
                 dark_for_white_path=dark_for_white_file_path,
                 main_roi=[],
                 rois=[])
-            param.save_parameters()
             
             correct_save_to_zarr(
                 imhdr_path=imhdr_path,
@@ -258,3 +270,11 @@ class BatchPreprocWidget(QWidget):
                 destripe=self.check_do_destripe.isChecked(),
                 use_dask=True
                 )
+            imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
+            param.main_roi = [[
+                0, 0,
+                imchannels.nrows, 0,
+                imchannels.nrows, imchannels.ncols,
+                0, imchannels.ncols
+                ]]
+            param.save_parameters()
