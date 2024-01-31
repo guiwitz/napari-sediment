@@ -219,7 +219,7 @@ class SedimentWidget(QWidget):
         self.batch_group.glayout.addWidget(self.check_batch_white, 2, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 1, 1, 1)
 
-        self.btn_show_multiexp_batch = QPushButton("Show batch")
+        self.btn_show_multiexp_batch = QPushButton("Process in batch")
         self.batch_group.glayout.addWidget(self.btn_show_multiexp_batch, 3, 0, 1, 1)
         self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
@@ -356,9 +356,9 @@ class SedimentWidget(QWidget):
         self.mask_group_project.glayout.addWidget(self.btn_export)
         self.btn_import = QPushButton("Import Project")
         self.mask_group_project.glayout.addWidget(self.btn_import)
-        self.check_load_corrected = QCheckBox("Load corrected data")
+        self.check_load_corrected = QCheckBox("Load corrected data if available")
         self.check_load_corrected.setToolTip("Load corrected data instead of raw")
-        self.check_load_corrected.setChecked(False)
+        self.check_load_corrected.setChecked(True)
         self.mask_group_project.glayout.addWidget(self.check_load_corrected)
 
         # io
