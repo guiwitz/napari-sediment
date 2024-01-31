@@ -67,7 +67,7 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export', 'P&lotting']#,'&Options']
+        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export-Import', 'P&lotting']#,'&Options']
         self.tabs = TabSet(self.tab_names)
 
         self.main_layout.addWidget(self.tabs)
@@ -346,13 +346,13 @@ class SedimentWidget(QWidget):
 
     def _create_export_tab(self):
 
-        self.tabs.widget(self.tab_names.index('&Export')).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(self.tab_names.index('&Export-Import')).layout().setAlignment(Qt.AlignTop)
 
         self.mask_group_project = VHGroup('Project', orientation='G')
-        self.tabs.add_named_tab('&Export', self.mask_group_project.gbox)
+        self.tabs.add_named_tab('&Export-Import', self.mask_group_project.gbox)
         self.btn_export = QPushButton("Export Project")
         self.btn_export.setToolTip(
-            "&Export all info necessary for next steps and to reload the project")
+            "Export all info necessary for next steps and to reload the project")
         self.mask_group_project.glayout.addWidget(self.btn_export)
         self.btn_import = QPushButton("Import Project")
         self.mask_group_project.glayout.addWidget(self.btn_import)
@@ -363,7 +363,7 @@ class SedimentWidget(QWidget):
 
         # io
         self.mask_group_export = VHGroup('Mask', orientation='G')
-        self.tabs.add_named_tab('&Export', self.mask_group_export.gbox)
+        self.tabs.add_named_tab('&Export-Import', self.mask_group_export.gbox)
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
@@ -371,7 +371,7 @@ class SedimentWidget(QWidget):
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
         self.mask_group_capture = VHGroup('Other exports', orientation='G')
-        self.tabs.add_named_tab('&Export', self.mask_group_capture.gbox)
+        self.tabs.add_named_tab('&Export-Import', self.mask_group_capture.gbox)
         self.btn_snapshot = QPushButton("Snapshot")
         self.btn_snapshot.setToolTip("Save snapshot of current viewer")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
@@ -1108,7 +1108,7 @@ class SedimentWidget(QWidget):
         self.params.save_parameters()
 
     def export_project(self):
-        """&Export data"""
+        """Export data"""
 
         if self.export_folder is None:
             self._on_click_select_export_folder()
