@@ -238,7 +238,7 @@ class BatchPreprocWidget(QWidget):
 
             acquistion_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
             wr_beginning = wr_folder.name.split(background_text)[0]
-            export_folder = self.preproc_export_path.joinpath(wr_beginning)
+            export_folder = self.preproc_export_path.joinpath(f)#wr_beginning)
 
             if not export_folder.is_dir():
                 export_folder.mkdir()
