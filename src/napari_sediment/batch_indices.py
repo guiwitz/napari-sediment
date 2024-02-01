@@ -16,7 +16,7 @@ from .spectralplot import plot_spectral_profile
 from .imchannels import ImChannels
 from .io import load_project_params, load_plots_params
 
-class BatchWidget(QWidget):
+class BatchIndexWidget(QWidget):
     """
     Widget for the SpectralIndices.
     
