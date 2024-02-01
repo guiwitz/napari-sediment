@@ -96,11 +96,11 @@ def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannel
     roi = np.concatenate([row_bounds, col_bounds])
     ltr_cube = imagechannels.get_image_cube(
         channels=ltr_stack_indices, roi=roi)
-    ltr_cube = ltr_cube.astype(np.float32)
+    ltr_cube = ltr_cube.astype(np.float32)+0.0000001
 
     # compute indices
     RABD = ((ltr_cube[0] * X_right + ltr_cube[2] * X_left) / (X_left + X_right)) / ltr_cube[1] 
-
+    RABD = np.asarray(RABD, np.float32)
     return RABD
 
 def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
@@ -138,12 +138,12 @@ def compute_index_RABA(left, right, row_bounds, col_bounds, imagechannels):
     RABA_array = None
     for i in range(num_bands):
         Ri = imagechannels.get_image_cube(channels=[ltr_stack_indices[0]+i], roi=roi)
-        Ri = Ri.astype(np.float32)
+        Ri = Ri.astype(np.float32) + 0.0000001
         if RABA_array is None:
             RABA_array = ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
         else:
             RABA_array += ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
-
+    RABA_array = np.asarray(RABA_array, np.float32)
     return RABA_array
     
 def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
@@ -174,7 +174,8 @@ def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
     roi = np.concatenate([row_bounds, col_bounds])
     numerator_denominator = imagechannels.get_image_cube(channels=ltr_stack_indices, roi=roi)
     numerator_denominator = numerator_denominator.astype(np.float32)
-    ratio = numerator_denominator[0] / numerator_denominator[1]
+    ratio = numerator_denominator[0] / (numerator_denominator[1] + 0.0000001)
+    ratio = np.asarray(ratio, np.float32)
     return ratio
 
         
