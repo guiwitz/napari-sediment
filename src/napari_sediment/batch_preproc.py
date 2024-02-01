@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout, QLineEdit,
                             QFileDialog, QCheckBox, QSpinBox, QLabel)
 from qtpy.QtCore import Qt
+from napari.utils import progress
 from napari_guitils.gui_structures import TabSet
 from napari_guitils.gui_structures import VHGroup
 
@@ -237,49 +238,53 @@ class BatchPreprocWidget(QWidget):
             self._on_click_select_preproc_export_folder()
 
         main_folder = Path(self.file_list.folder_path)
-        for c in range(self.file_list.count()):
-            f = self.file_list.item(c).text()
-            current_folder = main_folder.joinpath(f)
 
-            acquistion_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
-            wr_beginning = wr_folder.name.split(background_text)[0]
-            export_folder = self.preproc_export_path.joinpath(f)#wr_beginning)
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(range(self.file_list.count())) as pbr:
+            pbr.set_description("Batch processing folder")
+            for c in pbr:
+                f = self.file_list.item(c).text()
+                current_folder = main_folder.joinpath(f)
 
-            if not export_folder.is_dir():
-                export_folder.mkdir()
+                _, _, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
+                export_folder = self.preproc_export_path.joinpath(f)#wr_beginning)
 
-            min_max_band = None
-            if self.check_do_min_max.isChecked():
-                min_band = self.qspin_min_band.value()
-                max_band = self.qspin_max_band.value()
-                min_max_band = [min_band, max_band]
+                if not export_folder.is_dir():
+                    export_folder.mkdir()
 
-            param = Param(
-                project_path=export_folder,
-                file_path=imhdr_path,
-                white_path=white_file_path,
-                dark_for_im_path=dark_for_im_file_path,
-                dark_for_white_path=dark_for_white_file_path,
-                main_roi=[],
-                rois=[])
-            
-            correct_save_to_zarr(
-                imhdr_path=imhdr_path,
-                white_file_path=white_file_path,
-                dark_for_im_file_path=dark_for_im_file_path,
-                dark_for_white_file_path=dark_for_white_file_path,
-                zarr_path=export_folder.joinpath('corrected.zarr'),
-                band_indices=None,
-                min_max_bands=min_max_band,
-                background_correction=self.check_do_background_correction.isChecked(),
-                destripe=self.check_do_destripe.isChecked(),
-                use_dask=self.check_use_dask.isChecked(),
-                )
-            imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
-            param.main_roi = [[
-                0, 0,
-                imchannels.nrows, 0,
-                imchannels.nrows, imchannels.ncols,
-                0, imchannels.ncols
-                ]]
-            param.save_parameters()
+                min_max_band = None
+                if self.check_do_min_max.isChecked():
+                    min_band = self.qspin_min_band.value()
+                    max_band = self.qspin_max_band.value()
+                    min_max_band = [min_band, max_band]
+
+                param = Param(
+                    project_path=export_folder,
+                    file_path=imhdr_path,
+                    white_path=white_file_path,
+                    dark_for_im_path=dark_for_im_file_path,
+                    dark_for_white_path=dark_for_white_file_path,
+                    main_roi=[],
+                    rois=[])
+                
+                correct_save_to_zarr(
+                    imhdr_path=imhdr_path,
+                    white_file_path=white_file_path,
+                    dark_for_im_file_path=dark_for_im_file_path,
+                    dark_for_white_file_path=dark_for_white_file_path,
+                    zarr_path=export_folder.joinpath('corrected.zarr'),
+                    band_indices=None,
+                    min_max_bands=min_max_band,
+                    background_correction=self.check_do_background_correction.isChecked(),
+                    destripe=self.check_do_destripe.isChecked(),
+                    use_dask=self.check_use_dask.isChecked(),
+                    )
+                imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
+                param.main_roi = [[
+                    0, 0,
+                    imchannels.nrows, 0,
+                    imchannels.nrows, imchannels.ncols,
+                    0, imchannels.ncols
+                    ]]
+                param.save_parameters()
+        self.viewer.window._status_bar._toggle_activity_dock(False)

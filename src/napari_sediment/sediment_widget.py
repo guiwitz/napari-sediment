@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider
 from napari.qt import get_current_stylesheet
-from napari.settings import get_settings
+from napari.utils import progress
 
 import numpy as np
 #import pystripe
@@ -563,43 +563,48 @@ class SedimentWidget(QWidget):
             return False
         
         # open image
-        image_name = self.imhdr_path.name
-        
-        # reset acquisition index if new image is selected
-        if image_name != self.current_image_name:
-            self.current_image_name = image_name
-            #self.imagechannels = ImChannels(self.imhdr_path)
-            if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
-                if not self.export_folder.joinpath('corrected.zarr').exists():
-                    warnings.warn('Corrected image not found. Loading raw image instead.')
-                    self.imagechannels = ImChannels(self.imhdr_path)
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Opening image")
+            image_name = self.imhdr_path.name
+            
+            # reset acquisition index if new image is selected
+            if image_name != self.current_image_name:
+                self.current_image_name = image_name
+                #self.imagechannels = ImChannels(self.imhdr_path)
+                if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
+                    if not self.export_folder.joinpath('corrected.zarr').exists():
+                        warnings.warn('Corrected image not found. Loading raw image instead.')
+                        self.imagechannels = ImChannels(self.imhdr_path)
+                    else:
+                        self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
                 else:
-                    self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
-            else:
-                self.imagechannels = ImChannels(self.imhdr_path)
+                    self.imagechannels = ImChannels(self.imhdr_path)
 
-        self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
-        self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
-        self.crop_bounds['Min col'].setMaximum(self.imagechannels.ncols-1)
-        self.crop_bounds['Max col'].setMaximum(self.imagechannels.ncols)
-        self.crop_bounds['Max row'].setValue(self.imagechannels.nrows)
-        self.crop_bounds['Max col'].setValue(self.imagechannels.ncols)
+            self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
+            self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
+            self.crop_bounds['Min col'].setMaximum(self.imagechannels.ncols-1)
+            self.crop_bounds['Max col'].setMaximum(self.imagechannels.ncols)
+            self.crop_bounds['Max row'].setValue(self.imagechannels.nrows)
+            self.crop_bounds['Max col'].setValue(self.imagechannels.ncols)
 
-        self.row_bounds = [0, self.imagechannels.nrows]
-        self.col_bounds = [0, self.imagechannels.ncols]
-        
-        self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
+            self.row_bounds = [0, self.imagechannels.nrows]
+            self.col_bounds = [0, self.imagechannels.ncols]
+            
+            self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
 
-        self.rgb_widget.imagechannels = self.imagechannels
-        self.rgb_widget._on_click_RGB()
-        # add imcube from RGB
-        [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-        self._update_threshold_limits()
+            self.rgb_widget.imagechannels = self.imagechannels
+            self.rgb_widget._on_click_RGB()
+            # add imcube from RGB
+            [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
+            self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+            self._update_threshold_limits()
 
-        #self._add_roi_layer()
-        self._add_mask()
-        self._update_range_wavelength()
+            #self._add_roi_layer()
+            self._add_mask()
+            self._update_range_wavelength()
+            
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def _on_click_sync_RGB(self, event=None):
         """Select same channels for imcube as loaded for RGB"""
@@ -720,6 +725,10 @@ class SedimentWidget(QWidget):
     def _on_click_destripe(self):
         """Destripe image"""
         
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Destriping image")
+
         selected_layer = self.combo_layer_destripe.currentText()
         if (selected_layer == 'None') or (selected_layer == 'imcube'):
             data_destripe = self.viewer.layers['imcube'].data.copy()
@@ -742,51 +751,57 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_destripe'].data = data_destripe
             else:
                 self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
 
     def _on_click_background_correct(self, event=None):
         """White correct image"""
         
-        selected_layer = self.combo_layer_background.currentText()
-        if selected_layer == 'imcube':
-            channel_indices = self.qlist_channels.channel_indices
-        elif selected_layer == 'RGB':
-            channel_indices = np.sort(self.rgb_widget.rgb_ch)
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("White correcting image")
 
-        col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
-        white_data, dark_data, dark_for_white_data = load_white_dark(
-            white_file_path=self.white_file_path,
-            dark_for_im_file_path=self.dark_for_im_file_path,
-            dark_for_white_file_path=self.dark_for_white_file_path,
-            channel_indices=channel_indices,
-            col_bounds=col_bounds,
-            clean_white=True
-            )
+            selected_layer = self.combo_layer_background.currentText()
+            if selected_layer == 'imcube':
+                channel_indices = self.qlist_channels.channel_indices
+            elif selected_layer == 'RGB':
+                channel_indices = np.sort(self.rgb_widget.rgb_ch)
 
-        if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
-            im_corr = white_dark_correct(
-                self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
-            
-            if 'imcube_corrected' in self.viewer.layers:
-                self.viewer.layers['imcube_corrected'].data = im_corr
-            else:
-                self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
-                self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
+            col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
+            white_data, dark_data, dark_for_white_data = load_white_dark(
+                white_file_path=self.white_file_path,
+                dark_for_im_file_path=self.dark_for_im_file_path,
+                dark_for_white_file_path=self.dark_for_white_file_path,
+                channel_indices=channel_indices,
+                col_bounds=col_bounds,
+                clean_white=True
+                )
 
-        if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
-            sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
-            rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
-            rgb_sorted = [str(x) for x in rgb_sorted]
+            if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
+                im_corr = white_dark_correct(
+                    self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+                
+                if 'imcube_corrected' in self.viewer.layers:
+                    self.viewer.layers['imcube_corrected'].data = im_corr
+                else:
+                    self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+                    self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
-            im_corr = white_dark_correct(
-                np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
-                white_data, dark_data, dark_for_white_data)
-            
-            for ind, c in enumerate(rgb_sorted):
-                self.viewer.layers[c].data = im_corr[ind]
-                update_contrast_on_layer(self.viewer.layers[c])
-                self.viewer.layers[c].refresh()
+            if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
+                sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
+                rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
+                rgb_sorted = [str(x) for x in rgb_sorted]
 
+                im_corr = white_dark_correct(
+                    np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
+                    white_data, dark_data, dark_for_white_data)
+                
+                for ind, c in enumerate(rgb_sorted):
+                    self.viewer.layers[c].data = im_corr[ind]
+                    update_contrast_on_layer(self.viewer.layers[c])
+                    self.viewer.layers[c].refresh()
+
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def _update_combo_layers_destripe(self):
         
@@ -834,19 +849,25 @@ class SedimentWidget(QWidget):
             self._on_click_select_export_folder()
 
         min_max_band = [self.slider_batch_wavelengths.value()[0], self.slider_batch_wavelengths.value()[1]]
-        correct_save_to_zarr(
-            imhdr_path=self.imhdr_path,
-            white_file_path=self.white_file_path,
-            dark_for_im_file_path=self.dark_for_im_file_path,
-            dark_for_white_file_path=self.dark_for_white_file_path,
-            zarr_path=self.export_folder.joinpath('corrected.zarr'),
-            band_indices=None,
-            min_max_bands=min_max_band,
-            background_correction=self.check_batch_white.isChecked(),
-            destripe=self.check_batch_destripe.isChecked(),
-            use_dask=self.check_use_dask.isChecked(),
-            )
-
+        
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Preprocessing full image")
+        
+            correct_save_to_zarr(
+                imhdr_path=self.imhdr_path,
+                white_file_path=self.white_file_path,
+                dark_for_im_file_path=self.dark_for_im_file_path,
+                dark_for_white_file_path=self.dark_for_white_file_path,
+                zarr_path=self.export_folder.joinpath('corrected.zarr'),
+                band_indices=None,
+                min_max_bands=min_max_band,
+                background_correction=self.check_batch_white.isChecked(),
+                destripe=self.check_batch_destripe.isChecked(),
+                use_dask=self.check_use_dask.isChecked(),
+                )
+            
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def get_summary_image_for_mask(self):
         """Get summary image"""

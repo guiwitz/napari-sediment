@@ -10,6 +10,7 @@ import zarr
 from dask.distributed import Client
 from tqdm import tqdm
 from scipy.signal import savgol_filter
+from napari.utils import progress
 #import pystripe
 
 
@@ -488,13 +489,16 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
                 z1, ind, c, background_correction, destripe))
         
-        for k in tqdm(range(len(process)), "correcting and saving to zarr"):
-            future = process[k]
-            out = future.result()
-            future.cancel()
-            del future
+        #for k in tqdm(range(len(process)), "correcting and saving to zarr"):
+        with progress(range(len(process))) as pbr2:
+            pbr2.set_description("Preprocessing bands")
+            for k in pbr2:
+                future = process[k]
+                out = future.result()
+                future.cancel()
+                del future
     else:
-        for ind, c in enumerate(tqdm(band_indices, "correcting and saving to zarr")):
+        for ind, c in enumerate(tqdm(band_indices, "Preprocessing bands")):
             correct_single_channel(
                 imhdr_path, white_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
