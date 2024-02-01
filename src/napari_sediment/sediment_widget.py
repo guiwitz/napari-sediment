@@ -219,10 +219,17 @@ class SedimentWidget(QWidget):
         self.batch_group.glayout.addWidget(self.check_batch_white, 2, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 1, 1, 1)
 
+        self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
+        self.tabs.add_named_tab('Pro&cessing', self.multiexp_group.gbox)
         self.btn_show_multiexp_batch = QPushButton("Process in batch")
-        self.batch_group.glayout.addWidget(self.btn_show_multiexp_batch, 3, 0, 1, 1)
+        self.multiexp_group.glayout.addWidget(self.btn_show_multiexp_batch, 0, 0, 1, 1)
         self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
+
+        self.check_use_dask = QCheckBox("Use dask")
+        self.check_use_dask.setChecked(True)
+        self.check_use_dask.setToolTip("Use dask to parallelize computation")
+        self.tabs.add_named_tab('Pro&cessing', self.check_use_dask)
 
     def _on_click_multiexp_batch(self):
 
@@ -837,7 +844,7 @@ class SedimentWidget(QWidget):
             min_max_bands=min_max_band,
             background_correction=self.check_batch_white.isChecked(),
             destripe=self.check_batch_destripe.isChecked(),
-            use_dask=True
+            use_dask=self.check_use_dask.isChecked(),
             )
 
 

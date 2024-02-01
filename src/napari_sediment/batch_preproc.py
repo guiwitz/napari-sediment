@@ -112,6 +112,11 @@ class BatchPreprocWidget(QWidget):
         self.qspin_max_band.setEnabled(False)
         self.qspin_min_band.setEnabled(False)
 
+        self.check_use_dask = QCheckBox("Use dask")
+        self.check_use_dask.setChecked(True)
+        self.check_use_dask.setToolTip("Use dask to parallelize computation")
+        self.tabs.add_named_tab('&Preprocessing', self.check_use_dask)
+
         self.btn_preproc_folder = QPushButton("Preprocess")
         self.tabs.add_named_tab('&Preprocessing', self.btn_preproc_folder)
 
@@ -268,7 +273,7 @@ class BatchPreprocWidget(QWidget):
                 min_max_bands=min_max_band,
                 background_correction=self.check_do_background_correction.isChecked(),
                 destripe=self.check_do_destripe.isChecked(),
-                use_dask=True
+                use_dask=self.check_use_dask.isChecked(),
                 )
             imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
             param.main_roi = [[
