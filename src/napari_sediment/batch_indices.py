@@ -14,7 +14,9 @@ from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RAB
                             compute_index_ratio)
 from .spectralplot import plot_spectral_profile  
 from .imchannels import ImChannels
-from .io import load_project_params, load_plots_params
+from .io import load_project_params, load_plots_params, load_endmember_params
+from .folder_list_widget import FolderListWidget
+from .widgets.channel_widget import ChannelWidget
 
 class BatchIndexWidget(QWidget):
     """
@@ -69,6 +71,17 @@ class BatchIndexWidget(QWidget):
         self.plot_file_display = QLineEdit("No file selected")
         self.tabs.add_named_tab('&Main', self.plot_file_display)
 
+        self.file_list = FolderListWidget(napari_viewer)
+        self.tabs.add_named_tab('&Main', self.file_list)
+        self.file_list.setMaximumHeight(100)
+
+        self.qlist_channels = ChannelWidget(self.viewer)
+        self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
+        self.tabs.add_named_tab('&Main', self.qlist_channels)
+
+        self.btn_process = QPushButton("Batch Process")
+        self.tabs.add_named_tab('&Main', self.btn_process)
+
         self.add_connections()
 
 
@@ -79,6 +92,32 @@ class BatchIndexWidget(QWidget):
         self.btn_select_data_folder.clicked.connect(self._on_click_select_data_folder)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
         self.btn_import_plot_settings.clicked.connect(self._on_click_import_plot_settings)
+        self.btn_process.clicked.connect(self.batch_process)
+
+        self.file_list.currentTextChanged.connect(self._on_change_filelist)
+
+    def _on_change_filelist(self, event=None):
+
+        main_folder = Path(self.file_list.folder_path)
+        if self.file_list.currentItem() is None:
+            return
+        current_folder = main_folder.joinpath(self.file_list.currentItem().text())
+    
+        self.params = load_project_params(folder=current_folder)
+        self.params_indices = load_endmember_params(folder=current_folder)
+
+        self.imhdr_path = Path(self.params.file_path)
+
+        self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
+        self.row_bounds = [self.mainroi[0][:,0].min(), self.mainroi[0][:,0].max()]
+        self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
+        
+        self.imagechannels = ImChannels(current_folder.joinpath('corrected.zarr'))
+        self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
+
+    def _on_change_select_bands(self, event=None):
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
     def _on_click_select_index_file(self, event=None, index_file=None):
         """Interactively select folder to analyze"""
@@ -88,6 +127,7 @@ class BatchIndexWidget(QWidget):
         else:
             self.index_file = Path(index_file)
         self.index_file_display.setText(self.index_file.as_posix())
+        self._on_click_import_index_settings()
 
 
     def _on_click_select_export_folder(self, event=None, export_folder=None):
@@ -108,6 +148,7 @@ class BatchIndexWidget(QWidget):
         else:
             self.data_folder = Path(data_folder)
         self.data_path_display.setText(self.data_folder.as_posix())
+        self.file_list.update_from_path(self.data_folder)
 
     def _on_click_import_index_settings(self):
 
@@ -141,11 +182,12 @@ class BatchIndexWidget(QWidget):
         
         fig, ax = plt.subplots()
 
-        folders = self.data_folder.iterdir()
+        folders = list(self.data_folder.iterdir())
         
         self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(range(len(folders))) as pbr:
-            for f in pbr:
+            for ind_f in pbr:
+                f = folders[ind_f]
                 pbr.set_description(f"Processing {f.name}")
 
                 if f.name[0] != '.':
@@ -206,6 +248,7 @@ class BatchIndexWidget(QWidget):
                             fig.savefig(
                                 self.export_folder.joinpath(f'{f.name}_{spectral_name}.png'),
                                 dpi=100)#, bbox_inches="tight")
+                            plt.close('all')
                     
     def export_rgb_image_scaled(self, image_name):
         
