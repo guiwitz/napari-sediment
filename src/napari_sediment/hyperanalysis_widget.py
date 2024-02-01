@@ -4,6 +4,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSlider,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
+from napari.utils import progress
 from superqt import QLabeledDoubleRangeSlider
 from spectral import open_image
 from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
@@ -379,18 +380,22 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_mnfr(self):
         """Compute MNFR transform and compute vertical correlation. Keep all bands."""
         
-        data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
-        signal = calc_stats(
-            image=data,
-            mask=self.viewer.layers['mask'].data,
-            index=0)
-        noise = noise_from_diffs(data)
-        self.mnfr = mnf(signal, noise)
-        self.eigenvals = self.mnfr.napc.eigenvalues
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Computing MNFR")
+            data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
+            signal = calc_stats(
+                image=data,
+                mask=self.viewer.layers['mask'].data,
+                index=0)
+            noise = noise_from_diffs(data)
+            self.mnfr = mnf(signal, noise)
+            self.eigenvals = self.mnfr.napc.eigenvalues
 
-        self._compute_mnfr_bands()
-        self._compute_vert_correlation()
-        self.plot_eigenvals()
+            self._compute_mnfr_bands()
+            self._compute_vert_correlation()
+            self.plot_eigenvals()
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def plot_eigenvals(self):
         """Display eigenvalues from MNFR transform"""
@@ -476,24 +481,29 @@ class HyperAnalysisWidget(QWidget):
 
         if self.selected_bands is None:
             raise ValueError('Must reduce bands first')
-        # create image where masked pixels are set to 0. This avoids detecting masked pixels as pure pixels.
-        im_masked = np.moveaxis(self.selected_bands.copy(),2,0)
-        im_masked[:, self.viewer.layers['mask'].data == 1] = 0
-        im_masked = np.moveaxis(im_masked,0,2)
 
-        #pure = ppi(im_masked, niters=self.ppi_iterations.value(), display=0)
-        from .sediproc import custom_ppi
-        pure, self.total_ppi_series = custom_ppi(
-            im_masked,
-            niters=self.ppi_iterations.value(),
-            threshold=self.ppi_proj_threshold.value(),
-        )
-        if 'pure' in self.viewer.layers:
-            self.viewer.layers['pure'].data = pure
-        else:
-            self.viewer.add_labels(pure, name='pure')
-        
-        self._on_click_update_endmembers()
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Pure pixel detection")
+            # create image where masked pixels are set to 0. This avoids detecting masked pixels as pure pixels.
+            im_masked = np.moveaxis(self.selected_bands.copy(),2,0)
+            im_masked[:, self.viewer.layers['mask'].data == 1] = 0
+            im_masked = np.moveaxis(im_masked,0,2)
+
+            #pure = ppi(im_masked, niters=self.ppi_iterations.value(), display=0)
+            from .sediproc import custom_ppi
+            pure, self.total_ppi_series = custom_ppi(
+                im_masked,
+                niters=self.ppi_iterations.value(),
+                threshold=self.ppi_proj_threshold.value(),
+            )
+            if 'pure' in self.viewer.layers:
+                self.viewer.layers['pure'].data = pure
+            else:
+                self.viewer.add_labels(pure, name='pure')
+            
+            self._on_click_update_endmembers()
+        self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def _on_click_update_endmembers(self, event=None):
         """Update end-members based on threshold."""
@@ -504,27 +514,32 @@ class HyperAnalysisWidget(QWidget):
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
 
-        pure = np.asarray(self.viewer.layers['pure'].data)
-        # recover pixel vectors from denoised image and actual image
-        vects = self.viewer.layers['denoised'].data[:, pure > self.ppi_threshold.value()]
-        imcube_data = np.asarray(self.viewer.layers['imcube'].data)
-        vects_image = imcube_data[:,pure > self.ppi_threshold.value()] 
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Compute end-members")
         
-        # compute clustering
-        labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())
-
-        # compute band location
-        bands = self.qlist_channels.bands
-        self.ppi_boundaries_range.setRange(min=bands[0],max=bands[-1])
-        self.ppi_boundaries_range.setValue((bands[0], (bands[-1]+bands[0])/2, bands[-1]))
-
-        self.end_members = []
-        for ind in range(0, labels.max()+1):
+            pure = np.asarray(self.viewer.layers['pure'].data)
+            # recover pixel vectors from denoised image and actual image
+            vects = self.viewer.layers['denoised'].data[:, pure > self.ppi_threshold.value()]
+            imcube_data = np.asarray(self.viewer.layers['imcube'].data)
+            vects_image = imcube_data[:,pure > self.ppi_threshold.value()] 
             
-            endmember = vects_image[:, labels==ind].mean(axis=1)
-            self.end_members.append(remove_continuum(spectra=endmember, bands=bands))
+            # compute clustering
+            labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())
 
-        self.end_members = np.stack(self.end_members, axis=1)
+            # compute band location
+            bands = self.qlist_channels.bands
+            self.ppi_boundaries_range.setRange(min=bands[0],max=bands[-1])
+            self.ppi_boundaries_range.setValue((bands[0], (bands[-1]+bands[0])/2, bands[-1]))
+
+            self.end_members = []
+            for ind in range(0, labels.max()+1):
+                
+                endmember = vects_image[:, labels==ind].mean(axis=1)
+                self.end_members.append(remove_continuum(spectra=endmember, bands=bands))
+
+            self.end_members = np.stack(self.end_members, axis=1)
+        self.viewer.window._status_bar._toggle_activity_dock(False)
     
     def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""

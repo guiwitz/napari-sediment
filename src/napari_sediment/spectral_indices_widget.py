@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
 from superqt import QLabeledDoubleRangeSlider
+from napari.utils import progress
 import pandas as pd
 from microfilm import colorify
 from cmap import Colormap
@@ -730,34 +731,40 @@ class SpectralIndexWidget(QWidget):
             
 
     def _on_click_compute_index(self, event):
+        """Compute the index and add to napari."""
 
-        if self.current_index_type == 'RABD':
-            rabd_indices = compute_index_RABD(
-                left=self.spin_index_left.value(),
-                trough=self.spin_index_middle.value(),
-                right=self.spin_index_right.value(),
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-            self.viewer.add_image(rabd_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-        elif self.current_index_type == 'RABA':
-            raba_indices = compute_index_RABA(
-                left=self.spin_index_left.value(),
-                right=self.spin_index_right.value(),
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-            self.viewer.add_image(raba_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-        elif self.current_index_type == 'Ratio':
-            ratio_indices = compute_index_ratio(
-                left=self.spin_index_left.value(),
-                right=self.spin_index_right.value(),
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-            self.viewer.add_image(ratio_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-        else:
-            print(f'unknown index type: {self.current_index_type}')
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Computing index")
+
+            if self.current_index_type == 'RABD':
+                rabd_indices = compute_index_RABD(
+                    left=self.spin_index_left.value(),
+                    trough=self.spin_index_middle.value(),
+                    right=self.spin_index_right.value(),
+                    row_bounds=self.row_bounds,
+                    col_bounds=self.col_bounds,
+                    imagechannels=self.imagechannels)
+                self.viewer.add_image(rabd_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
+            elif self.current_index_type == 'RABA':
+                raba_indices = compute_index_RABA(
+                    left=self.spin_index_left.value(),
+                    right=self.spin_index_right.value(),
+                    row_bounds=self.row_bounds,
+                    col_bounds=self.col_bounds,
+                    imagechannels=self.imagechannels)
+                self.viewer.add_image(raba_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
+            elif self.current_index_type == 'Ratio':
+                ratio_indices = compute_index_ratio(
+                    left=self.spin_index_left.value(),
+                    right=self.spin_index_right.value(),
+                    row_bounds=self.row_bounds,
+                    col_bounds=self.col_bounds,
+                    imagechannels=self.imagechannels)
+                self.viewer.add_image(ratio_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
+            else:
+                print(f'unknown index type: {self.current_index_type}')
+        self.viewer.window._status_bar._toggle_activity_dock(False)
     
     def _on_change_index_index(self, event=None):
 

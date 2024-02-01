@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout, QLineEdit,
                             QFileDialog)
 from qtpy.QtCore import Qt
+from napari.utils import progress
 from napari_guitils.gui_structures import TabSet
 from microfilm.microplot import microshow
 
@@ -140,61 +141,71 @@ class BatchWidget(QWidget):
         
         fig, ax = plt.subplots()
 
-        for f in self.data_folder.iterdir():
-            if f.name[0] != '.':
-                imagechannels = ImChannels(f.joinpath('corrected.zarr'))
-
-                self.params = load_project_params(folder=f)
-
-                self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
-                self.row_bounds = [self.mainroi[0][:,0].min(), self.mainroi[0][:,0].max()]
-                self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
-
-                for spectral_name, spectral_index in self.index_collection.items():
+        folders = self.data_folder.iterdir()
         
-                    if spectral_index.index_type == 'RABD':
-                        index_data = compute_index_RABD(
-                            left=spectral_index.left_band,
-                            trough=spectral_index.middle_band,
-                            right=spectral_index.right_band,
-                            row_bounds=self.row_bounds,
-                            col_bounds=self.col_bounds,
-                            imagechannels=imagechannels)
-                        self.viewer.add_image(index_data, name=f'{f}_{spectral_name}', colormap='viridis')
-                    elif spectral_index.index_type == 'RABA':
-                        index_data = compute_index_RABA(
-                            left=spectral_index.left_band,
-                            right=spectral_index.right_band,
-                            row_bounds=self.row_bounds,
-                            col_bounds=self.col_bounds,
-                            imagechannels=imagechannels)
-                    elif spectral_index.index_type == 'Ratio':
-                        index_data = compute_index_ratio(
-                            left=spectral_index.left_band,
-                            right=spectral_index.right_band,
-                            row_bounds=self.row_bounds,
-                            col_bounds=self.col_bounds,
-                            imagechannels=imagechannels)
-                
-                    self.rgb_ch, self.rgb_names = imagechannels.get_indices_of_bands(self.params_plots.rgb_bands)
-                    self.rgb_cube = np.asarray(imagechannels.get_image_cube(self.rgb_ch))
-                    index_data = np.asarray(index_data)
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(range(len(folders))) as pbr:
+            for f in pbr:
+                pbr.set_description(f"Processing {f.name}")
 
-                    self.export_rgb_image_scaled(f'{f.name}_{spectral_name}')
+                if f.name[0] != '.':
+                    imagechannels = ImChannels(f.joinpath('corrected.zarr'))
 
-                    roi = np.array([np.array(x).reshape(4,2) for x in self.params.rois]).astype(int)
+                    self.params = load_project_params(folder=f)
 
-                    format_dict = asdict(self.params_plots)
-                    fig, ax1, ax2, ax3 = plot_spectral_profile(
-                        rgb_image=[x for x in self.rgb_cube], index_image=index_data, index_name=spectral_name,
-                                            format_dict=format_dict, scale=self.params.scale,
-                                            location=self.params.location, fig=fig, 
-                                            roi=roi[0])
-                    
-                    # save temporary low-res figure for display in napari
-                    fig.savefig(
-                        self.export_folder.joinpath(f'{f.name}_{spectral_name}.png'),
-                        dpi=100)#, bbox_inches="tight")
+                    self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
+                    self.row_bounds = [self.mainroi[0][:,0].min(), self.mainroi[0][:,0].max()]
+                    self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
+
+                    #for spectral_name, spectral_index in self.index_collection.items():
+                    with progress(range(len(self.index_collection.items()))) as pbr2:
+                        for ind in pbr2:
+                            spectral_name, spectral_index = list(self.index_collection.items())[ind]
+                            pbr2.set_description(f"Processing {spectral_name}")
+            
+                            if spectral_index.index_type == 'RABD':
+                                index_data = compute_index_RABD(
+                                    left=spectral_index.left_band,
+                                    trough=spectral_index.middle_band,
+                                    right=spectral_index.right_band,
+                                    row_bounds=self.row_bounds,
+                                    col_bounds=self.col_bounds,
+                                    imagechannels=imagechannels)
+                                self.viewer.add_image(index_data, name=f'{f}_{spectral_name}', colormap='viridis')
+                            elif spectral_index.index_type == 'RABA':
+                                index_data = compute_index_RABA(
+                                    left=spectral_index.left_band,
+                                    right=spectral_index.right_band,
+                                    row_bounds=self.row_bounds,
+                                    col_bounds=self.col_bounds,
+                                    imagechannels=imagechannels)
+                            elif spectral_index.index_type == 'Ratio':
+                                index_data = compute_index_ratio(
+                                    left=spectral_index.left_band,
+                                    right=spectral_index.right_band,
+                                    row_bounds=self.row_bounds,
+                                    col_bounds=self.col_bounds,
+                                    imagechannels=imagechannels)
+                        
+                            self.rgb_ch, self.rgb_names = imagechannels.get_indices_of_bands(self.params_plots.rgb_bands)
+                            self.rgb_cube = np.asarray(imagechannels.get_image_cube(self.rgb_ch))
+                            index_data = np.asarray(index_data)
+
+                            self.export_rgb_image_scaled(f'{f.name}_{spectral_name}')
+
+                            roi = np.array([np.array(x).reshape(4,2) for x in self.params.rois]).astype(int)
+
+                            format_dict = asdict(self.params_plots)
+                            fig, ax1, ax2, ax3 = plot_spectral_profile(
+                                rgb_image=[x for x in self.rgb_cube], index_image=index_data, index_name=spectral_name,
+                                                    format_dict=format_dict, scale=self.params.scale,
+                                                    location=self.params.location, fig=fig, 
+                                                    roi=roi[0])
+                            
+                            # save temporary low-res figure for display in napari
+                            fig.savefig(
+                                self.export_folder.joinpath(f'{f.name}_{spectral_name}.png'),
+                                dpi=100)#, bbox_inches="tight")
                     
     def export_rgb_image_scaled(self, image_name):
         
