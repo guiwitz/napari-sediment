@@ -24,9 +24,10 @@ from .imchannels import ImChannels
 from .sediproc import find_index_of_band
 from .spectralplot import SpectralPlotter, plot_spectral_profile
 from .widgets.channel_widget import ChannelWidget
-from .spectralindex import SpectralIndex
 from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
+from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
+                            compute_index_ratio)
 
 from napari_guitils.gui_structures import TabSet, VHGroup
 
@@ -578,6 +579,8 @@ class SpectralIndexWidget(QWidget):
             self._on_click_compute_index(event=None)
         toplot = self.viewer.layers[self.qcom_indices.currentText()].data
         toplot[toplot == np.inf] = 0
+        percentiles = np.percentile(toplot, [1, 99])
+        toplot = np.clip(toplot, percentiles[0], percentiles[1])
 
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
@@ -727,85 +730,34 @@ class SpectralIndexWidget(QWidget):
             
 
     def _on_click_compute_index(self, event):
-        
+
         if self.current_index_type == 'RABD':
-            rabd_indices = self.compute_index_RABD(
+            rabd_indices = compute_index_RABD(
                 left=self.spin_index_left.value(),
                 trough=self.spin_index_middle.value(),
-                right=self.spin_index_right.value())
+                right=self.spin_index_right.value(),
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
             self.viewer.add_image(rabd_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
         elif self.current_index_type == 'RABA':
-            raba_indices = self.compute_index_RABA(
+            raba_indices = compute_index_RABA(
                 left=self.spin_index_left.value(),
-                right=self.spin_index_right.value())
+                right=self.spin_index_right.value(),
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
             self.viewer.add_image(raba_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
         elif self.current_index_type == 'Ratio':
-            ratio_indices = self.compute_index_ratio(
+            ratio_indices = compute_index_ratio(
                 left=self.spin_index_left.value(),
-                right=self.spin_index_right.value())
+                right=self.spin_index_right.value(),
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
             self.viewer.add_image(ratio_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
         else:
-            print('index type: {self.current_index_type}')
-
-    def compute_index_RABD(self, left, trough, right):
-        """Compute the index RAB."""
-
-        ltr = [left, trough, right]
-        # find indices from the end-members plot (in case not all bands were used
-        ltr_endmember_indices = [find_index_of_band(self.endmember_bands, x) for x in ltr]
-        # find band indices in the complete dataset
-        ltr_stack_indices = [find_index_of_band(self.imagechannels.centers, x) for x in ltr]
-
-        # number of bands between edges and trough
-        X_left = ltr_endmember_indices[1]-ltr_endmember_indices[0]
-        X_right = ltr_endmember_indices[2]-ltr_endmember_indices[1]
-
-        # load the correct bands
-        roi = np.concatenate([self.row_bounds, self.col_bounds])
-        ltr_cube = self.imagechannels.get_image_cube(
-            channels=ltr_stack_indices, roi=roi)
-        ltr_cube = ltr_cube.astype(np.float32)
-
-        # compute indices
-        RABD = ((ltr_cube[0] * X_right + ltr_cube[2] * X_left) / (X_left + X_right)) / ltr_cube[1] 
-
-        return RABD
-    
-    def compute_index_RABA(self, left, right):
-        """Compute the index RAB."""
-
-        ltr = [left, right]
-        # find indices from the end-members plot (in case not all bands were used
-        ltr_endmember_indices = [find_index_of_band(self.endmember_bands, x) for x in ltr]
-        # find band indices in the complete dataset
-        ltr_stack_indices = [find_index_of_band(self.imagechannels.centers, x) for x in ltr]
-        # main roi
-        roi = np.concatenate([self.row_bounds, self.col_bounds])
-        # number of bands between edges and trough
-        R0_RN_cube = self.imagechannels.get_image_cube(channels=ltr_stack_indices, roi=roi)
-        R0_RN_cube = R0_RN_cube.astype(np.float32)
-        num_bands = ltr_endmember_indices[1] - ltr_endmember_indices[0]
-        line = (R0_RN_cube[1] - R0_RN_cube[0])/num_bands
-        RABA_array = np.zeros((self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]))
-        for i in range(num_bands):
-            Ri = self.imagechannels.get_image_cube(channels=[ltr_stack_indices[0]+i], roi=roi)
-            Ri = Ri.astype(np.float32)
-            #print(f'Ri.shape: {Ri.shape}')
-            RABA_array += ((R0_RN_cube[0] + i*line) / Ri[0] ) - 1
-
-        return RABA_array
-    
-    def compute_index_ratio(self, left, right):
-
-        ltr = [left, right]
-        # find band indices in the complete dataset
-        ltr_stack_indices = [find_index_of_band(self.imagechannels.centers, x) for x in ltr]
-        # main roi
-        roi = np.concatenate([self.row_bounds, self.col_bounds])
-        numerator_denominator = self.imagechannels.get_image_cube(channels=ltr_stack_indices, roi=roi)
-        numerator_denominator = numerator_denominator.astype(np.float32)
-        ratio = numerator_denominator[0] / numerator_denominator[1]
-        return ratio
+            print(f'unknown index type: {self.current_index_type}')
     
     def _on_change_index_index(self, event=None):
 
