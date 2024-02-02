@@ -92,7 +92,7 @@ class SedimentWidget(QWidget):
         self.files_group = VHGroup('Files and folders', orientation='G')
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
-        self.btn_select_imhdr_file = QPushButton("Select imhdr file")
+        self.btn_select_imhdr_file = QPushButton("Select hdr file")
         self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
         self.imhdr_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
