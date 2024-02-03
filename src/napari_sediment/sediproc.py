@@ -455,7 +455,7 @@ def correct_single_channel(
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
                          min_max_bands=None, background_correction=True, destripe=True,
-                         use_dask=False):
+                         use_dask=False, chunk_size=500):
 
     img = open_image(imhdr_path)
 
@@ -477,7 +477,8 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
         band_indices = np.arange(bands)
         
     z1 = zarr.open(zarr_path, mode='w', shape=(bands, lines,samples),
-               chunks=(1, lines, samples), dtype='u2')#'f8')
+               #chunks=(1, lines, samples), dtype='u2')
+                   chunks=(1, chunk_size, chunk_size), dtype='u2')
 
     if use_dask:
         client = Client()

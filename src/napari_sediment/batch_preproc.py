@@ -31,7 +31,8 @@ class BatchPreprocWidget(QWidget):
     """
     
     def __init__(self, napari_viewer, 
-                 destripe=False, background_correct=True, savgol_window=None, min_band=None, max_band=None):
+                 destripe=False, background_correct=True, savgol_window=None,
+                 min_band=None, max_band=None, chunk_size=500):
         super().__init__()
         
         self.viewer = napari_viewer
@@ -112,6 +113,12 @@ class BatchPreprocWidget(QWidget):
         self.options_group.glayout.addWidget(self.qspin_max_band, 5, 1, 1, 1)
         self.qspin_max_band.setEnabled(False)
         self.qspin_min_band.setEnabled(False)
+
+        self.spin_chunksize = QSpinBox()
+        self.spin_chunksize.setRange(1, 10000)
+        self.spin_chunksize.setValue(chunk_size)
+        self.options_group.glayout.addWidget(QLabel('Chunk size'), 6, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.spin_chunksize, 6, 1, 1, 1)
 
         self.check_use_dask = QCheckBox("Use dask")
         self.check_use_dask.setChecked(True)
@@ -278,6 +285,7 @@ class BatchPreprocWidget(QWidget):
                     background_correction=self.check_do_background_correction.isChecked(),
                     destripe=self.check_do_destripe.isChecked(),
                     use_dask=self.check_use_dask.isChecked(),
+                    chunk_size=self.spin_chunksize.value()
                     )
                 imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
                 param.main_roi = [[

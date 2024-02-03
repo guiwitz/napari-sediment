@@ -195,29 +195,38 @@ class SedimentWidget(QWidget):
 
         self.batch_group = VHGroup('Correct full dataset', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.batch_group.gbox)
-        self.btn_batch_correct = QPushButton("Correct and save data")
-        self.batch_group.glayout.addWidget(self.btn_batch_correct, 0, 0, 1, 3)
+        
+        self.batch_group.glayout.addWidget(QLabel("Crop bands"), 0,0,1,1)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
         self.slider_batch_wavelengths.setRange(0, 1000)
         self.slider_batch_wavelengths.setSingleStep(1)
         self.slider_batch_wavelengths.setSliderPosition([0, 1000])
-        self.batch_group.glayout.addWidget(self.slider_batch_wavelengths, 1,1,1,1)
+        self.batch_group.glayout.addWidget(self.slider_batch_wavelengths, 0,2,1,1)
         
         self.spin_batch_wavelengths_min = QDoubleSpinBox()
         self.spin_batch_wavelengths_min.setRange(0, 1000)
         self.spin_batch_wavelengths_min.setSingleStep(1)
-        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_min, 1, 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_min, 0, 1, 1, 1)
         self.spin_batch_wavelengths_max = QDoubleSpinBox()
         self.spin_batch_wavelengths_max.setRange(0, 1000)
         self.spin_batch_wavelengths_max.setSingleStep(1)
-        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 1, 2, 1, 1)
+        self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 0, 3, 1, 1)
 
         self.check_batch_white = QCheckBox("White correct")
         self.check_batch_destripe = QCheckBox("Destripe")
         self.check_batch_white.setChecked(True)
         self.check_batch_destripe.setChecked(True)
-        self.batch_group.glayout.addWidget(self.check_batch_white, 2, 0, 1, 1)
-        self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 1, 1, 1)
+        self.batch_group.glayout.addWidget(self.check_batch_white, 1, 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 0, 1, 1)
+
+        self.spin_chunk_size = QSpinBox()
+        self.spin_chunk_size.setRange(1, 10000)
+        self.spin_chunk_size.setValue(500)
+        self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
+        
+        self.btn_batch_correct = QPushButton("Correct and save data")
+        self.batch_group.glayout.addWidget(self.btn_batch_correct, 4, 0, 1, 4)
 
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.multiexp_group.gbox)
@@ -241,6 +250,7 @@ class SedimentWidget(QWidget):
                 savgol_window=self.qspin_destripe_width.value(),
                 min_band=self.slider_batch_wavelengths.value()[0],
                 max_band=self.slider_batch_wavelengths.value()[1],
+                chunk_size=self.spin_chunk_size.value(),
             )
             self.multiexp_batch.setStyleSheet(get_current_stylesheet())
 
@@ -865,6 +875,7 @@ class SedimentWidget(QWidget):
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
                 use_dask=self.check_use_dask.isChecked(),
+                chunk_size=self.spin_chunksize.value()
                 )
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
