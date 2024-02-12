@@ -875,7 +875,7 @@ class SedimentWidget(QWidget):
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
                 use_dask=self.check_use_dask.isChecked(),
-                chunk_size=self.spin_chunksize.value()
+                chunk_size=self.spin_chunk_size.value()
                 )
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
