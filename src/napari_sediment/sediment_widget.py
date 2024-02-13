@@ -579,17 +579,17 @@ class SedimentWidget(QWidget):
             image_name = self.imhdr_path.name
             
             # reset acquisition index if new image is selected
-            if image_name != self.current_image_name:
-                self.current_image_name = image_name
-                #self.imagechannels = ImChannels(self.imhdr_path)
-                if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
-                    if not self.export_folder.joinpath('corrected.zarr').exists():
-                        warnings.warn('Corrected image not found. Loading raw image instead.')
-                        self.imagechannels = ImChannels(self.imhdr_path)
-                    else:
-                        self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
-                else:
+            #if image_name != self.current_image_name:
+            self.current_image_name = image_name
+            #self.imagechannels = ImChannels(self.imhdr_path)
+            if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
+                if not self.export_folder.joinpath('corrected.zarr').exists():
+                    warnings.warn('Corrected image not found. Loading raw image instead.')
                     self.imagechannels = ImChannels(self.imhdr_path)
+                else:
+                    self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
+            else:
+                self.imagechannels = ImChannels(self.imhdr_path)
 
             self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
             self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
@@ -877,6 +877,9 @@ class SedimentWidget(QWidget):
                 use_dask=self.check_use_dask.isChecked(),
                 chunk_size=self.spin_chunk_size.value()
                 )
+            
+            # reload corrected image as zarr
+            self.open_file()
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
