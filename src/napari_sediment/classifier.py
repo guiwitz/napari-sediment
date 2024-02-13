@@ -18,6 +18,10 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         self.tabs.setTabVisible(1, False)
 
         self.prediction_btn.clicked.connect(self.update_ml_mask)
+        self.update_model_btn.clicked.connect(self.predict)
+        self.update_model_btn.clicked.connect(self.update_ml_mask)
+        self.update_model_btn.setText( 'Train + Segment')
+
         
         self.add_connections_local()
 
