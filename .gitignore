@@ -1,5 +1,8 @@
 _build/
 unused/
+src/napari_sediment/data/export/
+book_duplicates/
+notebooks/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
