@@ -134,6 +134,7 @@ class SedimentWidget(QWidget):
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
 
         self.btn_select_all = QPushButton('Select all')
+        self.btn_select_all.setEnabled(False)
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
         self.check_sync_bands_rgb = QCheckBox("Sync bands with RGB")
@@ -624,8 +625,10 @@ class SedimentWidget(QWidget):
         
         if not self.check_sync_bands_rgb.isChecked():
             self.qlist_channels.setEnabled(True)
+            self.btn_select_all.setEnabled(True)
         else:
             self.qlist_channels.setEnabled(False)
+            self.btn_select_all.setEnabled(False)
             self.qlist_channels.clearSelection()
             [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
             self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
