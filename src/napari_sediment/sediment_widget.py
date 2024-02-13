@@ -423,6 +423,8 @@ class SedimentWidget(QWidget):
 
         # Plot tab
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
+        self.scan_plot.axes.set_ylabel('Intensity', color='white')
         self.tabs.add_named_tab('P&lotting', self.scan_plot)
 
 
@@ -1114,7 +1116,7 @@ class SedimentWidget(QWidget):
             ]
 
             self.scan_plot.axes.clear()
-            self.scan_plot.axes.plot(spectral_pixel)
+            self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
             
             self.scan_plot.canvas.figure.canvas.draw()
 
