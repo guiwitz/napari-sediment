@@ -23,6 +23,7 @@ import numpy as np
 from skimage.measure import points_in_poly
 import skimage
 from scipy.ndimage import binary_fill_holes
+from spectral.algorithms import remove_continuum
 
 from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
@@ -1116,6 +1117,8 @@ class SedimentWidget(QWidget):
             ]
 
             self.scan_plot.axes.clear()
+            spectral_pixel = remove_continuum(np.array(spectral_pixel, dtype=np.float64), self.qlist_channels.bands)
+
             self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
             
             self.scan_plot.canvas.figure.canvas.draw()
