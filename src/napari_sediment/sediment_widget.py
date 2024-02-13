@@ -452,7 +452,7 @@ class SedimentWidget(QWidget):
         
         # mask
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
-        self.btn_update_mask.clicked.connect(self._on_click_update_mask)
+        self.btn_update_mask.clicked.connect(self._on_click_intensity_threshold)
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
         #self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
         #self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
@@ -650,7 +650,7 @@ class SedimentWidget(QWidget):
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
         
-        layers = ['mask', 'clean-mask', 
+        layers = ['manual-mask', 'clean-mask', 'intensity-mask',
                   'complete-mask', 'border-mask', 
                   'ml-mask', 'main-roi', 'rois']
         for l in layers:
@@ -733,7 +733,7 @@ class SedimentWidget(QWidget):
     def _add_mask(self):
         self.mask_layer = self.viewer.add_labels(
             np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8),
-            name='mask')
+            name='manual-mask')
 
     def _on_click_destripe(self):
         """Destripe image"""
@@ -949,23 +949,32 @@ class SedimentWidget(QWidget):
                 np.min([med_val + fact*std_val, self.slider_mask_threshold.maximum()])
              ]
         ),
-        self._on_click_update_mask()
+        #self._on_click_update_mask()
+        self._on_click_intensity_threshold()
+
+
+    def _on_click_intensity_threshold(self, event=None):
+        """Create mask based on intensity threshold"""
+
+        data = self.get_summary_image_for_mask()
+        mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
+        self.update_mask(mask, 'intensity-mask')
     
-    def _on_click_update_mask(self):
+    '''def _on_click_update_mask(self):
         """Update mask based on current threshold"""
         
         data = self.get_summary_image_for_mask()
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         self.update_mask(mask)
         self.translate_layer('mask')
-        self.viewer.layers['mask'].refresh()
+        self.viewer.layers['mask'].refresh()'''
 
-    def update_mask(self, mask):
+    def update_mask(self, mask, name='mask'):
 
-        if 'mask' in self.viewer.layers:
-            self.viewer.layers['mask'].data = mask
+        if name in self.viewer.layers:
+            self.viewer.layers[name].data = mask
         else:
-            self.viewer.add_labels(mask, name='mask')
+            self.viewer.add_labels(mask, name=name)
 
     def _on_click_compute_phasor(self):
         """Compute phasor from image. Opens a new viewer with 2D histogram of 
@@ -1011,7 +1020,11 @@ class SedimentWidget(QWidget):
     def _on_click_combine_masks(self):
         """Combine masks from border removel, phasor and thresholding"""
 
-        mask_complete = self.viewer.layers['mask'].data.copy()
+        mask_complete = np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8)
+        if 'manual-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
+        if 'intensity-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['intensity-mask'].data
         if 'phasor-mask' in self.viewer.layers:
             mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
         if 'border-mask' in self.viewer.layers:
@@ -1019,7 +1032,7 @@ class SedimentWidget(QWidget):
         if 'ml-mask' in self.viewer.layers:
             mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
         
-        mask_complete = np.asarray((mask_complete>0),np.uint8)
+        mask_complete = np.asarray((mask_complete > 0), np.uint8)
 
         if 'complete-mask' in self.viewer.layers:
             self.viewer.layers['complete-mask'].data = mask_complete
@@ -1050,11 +1063,11 @@ class SedimentWidget(QWidget):
             mask = self.viewer.layers['clean-mask'].data
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
-        elif 'mask' in self.viewer.layers:
-            mask = self.viewer.layers['mask'].data
+        #elif 'mask' in self.viewer.layers:
+        #    mask = self.viewer.layers['mask'].data
         else:
-            warnings.warn('No mask found')
-            pass
+            mask = np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8)
+            warnings.warn('No mask found. Uinsg empty mask.')
 
         save_mask(mask, get_mask_path(self.export_folder))
 
