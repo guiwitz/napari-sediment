@@ -1117,6 +1117,8 @@ class SedimentWidget(QWidget):
             ]
 
             self.scan_plot.axes.clear()
+            self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
+            self.scan_plot.axes.set_ylabel('Intensity', color='white')
             spectral_pixel = remove_continuum(np.array(spectral_pixel, dtype=np.float64), self.qlist_channels.bands)
 
             self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
