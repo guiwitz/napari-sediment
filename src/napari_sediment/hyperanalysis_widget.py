@@ -243,6 +243,8 @@ class HyperAnalysisWidget(QWidget):
             self.imagechannels = ImChannels(self.imhdr_path)
         self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
 
+        self._on_click_select_all()
+
     def import_index_project(self):
         """Import pre-processed project (corrected roi and mask) as well as denoised
         and/or reduced stacks"""
