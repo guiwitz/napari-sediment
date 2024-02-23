@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
                             QScrollArea)
 from qtpy.QtCore import Qt
-from superqt import QDoubleRangeSlider
+from superqt import QDoubleRangeSlider, QDoubleSlider
 from napari.qt import get_current_stylesheet
 from napari.utils import progress
 
@@ -24,6 +24,7 @@ from skimage.measure import points_in_poly
 import skimage
 from scipy.ndimage import binary_fill_holes
 from spectral.algorithms import remove_continuum
+from scipy.signal import savgol_filter
 
 from napari_guitils.gui_structures import VHGroup, TabSet
 from ._reader import read_spectral
@@ -64,6 +65,7 @@ class SedimentWidget(QWidget):
         self.mainroi_max_col = None
         self.mainroi_min_row = None
         self.mainroi_max_row = None
+        self.spectral_pixel = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -429,6 +431,17 @@ class SedimentWidget(QWidget):
         self.scan_plot.axes.set_ylabel('Intensity', color='white')
         self.tabs.add_named_tab('P&lotting', self.scan_plot)
 
+        self.check_remove_continuum = QCheckBox("Remove continuum")
+        self.check_remove_continuum.setChecked(True)
+        self.tabs.add_named_tab('P&lotting', self.check_remove_continuum)
+
+        self.slider_spectrum_savgol = QDoubleSlider(Qt.Horizontal)
+        self.slider_spectrum_savgol.setRange(1, 100)
+        self.slider_spectrum_savgol.setSingleStep(1)
+        self.slider_spectrum_savgol.setSliderPosition(5)
+        self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol)
+        
+
 
     def add_connections(self):
         """Add callbacks"""
@@ -475,6 +488,8 @@ class SedimentWidget(QWidget):
         # mouse
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
+        self.slider_spectrum_savgol.valueChanged.connect(self.update_spectral_plot)
+        self.check_remove_continuum.stateChanged.connect(self.update_spectral_plot)
 
         # layer callbacks
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_destripe)
@@ -1128,18 +1143,32 @@ class SedimentWidget(QWidget):
             #self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0, self.col_bounds[1]-self.col_bounds[0]-1)
             self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
             self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
-            spectral_pixel = self.viewer.layers['imcube'].data[
+            self.spectral_pixel = self.viewer.layers['imcube'].data[
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
             ]
+            self.update_spectral_plot()
 
-            self.scan_plot.axes.clear()
-            self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
-            self.scan_plot.axes.set_ylabel('Intensity', color='white')
-            spectral_pixel = remove_continuum(np.array(spectral_pixel, dtype=np.float64), self.qlist_channels.bands)
-
-            self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
+    def update_spectral_plot(self, event=None):
             
-            self.scan_plot.canvas.figure.canvas.draw()
+        if self.spectral_pixel is None:
+            return
+
+        self.scan_plot.axes.clear()
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
+        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+
+        spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
+        
+        if self.check_remove_continuum.isChecked(): 
+            spectral_pixel = remove_continuum(spectral_pixel, self.qlist_channels.bands)
+
+        filter_window = int(self.slider_spectrum_savgol.value())
+        if filter_window > 3:
+            spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
+
+        self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
+        
+        self.scan_plot.canvas.figure.canvas.draw()
 
     def save_params(self):
         """Save parameters"""
