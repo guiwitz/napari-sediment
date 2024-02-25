@@ -109,9 +109,9 @@ class HyperAnalysisWidget(QWidget):
         self.btn_reduce_mnfr = QPushButton("Reduce on eigenvalues")
         self.reduce_on_eigen_group.glayout.addWidget(self.btn_reduce_mnfr, 0, 0, 1, 2)
         self.spin_eigen_threshold = QDoubleSpinBox()
-        self.spin_eigen_threshold.setRange(0, 1)
+        self.spin_eigen_threshold.setRange(0, 10)
         self.spin_eigen_threshold.setSingleStep(0.01)
-        self.spin_eigen_threshold.setValue(0.99)
+        self.spin_eigen_threshold.setValue(1)
         self.reduce_on_eigen_group.glayout.addWidget(QLabel('Eigenvalue threshold'), 1, 0, 1, 1)
         self.reduce_on_eigen_group.glayout.addWidget(self.spin_eigen_threshold, 1, 1, 1, 1)
         
