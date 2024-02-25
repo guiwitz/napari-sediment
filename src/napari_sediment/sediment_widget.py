@@ -12,7 +12,7 @@ import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
-                            QScrollArea)
+                            QScrollArea, QGridLayout)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider, QDoubleSlider
 from napari.qt import get_current_stylesheet
@@ -71,7 +71,7 @@ class SedimentWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export-Import', 'P&lotting']#,'&Options']
-        self.tabs = TabSet(self.tab_names)
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None]*(len(self.tab_names)-1) + [QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -429,17 +429,18 @@ class SedimentWidget(QWidget):
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
         self.scan_plot.axes.set_ylabel('Intensity', color='white')
-        self.tabs.add_named_tab('P&lotting', self.scan_plot)
+        self.tabs.add_named_tab('P&lotting', self.scan_plot, (0,0,1,2))
 
         self.check_remove_continuum = QCheckBox("Remove continuum")
         self.check_remove_continuum.setChecked(True)
-        self.tabs.add_named_tab('P&lotting', self.check_remove_continuum)
+        self.tabs.add_named_tab('P&lotting', self.check_remove_continuum, (1,0,1,2))
 
         self.slider_spectrum_savgol = QDoubleSlider(Qt.Horizontal)
         self.slider_spectrum_savgol.setRange(1, 100)
         self.slider_spectrum_savgol.setSingleStep(1)
         self.slider_spectrum_savgol.setSliderPosition(5)
-        self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol)
+        self.tabs.add_named_tab('P&lotting', QLabel('Smoothing window size'), (2,0,1,1))
+        self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol, (2,1,1,1))
         
 
 
