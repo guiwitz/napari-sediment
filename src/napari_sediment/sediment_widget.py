@@ -937,7 +937,8 @@ class SedimentWidget(QWidget):
         if 'border-mask' in self.viewer.layers:
             self.viewer.layers['border-mask'].data[:] = 0
         else:
-            self.viewer.add_labels(np.zeros_like(im, dtype=np.uint8), name='border-mask', opacity=0.5)
+            mask = np.asarray(np.zeros(im.shape, dtype=np.uint8))
+            self.viewer.add_labels(mask, name='border-mask', opacity=0.5)
         self.viewer.layers['border-mask'].data[0:first_row,:] = 1
         self.viewer.layers['border-mask'].data[last_row::,:] = 1
         self.viewer.layers['border-mask'].data[:, 0:first_col] = 1
@@ -954,7 +955,7 @@ class SedimentWidget(QWidget):
     def _on_click_automated_threshold(self):
         """Automatically set threshold for mask based on mean RGB pixel intensity"""
 
-        im = self.get_summary_image_for_mask()
+        im = np.asarray(self.get_summary_image_for_mask())
         if 'border-mask' in self.viewer.layers:
             pix_selected = im[self.viewer.layers['border-mask'].data == 0]
         else:
