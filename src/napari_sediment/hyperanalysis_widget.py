@@ -4,11 +4,12 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSlider,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
+from superqt import QDoubleSlider
+
 from napari.utils import progress
 from superqt import QLabeledDoubleRangeSlider
-from spectral import open_image
 from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
-from spectral.algorithms import ppi
+from scipy.signal import savgol_filter
 import zarr
 import pandas as pd
 
@@ -16,8 +17,7 @@ from .parameters.parameters import Param
 from .parameters.parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, save_image_to_zarr
 from .imchannels import ImChannels
-from .sediproc import white_dark_correct, spectral_clustering
-from ._reader import read_spectral
+from .sediproc import spectral_clustering
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
@@ -40,6 +40,7 @@ class HyperAnalysisWidget(QWidget):
         self.export_folder = None
         self.selected_bands = None
         self.end_members = None
+        self.end_members_raw = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -189,6 +190,22 @@ class HyperAnalysisWidget(QWidget):
         self.ppi_boundaries_range.setValue((0, 0, 0))
         self.tabs.add_named_tab('End Members', self.ppi_boundaries_range)
 
+        self.plot_options_group = VHGroup('Options', orientation='G')
+        self.tabs.add_named_tab('End Members', self.plot_options_group.gbox)
+
+        self.check_remove_continuum = QCheckBox("Remove continuum")
+        self.check_remove_continuum.setChecked(True)
+        self.plot_options_group.glayout.addWidget(self.check_remove_continuum, 0, 0, 1, 2)
+
+        self.slider_spectrum_savgol = QDoubleSlider(Qt.Horizontal)
+        self.slider_spectrum_savgol.setRange(1, 100)
+        self.slider_spectrum_savgol.setSingleStep(1)
+        self.slider_spectrum_savgol.setSliderPosition(5)
+        self.plot_options_group.glayout.addWidget(QLabel('Savitzky-Golay filter window'), 1, 0, 1, 1)
+        self.tabs.add_named_tab('End Members', self.slider_spectrum_savgol)
+        self.plot_options_group.glayout.addWidget(self.slider_spectrum_savgol, 1, 1, 1, 1)
+
+
     def add_connections(self):
         """Add callbacks"""
 
@@ -204,6 +221,8 @@ class HyperAnalysisWidget(QWidget):
         self.slider_corr_limit.valueChanged.connect(self._on_change_corr_limit)
         self.btn_update_endmembers.clicked.connect(self._on_click_update_endmembers)
         self.ppi_boundaries_range.valueChanged.connect(self._on_change_ppi_boundaries)
+        self.check_remove_continuum.stateChanged.connect(self.update_endmembers)
+        self.slider_spectrum_savgol.valueChanged.connect(self.update_endmembers)
 
         cid = self.eigen_plot.canvas.mpl_connect('button_release_event', self._on_interactive_eigen_threshold)
         cid2 = self.corr_plot.canvas.mpl_connect('button_release_event', self._on_interactive_corr_threshold)
@@ -538,10 +557,30 @@ class HyperAnalysisWidget(QWidget):
             for ind in range(0, labels.max()+1):
                 
                 endmember = vects_image[:, labels==ind].mean(axis=1)
-                self.end_members.append(remove_continuum(spectra=endmember, bands=bands))
+                self.end_members.append(endmember)
 
-            self.end_members = np.stack(self.end_members, axis=1)
+            self.end_members_raw = np.stack(self.end_members, axis=1)
+            self.update_endmembers()
         self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def update_endmembers(self, event=None):
+
+        if self.end_members_raw is None:
+            return
+        
+        endmember = self.end_members_raw
+        if self.check_remove_continuum.isChecked(): 
+            endmember = remove_continuum(self.end_members_raw.T, self.qlist_channels.bands)
+            endmember = endmember.T
+
+        filter_window = int(self.slider_spectrum_savgol.value())
+        if filter_window > 3:
+            endmember = savgol_filter(endmember, window_length=filter_window, polyorder=3, axis=0)
+
+        self.end_members = endmember
+
+        self.plot_endmembers()
+
     
     def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
@@ -578,22 +617,39 @@ class HyperAnalysisWidget(QWidget):
         cursor_pos attribute and the _draw method is called afterwards.
         """
 
-        if 'Shift' in event.modifiers and 'imcube' in self.viewer.layers:
+        if 'Shift' in event.modifiers and self.viewer.layers:
             self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
             
+            #self.cursor_pos[1] = np.clip(self.cursor_pos[1], 0, self.row_bounds[1]-self.row_bounds[0]-1)
+            #self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0, self.col_bounds[1]-self.col_bounds[0]-1)
             self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
             self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
-            spectral_pixel = self.viewer.layers['imcube'].data[
+            self.spectral_pixel = self.viewer.layers['imcube'].data[
                 :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
-            ].compute()
+            ]
+            self.update_spectral_plot()
 
-            spectral_pixel = spectral_pixel.astype(np.float64)
-            spectral_pixel = remove_continuum(spectra=spectral_pixel, bands=self.qlist_channels.bands)
-
-            self.scan_plot.axes.clear()
-            self.scan_plot.axes.plot(spectral_pixel)
+    def update_spectral_plot(self, event=None):
             
-            self.scan_plot.canvas.figure.canvas.draw()
+        if self.spectral_pixel is None:
+            return
+
+        self.scan_plot.axes.clear()
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
+        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+
+        spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
+        
+        if self.check_remove_continuum.isChecked(): 
+            spectral_pixel = remove_continuum(spectral_pixel, self.qlist_channels.bands)
+
+        filter_window = int(self.slider_spectrum_savgol.value())
+        if filter_window > 3:
+            spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
+
+        self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
+        
+        self.scan_plot.canvas.figure.canvas.draw()
 
     def _on_interactive_eigen_threshold(self, event):
         """Select eigenvalue threshold by clicking on the eigenvalue plot."""
