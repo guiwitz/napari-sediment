@@ -444,7 +444,7 @@ class HyperAnalysisWidget(QWidget):
         bands with eigenvalues > 1.0."""
         
         last_index = np.arange(0,len(self.eigenvals))[self.eigenvals > self.spin_eigen_threshold.value()][-1]
-        self.selected_bands = self.image_mnfr[:,:, last_index].copy()
+        self.selected_bands = self.image_mnfr[:,:, 0:last_index].copy()
         if 'denoised' in self.viewer.layers:
             self.viewer.layers['denoised'].data = np.moveaxis(self.selected_bands, 2, 0)
         else:
