@@ -282,7 +282,7 @@ class SedimentWidget(QWidget):
         self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
 
         self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
-        self.mask_group_auto.gbox.setToolTip("Fit intensity distribution with a Gaussian and set threshold at a given width")
+        self.mask_group_auto.gbox.setToolTip("Assume a Gaussian pixel intensity distribution (mu, sigma) and set a threshold at mu +/- sigma*factor")
 
         self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
@@ -318,12 +318,18 @@ class SedimentWidget(QWidget):
         
         # auto
         self.btn_automated_mask = QPushButton("Generate mask")
-        self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 1)
+        self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 2)
         self.spin_automated_mask_width = QDoubleSpinBox()
-        self.spin_automated_mask_width.setToolTip("Set threshold at a given width of the intensity distribution")
+        self.spin_automated_mask_width.setToolTip("Assuming a Gaussian pixel intensity distribution (mu, sigma), set a threshold at mu +/- sigma*factor.")
         self.spin_automated_mask_width.setRange(0.1, 10)
         self.spin_automated_mask_width.setSingleStep(0.1)
-        self.mask_group_auto.glayout.addWidget(QLabel('Intensity distribution Width'), 1, 0, 1, 1)
+        #self.mask_group_auto.glayout.addWidget(QLabel('Pixel distribution width factor'), 1, 0, 1, 1)
+        auto_threshold_label = QLabel('<a href=\"https://guiwitz.github.io/napari-sediment/Details_sediment.html#auto-threshold\">Distribution width factor</a>')
+        auto_threshold_label.setTextFormat(Qt.RichText)
+        auto_threshold_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        auto_threshold_label.setOpenExternalLinks(True)
+
+        self.mask_group_auto.glayout.addWidget(auto_threshold_label, 1, 0, 1, 1)
         self.mask_group_auto.glayout.addWidget(self.spin_automated_mask_width, 1, 1, 1, 1)
 
         # phasor
