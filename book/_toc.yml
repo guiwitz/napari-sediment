@@ -7,4 +7,5 @@ parts:
     - file: Dimensionality_reduction
     - file: Spectral_indices
   - caption: Detailed explanations
+    chapters:
     - file: Details_sediment
