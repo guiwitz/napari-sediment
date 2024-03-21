@@ -22,7 +22,7 @@ contributions:
       title: Make Batch Preprocess QWidget
   readers:
     - command: napari-sediment.get_reader
-      accepts_directories: false
+      accepts_directories: true
       filename_patterns: ['*.hdr', '*.zarr']
   widgets:
     - command: napari-sediment.make_qwidget
