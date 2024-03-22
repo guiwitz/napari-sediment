@@ -20,6 +20,9 @@ contributions:
     - id: napari-sediment.make_preproc_batchwidget
       python_name: napari_sediment.batch_preproc:BatchPreprocWidget
       title: Make Batch Preprocess QWidget
+    - id: napari-sediment.make_convertwidget
+      python_name: napari_sediment.convert_widget:ConvertWidget
+      title: Make Convert QWidget
   readers:
     - command: napari-sediment.get_reader
       accepts_directories: true
@@ -35,3 +38,5 @@ contributions:
       display_name: BatchIndex
     - command: napari-sediment.make_preproc_batchwidget
       display_name: BatchPreproc
+    - command: napari-sediment.make_convertwidget
+      display_name: Convert
