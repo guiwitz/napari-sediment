@@ -27,21 +27,21 @@ def create_data(random_seed=42):
     os.makedirs(main_path.joinpath(f'Synthetic{random_seed}_123/capture').as_posix(), exist_ok=True)
     os.makedirs(main_path.joinpath(f'Synthetic{random_seed}_WR_123/capture').as_posix(), exist_ok=True)
 
-    metadata = {'wavelength': [str(x) for x in np.linspace(300, 900, channels)]}
+    metadata = {'wavelength': [str(x) for x in np.linspace(300, 900, channels)], 'interleave': 'bil'}
     save_image(
         hdr_file=main_path.joinpath(f'Synthetic{random_seed}_123/capture/Synthetic{random_seed}_123.hdr'),
-        image=im_test, ext='raw', force=True, metadata=metadata)
+        image=im_test, ext='raw', force=True, metadata=metadata, interleave='bil')
     
     save_image(
         hdr_file=main_path.joinpath(f'Synthetic{random_seed}_123/capture/DARKREF_Synthetic{random_seed}_123.hdr'),
-        image=dark_ref, ext='raw', force=True, metadata=metadata)
+        image=dark_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
     
     save_image(
         hdr_file=main_path.joinpath(f'Synthetic{random_seed}_WR_123/capture/DARKREF_Synthetic{random_seed}_123.hdr'),
-        image=dark_for_white_ref, ext='raw', force=True, metadata=metadata)
+        image=dark_for_white_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
     save_image(
         hdr_file=main_path.joinpath(f'Synthetic{random_seed}_WR_123/capture/WHITEREF_Synthetic{random_seed}_123.hdr'),
-        image=white_ref, ext='raw', force=True, metadata=metadata)
+        image=white_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
          
 
 def test_select_file(make_napari_viewer, capsys):
