@@ -607,13 +607,27 @@ class SedimentWidget(QWidget):
             # reset acquisition index if new image is selected
             #if image_name != self.current_image_name:
             self.current_image_name = image_name
-            #self.imagechannels = ImChannels(self.imhdr_path)
+            zarr_converted = None
+            if self.export_folder is not None:
+                zarr_converted = self.export_folder.joinpath(self.imhdr_path.stem+'.zarr')
+            zarr_converted_local = self.imhdr_path.with_suffix('.zarr')
             if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
                 if not self.export_folder.joinpath('corrected.zarr').exists():
                     warnings.warn('Corrected image not found. Loading raw image instead.')
-                    self.imagechannels = ImChannels(self.imhdr_path)
+                    if zarr_converted is not None:
+                        if zarr_converted.exists():
+                            self.imagechannels = ImChannels(zarr_converted)
+                    elif zarr_converted_local.exists():
+                        self.imagechannels = ImChannels(zarr_converted_local)
+                    else:
+                        self.imagechannels = ImChannels(self.imhdr_path)
                 else:
                     self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
+            elif zarr_converted is not None:
+                if zarr_converted.exists():
+                    self.imagechannels = ImChannels(zarr_converted)
+            elif zarr_converted_local.exists():
+                self.imagechannels = ImChannels(zarr_converted_local)   
             else:
                 self.imagechannels = ImChannels(self.imhdr_path)
 
@@ -1228,9 +1242,14 @@ class SedimentWidget(QWidget):
 
         # files
         self.imhdr_path = Path(self.params.file_path)
-        self.white_file_path = Path(self.params.white_path)
-        self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
-        self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
+
+        # check if background references have already been set
+        if self.params.white_path is not None:
+            self.white_file_path = Path(self.params.white_path)
+            self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
+            self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
+        else:
+            self.set_paths(self.imhdr_path)
 
         # set defaults
         self.rgb_widget.set_rgb(self.params.rgb)
