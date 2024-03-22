@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 from spectral import open_image
 from spectral.algorithms import calc_stats
@@ -512,6 +513,65 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
 
     if use_dask:
         client.close()
+
+def convert_bil_raw_to_zarr(hdr_path, export_folder, num_rows_chunk=2000, force=False):
+    """
+    Convert an original raw image in bil format to zarr. The exported zarr has format
+    XYC with C saved as partial chunks.
+
+    Parameters
+    ----------
+    hdr_path : str
+        Path to hdr file.
+    export_folder : str or Path
+        Path to folder where to save the zarr.
+    num_rows_chunk : int, optional
+        Number of rows per chunk. Default is 2000.
+    
+    Returns
+    -------
+    None
+
+    """
+    
+    hdr_path = Path(hdr_path)
+    img = open_image(hdr_path)
+    if (not img.metadata['interleave'] == 'bil') and (not force):
+        raise ValueError('Image is not in bil format, cannot convert')
+    
+    #num_rows_chunk = 2000
+    shape = (img.shape[2], img.shape[0], img.shape[1])
+    chunks = (1, num_rows_chunk, img.shape[1])
+
+    new_name = hdr_path.with_suffix('.zarr').name
+    zarr_path = Path(export_folder).joinpath(new_name)
+    im_zarr = zarr.open(zarr_path, mode='w', shape=shape,
+                chunks=chunks, dtype=img.dtype)
+    
+    im_zarr.attrs['metadata'] = {
+        'wavelength': list(np.array(img.metadata['wavelength'])),
+        'centers': list(np.array(img.bands.centers))
+        }
+
+    num_chunks = (img.nrows // num_rows_chunk) + 1
+    for i in range(num_chunks):
+
+        band = 0
+        offset = img.offset + band * img.sample_size * img.ncols
+        f = img.fid
+
+        starting_row = i * num_rows_chunk
+        max_rows = num_rows_chunk
+        if i==num_chunks-1:
+            max_rows = img.nrows % num_rows_chunk
+        
+        pos = offset + starting_row * img.sample_size * img.nbands * img.ncols
+        count = img.ncols * img.nbands * max_rows
+        arr = np.fromfile(hdr_path.with_suffix('.raw') , dtype=img.dtype, offset=pos, count=count)
+        arr_resh = np.reshape(arr, (max_rows, img.nbands, img.ncols))
+        
+        arr_resh = np.moveaxis(arr_resh, 1,0)
+        im_zarr[:, num_rows_chunk*i:num_rows_chunk*i+max_rows, :] = arr_resh
 
 
 def spectral_clustering(pixel_vectors, dbscan_eps=0.5):
