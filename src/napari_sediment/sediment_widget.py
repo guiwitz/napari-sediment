@@ -653,6 +653,7 @@ class SedimentWidget(QWidget):
             #self._add_roi_layer()
             self._add_mask()
             self._update_range_wavelength()
+            self.viewer.layers['imcube'].visible = False
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
