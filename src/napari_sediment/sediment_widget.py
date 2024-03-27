@@ -805,6 +805,7 @@ class SedimentWidget(QWidget):
                 self.viewer.layers['imcube_destripe'].data = data_destripe
             else:
                 self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+                self.viewer.layers['imcube_destripe'].visible = False
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
 
