@@ -53,7 +53,7 @@ class RGBWidget(QWidget):
         self.rgb_bands_group.glayout.addWidget(self.btn_RGB, 2, 0, 1, 6)
 
         self.rgb_layer_group = VHGroup('Select layer to display as RGB', orientation='G')
-        self.rgbmain_group.glayout.addWidget(self.rgb_layer_group.gbox, 1, 0, 1, 2)
+        #self.rgbmain_group.glayout.addWidget(self.rgb_layer_group.gbox, 1, 0, 1, 2)
 
         self.combo_layer_to_rgb = QComboBox()
         self.rgb_layer_group.glayout.addWidget(QLabel('Layer to display'), 0, 0, 1, 1)
@@ -65,8 +65,8 @@ class RGBWidget(QWidget):
         self.slider_contrast.setRange(0, 1)
         self.slider_contrast.setSingleStep(0.01)
         self.slider_contrast.setSliderPosition([0, 1])
-        self.rgbmain_group.glayout.addWidget(QLabel("RGB Contrast"), 2, 0, 1, 1)
-        self.rgbmain_group.glayout.addWidget(self.slider_contrast, 2, 1, 1, 1)
+        self.rgbmain_group.glayout.addWidget(QLabel("RGB Contrast"), 1, 0, 1, 1)
+        self.rgbmain_group.glayout.addWidget(self.slider_contrast, 1, 1, 1, 1)
 
         self.add_connections()
 
