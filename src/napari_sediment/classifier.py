@@ -21,6 +21,7 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         self.update_model_btn.clicked.connect(self.predict)
         self.update_model_btn.clicked.connect(self.update_ml_mask)
         self.update_model_btn.setText( 'Train + Segment')
+        self.check_tile_image.setChecked(True)
 
         
         self.add_connections_local()
