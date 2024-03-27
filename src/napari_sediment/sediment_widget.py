@@ -941,6 +941,8 @@ class SedimentWidget(QWidget):
         selected_layer = self.combo_layer_mask.currentText()
         if selected_layer in self.viewer.layers:
             im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
+            if 'border-mask' in self.viewer.layers:
+                im = im[self.viewer.layers['border-mask'].data == 0]
             self.slider_mask_threshold.setRange(im.min(), im.max())
             self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
@@ -969,10 +971,14 @@ class SedimentWidget(QWidget):
         self.viewer.layers['border-mask'].data[:, last_col::] = 1
         self.translate_layer('border-mask')
         self.viewer.layers['border-mask'].refresh()
+        # update threshold limits to exclude borders
+        self._update_threshold_limits()
 
     def _update_threshold_limits(self):
         
         im = self.get_summary_image_for_mask()
+        if 'border-mask' in self.viewer.layers:
+            im = im[self.viewer.layers['border-mask'].data == 0]
         self.slider_mask_threshold.setRange(im.min(), im.max())
         self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
