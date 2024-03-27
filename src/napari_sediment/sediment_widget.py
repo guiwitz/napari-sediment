@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
                             QScrollArea, QGridLayout)
 from qtpy.QtCore import Qt
-from superqt import QDoubleRangeSlider, QDoubleSlider
+from superqt import QDoubleRangeSlider, QLabeledDoubleRangeSlider, QDoubleSlider
 from napari.qt import get_current_stylesheet
 from napari.utils import progress
 
@@ -307,7 +307,7 @@ class SedimentWidget(QWidget):
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
         # manual
-        self.slider_mask_threshold = QDoubleRangeSlider(Qt.Horizontal)
+        self.slider_mask_threshold = QLabeledDoubleRangeSlider(Qt.Horizontal)
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
@@ -609,14 +609,15 @@ class SedimentWidget(QWidget):
             self.current_image_name = image_name
             zarr_converted = None
             if self.export_folder is not None:
-                zarr_converted = self.export_folder.joinpath(self.imhdr_path.stem+'.zarr')
+                zarr_converted_test = self.export_folder.joinpath(self.imhdr_path.stem+'.zarr')
+                if zarr_converted_test.exists():
+                    zarr_converted = zarr_converted_test
             zarr_converted_local = self.imhdr_path.with_suffix('.zarr')
             if (self.check_load_corrected.isChecked()) and (self.export_folder is not None):
                 if not self.export_folder.joinpath('corrected.zarr').exists():
                     warnings.warn('Corrected image not found. Loading raw image instead.')
                     if zarr_converted is not None:
-                        if zarr_converted.exists():
-                            self.imagechannels = ImChannels(zarr_converted)
+                        self.imagechannels = ImChannels(zarr_converted)
                     elif zarr_converted_local.exists():
                         self.imagechannels = ImChannels(zarr_converted_local)
                     else:
@@ -624,8 +625,7 @@ class SedimentWidget(QWidget):
                 else:
                     self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
             elif zarr_converted is not None:
-                if zarr_converted.exists():
-                    self.imagechannels = ImChannels(zarr_converted)
+                self.imagechannels = ImChannels(zarr_converted)
             elif zarr_converted_local.exists():
                 self.imagechannels = ImChannels(zarr_converted_local)   
             else:
