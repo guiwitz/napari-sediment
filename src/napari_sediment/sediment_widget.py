@@ -194,6 +194,7 @@ class SedimentWidget(QWidget):
         self.destripe_group.glayout.addWidget(QLabel('Savgol Width'), 1, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.qspin_destripe_width, 1, 1, 1, 1)
         self.btn_destripe = QPushButton("Destripe")
+        self.btn_destripe.setToolTip("Apply Savitzky-Golay filter to remove stripes")
         self.destripe_group.glayout.addWidget(self.btn_destripe, 2, 0, 1, 2)
 
 
@@ -219,7 +220,7 @@ class SedimentWidget(QWidget):
         self.check_batch_white = QCheckBox("White correct")
         self.check_batch_destripe = QCheckBox("Destripe")
         self.check_batch_white.setChecked(True)
-        self.check_batch_destripe.setChecked(True)
+        self.check_batch_destripe.setChecked(False)
         self.batch_group.glayout.addWidget(self.check_batch_white, 1, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 0, 1, 1)
 
