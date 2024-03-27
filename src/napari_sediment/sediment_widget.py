@@ -840,6 +840,7 @@ class SedimentWidget(QWidget):
                     self.viewer.layers['imcube_corrected'].data = im_corr
                 else:
                     self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+                    self.viewer.layers['imcube_corrected'].visible = False
                     self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
 
             if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
