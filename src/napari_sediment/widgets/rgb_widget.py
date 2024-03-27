@@ -117,7 +117,7 @@ class RGBWidget(QWidget):
         
         rgb = ['red', 'green', 'blue']
         for c in rgb:
-            contrast_limits = np.percentile(self.viewer.layers[c].data, (2,98))
+            contrast_limits = np.percentile(self.viewer.layers[c].data.compute(), (2,98))
             contrast_range = contrast_limits[1] - contrast_limits[0]
             newlimits = contrast_limits.copy()
             newlimits[0] = contrast_limits[0] + self.slider_contrast.value()[0] * contrast_range
