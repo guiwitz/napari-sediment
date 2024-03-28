@@ -383,7 +383,8 @@ def savgol_destripe(image, width=100, order=2):
     
     Pfit=np.asarray(Pfit).T
     diff=Pfit-Pca
-    diff=np.tile(diff,(image.shape[0],1,1))
+    # no need for tiling, broadcasting will take care of it
+    # diff=np.tile(diff,(image.shape[0],1,1))
 
     image=image+diff
 
