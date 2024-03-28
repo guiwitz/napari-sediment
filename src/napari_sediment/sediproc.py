@@ -386,7 +386,9 @@ def savgol_destripe(image, width=100, order=2):
     # no need for tiling, broadcasting will take care of it
     # diff=np.tile(diff,(image.shape[0],1,1))
 
-    image=image+diff
+    image=image.astype(np.float16)+diff.astype(np.float16)
+    image[image<0]=0
+    image = image.astype(np.uint16)
 
     if single_channel:
         image = image[:,:,0]
