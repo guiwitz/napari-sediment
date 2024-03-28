@@ -923,6 +923,7 @@ class SedimentWidget(QWidget):
                 use_dask=self.check_use_dask.isChecked(),
                 chunk_size=self.spin_chunk_size.value()
                 )
+            self.save_params()
             
             # reload corrected image as zarr
             self.open_file()
