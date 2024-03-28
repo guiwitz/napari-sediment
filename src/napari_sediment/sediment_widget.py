@@ -1196,7 +1196,12 @@ class SedimentWidget(QWidget):
 
         filter_window = int(self.slider_spectrum_savgol.value())
         if filter_window > 3:
-            spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
+            if filter_window > len(spectral_pixel):
+                warnings.warn(f'No smoothing applied. Filter window size, currently {filter_window},\n'
+                              f'is larger than the number of bands, {len(spectral_pixel)}.\n'
+                              f'Please select a smaller window size or add more bands.')
+            else:
+                spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
 
         self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
         
