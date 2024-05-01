@@ -21,6 +21,7 @@ from .sediproc import spectral_clustering
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
+from .widgets.rgb_widget import RGBWidget
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 
@@ -73,6 +74,9 @@ class HyperAnalysisWidget(QWidget):
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.btn_select_all = QPushButton("Select all")
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
+
+        self.rgbwidget = RGBWidget(viewer=self.viewer)
+        self.tabs.add_named_tab('Main', self.rgbwidget.rgbmain_group.gbox)
 
         self.process_group_io = VHGroup('IO', orientation='G')
         self.tabs.add_named_tab('Main', self.process_group_io.gbox)
@@ -261,6 +265,11 @@ class HyperAnalysisWidget(QWidget):
         else:
             self.imagechannels = ImChannels(self.imhdr_path)
         self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
+        self.rgbwidget.imagechannels = self.imagechannels
+        self.rgbwidget.rgb = self.params.rgb
+        self.rgbwidget.row_bounds = self.row_bounds
+        self.rgbwidget.col_bounds = self.col_bounds
+        self.rgbwidget._on_click_RGB()
 
         self._on_click_select_all()
 
