@@ -1008,8 +1008,12 @@ class SedimentWidget(QWidget):
         """Create mask based on intensity threshold"""
 
         data = self.get_summary_image_for_mask()
+        min_th = self.slider_mask_threshold.value()[0]
+        max_th = self.slider_mask_threshold.value()[1]
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         self.update_mask(mask, 'intensity-mask')
+
+        self.slider_mask_threshold.setSliderPosition([min_th, max_th])
     
     '''def _on_click_update_mask(self):
         """Update mask based on current threshold"""
