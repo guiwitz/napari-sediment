@@ -22,6 +22,8 @@ class RGBWidget(QWidget):
         self.viewer = viewer
         self.imagechannels = imagechannels
         self.rgb = [640, 545, 460]
+        self.row_bounds = None
+        self.col_bounds = None
 
         self.rgbmain_group = VHGroup('RGB', orientation='G')
         #self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
@@ -103,8 +105,11 @@ class RGBWidget(QWidget):
     def _on_click_RGB(self, event=None):
         """Load RGB image. Band indices are in self.rgb which are set by the spin boxes"""
 
+        roi = None
+        if (self.row_bounds is not None) and (self.col_bounds is not None):
+            roi = np.concatenate([self.row_bounds, self.col_bounds])
         self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
-        rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch)
+        rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
         self.add_rgb_cube_to_viewer(rgb_cube)
 
     def get_current_rgb_cube(self):
