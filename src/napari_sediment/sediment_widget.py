@@ -655,6 +655,7 @@ class SedimentWidget(QWidget):
             self._add_mask()
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
+            self.mlwidget.select_layer_widget.native.setCurrentText('imcube')
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
