@@ -29,6 +29,8 @@ from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
                             compute_index_ratio)
+from .io import load_mask, get_mask_path
+
 
 from napari_guitils.gui_structures import TabSet, VHGroup
 
@@ -378,6 +380,8 @@ class SpectralIndexWidget(QWidget):
         self.get_RGB()
         self.rgbwidget.load_and_display_rgb_bands(roi=np.concatenate([self.row_bounds, self.col_bounds]))
 
+        self._on_click_load_mask()
+
         self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
         self.endmember_bands = self.end_members[:,-1]
         self.end_members = self.end_members[:,:-1]
@@ -429,6 +433,15 @@ class SpectralIndexWidget(QWidget):
     def _on_change_select_bands(self, event=None):
 
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+
+    def _on_click_load_mask(self):
+        """Load mask from file"""
+        
+        mask = load_mask(get_mask_path(self.export_folder))[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        if 'mask' in self.viewer.layers:
+            self.viewer.layers['mask'].data = mask
+        else:
+            self.viewer.add_labels(mask, name='mask')
 
     def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
