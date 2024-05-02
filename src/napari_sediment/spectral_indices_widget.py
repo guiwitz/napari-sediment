@@ -159,6 +159,17 @@ class SpectralIndexWidget(QWidget):
         self.button_zoom_in.clicked.connect(self.on_zoom_in)
         self.button_zoom_out = QPushButton('Zoom OUT', self) 
         self.button_zoom_out.clicked.connect(self.on_zoom_out)
+        
+        self.spin_preview_dpi = QSpinBox()
+        self.spin_preview_dpi.setRange(100, 1000)
+        self.spin_preview_dpi.setValue(100)
+        self.spin_preview_dpi.setSingleStep(1)
+
+        self.spin_final_dpi = QSpinBox()
+        self.spin_final_dpi.setRange(100, 1000)
+        self.spin_final_dpi.setValue(100)
+        self.spin_final_dpi.setSingleStep(1)
+
         self.scale = 1.0
         self.pix_width = None
         self.pix_height = None
@@ -177,6 +188,11 @@ class SpectralIndexWidget(QWidget):
 
         self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(14, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(14, 1, 1, 1))
+        self.tabs.add_named_tab('P&lots', QLabel('Preview DPI'), grid_pos=(15, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(15, 1, 1, 1))
+        self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(16, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(16, 1, 1, 1))
+        
         self.btn_create_index_plot = QPushButton("Create index plot")
         self.tabs.add_named_tab('P&lots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 2))
         self.spin_left_right_margin_fraction = QDoubleSpinBox()
@@ -611,7 +627,7 @@ class SpectralIndexWidget(QWidget):
         # save temporary low-res figure for display in napari
         self.index_plot_live.figure.savefig(
             self.export_folder.joinpath('temp.png'),
-            dpi=100)#, bbox_inches="tight")
+            dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
 
         # update napari preview
         if self.pix_width is None:
@@ -669,7 +685,7 @@ class SpectralIndexWidget(QWidget):
         if export_file is None:
             export_file = self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
         self.index_plot_live.figure.savefig(
-            fname=export_file, dpi=500)#, bbox_inches="tight")
+            fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
 
     def _on_click_open_plotline_color_dialog(self, event=None):
         """Show label color dialog"""
