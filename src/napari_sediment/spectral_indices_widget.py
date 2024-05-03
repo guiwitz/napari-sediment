@@ -161,7 +161,7 @@ class SpectralIndexWidget(QWidget):
         self.button_zoom_out.clicked.connect(self.on_zoom_out)
         
         self.spin_preview_dpi = QSpinBox()
-        self.spin_preview_dpi.setRange(100, 1000)
+        self.spin_preview_dpi.setRange(10, 1000)
         self.spin_preview_dpi.setValue(100)
         self.spin_preview_dpi.setSingleStep(1)
 
@@ -182,9 +182,9 @@ class SpectralIndexWidget(QWidget):
         self.index_plot_live.figure.set_layout_engine('none')
         #self.tabs.add_named_tab('Plotslive', self.index_plot_live)
 
-        self.tabs.add_named_tab('P&lots', self.scrollArea, grid_pos=(0, 0, 1, 2))
+        #self.tabs.add_named_tab('P&lots', self.scrollArea, grid_pos=(0, 0, 1, 2))
         self.scrollArea.setWidgetResizable(True)
-        self.scrollArea.setFixedHeight(200)
+        #self.scrollArea.setFixedHeight(200)
 
         self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(14, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(14, 1, 1, 1))
@@ -192,7 +192,7 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(15, 1, 1, 1))
         self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(16, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(16, 1, 1, 1))
-        
+
         self.btn_create_index_plot = QPushButton("Create index plot")
         self.tabs.add_named_tab('P&lots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 2))
         self.spin_left_right_margin_fraction = QDoubleSpinBox()
@@ -611,6 +611,7 @@ class SpectralIndexWidget(QWidget):
         toplot[toplot == np.inf] = 0
         percentiles = np.percentile(toplot, [1, 99])
         toplot = np.clip(toplot, percentiles[0], percentiles[1])
+        mask = self.viewer.layers['mask'].data
 
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
@@ -619,7 +620,7 @@ class SpectralIndexWidget(QWidget):
 
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-            rgb_image=rgb_image, index_image=toplot, index_name=self.qcom_indices.currentText(),
+            rgb_image=rgb_image, mask=mask, index_image=toplot, index_name=self.qcom_indices.currentText(),
                                 format_dict=format_dict, scale=self.params.scale,
                                 location=self.params.location, fig=self.index_plot_live.figure, 
                                 roi=self.viewer.layers['rois'].data[0])
@@ -636,7 +637,8 @@ class SpectralIndexWidget(QWidget):
         self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
         #self.pixlabel.setPixmap(self.pixmap.scaled(self.pixlabel.size().width(), self.pixlabel.size().height(), Qt.KeepAspectRatio))
         self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
-
+        #self.pixlabel.show()
+        self.scrollArea.show()
         '''if self.pixlabel.size().height() < self.pixlabel.size().width():
             self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
         else:
