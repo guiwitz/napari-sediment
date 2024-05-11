@@ -453,7 +453,7 @@ class SpectralIndexWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask = load_mask(get_mask_path(self.export_folder))[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        mask = load_mask(get_mask_path(self.export_folder))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
