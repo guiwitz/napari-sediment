@@ -167,5 +167,6 @@ class RGBWidget(QWidget):
                     blending='additive')
             else:
                 self.viewer.layers[cmap].data = rgb_cube[ind]
+                self.viewer.layers[cmap].translate = (self.row_bounds[0], self.col_bounds[0])
             
             update_contrast_on_layer(self.viewer.layers[cmap])
