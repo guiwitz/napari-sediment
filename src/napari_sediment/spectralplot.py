@@ -6,7 +6,7 @@ from napari.utils import colormaps
 from microfilm import colorify
 from matplotlib_scalebar.scalebar import ScaleBar
 
-def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale=1,
+def plot_spectral_profile(rgb_image, mask, index_image, index_name, format_dict, scale=1,
                           location="", fig=None, roi=None):
 
 
@@ -79,6 +79,7 @@ def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale
     ax1.imshow(rgb_to_plot, aspect='auto')
     vmin = np.percentile(index_image, 0.1)
     vmax = np.percentile(index_image, 99.9)
+    index_image[mask==1] = np.nan
     #ax2.imshow(index_image, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
     ax2.imshow(index_image, aspect='auto', cmap=mpl_map)
     scalebar = ScaleBar(scale, "mm", 
@@ -102,7 +103,7 @@ def plot_spectral_profile(rgb_image, index_image, index_name, format_dict, scale
         colmin = 0
         colmax = index_image.shape[1]
     
-    proj = index_image[:,colmin:colmax].mean(axis=1)
+    proj = np.nanmean(index_image[:,colmin:colmax],axis=1)
     ax3.plot(proj, np.arange(len(proj)),
                 color=np.array(color_plotline),
                 linewidth=plot_thickness)

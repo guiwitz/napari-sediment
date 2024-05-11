@@ -61,16 +61,12 @@ class SedimentWidget(QWidget):
         self.viewer2 = None
         #self.pixclass = None
         self.export_folder = None
-        self.mainroi_min_col = None
-        self.mainroi_max_col = None
-        self.mainroi_min_row = None
-        self.mainroi_max_row = None
         self.spectral_pixel = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', 'Mas&k', '&ROI', '&Export-Import', 'P&lotting']#,'&Options']
+        self.tab_names = ['&Main', 'Pro&cessing', '&ROI', 'Mas&k', '&Export-Import', 'P&lotting']#,'&Options']
         self.tabs = TabSet(self.tab_names, tab_layouts=[None]*(len(self.tab_names)-1) + [QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
@@ -277,6 +273,9 @@ class SedimentWidget(QWidget):
         self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
         self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
         
+        self.mask_group_draw = VHGroup('Manual drawing', orientation='G')
+        self.mask_group_draw.gbox.setToolTip("Draw a mask manually")
+
         self.mask_group_border = VHGroup('Border mask', orientation='G')
         self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
         self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
@@ -288,11 +287,12 @@ class SedimentWidget(QWidget):
         self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
         
-        self.mask_tabs = TabSet(['Border', 'Manual', 'Auto', 'ML'])
+        self.mask_tabs = TabSet(['Drawing', 'Border', 'Man. thresh.', 'Auto thresh.', 'ML'])
         self.mask_generation_group.glayout.addWidget(self.mask_tabs)
+        self.mask_tabs.add_named_tab('Drawing', self.mask_group_draw.gbox)
         self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
-        self.mask_tabs.add_named_tab('Manual', self.mask_group_manual.gbox)
-        self.mask_tabs.add_named_tab('Auto', self.mask_group_auto.gbox)
+        self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
+        self.mask_tabs.add_named_tab('Auto thresh.', self.mask_group_auto.gbox)
         #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -302,8 +302,11 @@ class SedimentWidget(QWidget):
         for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
             g.glayout.setAlignment(Qt.AlignTop)
         
+        #draw
+        self.btn_add_draw_mask = QPushButton("Add manual mask")
+        self.mask_group_draw.glayout.addWidget(self.btn_add_draw_mask, 0, 0, 1, 2)
+
         # border
-        
         self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
@@ -360,10 +363,15 @@ class SedimentWidget(QWidget):
         self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
         self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
 
+        self.btn_main_crop = QPushButton("Crop with main")
+        self.btn_main_crop.setToolTip("Crop image with main ROI")
+        self.btn_main_crop_reset = QPushButton("Reset crop")
+        self.btn_main_crop_reset.setToolTip("Reset crop to full image")
+        self.roi_group.glayout.addWidget(self.btn_main_crop, 1, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 1, 1, 1, 1)
+
         self.subroi_group = VHGroup('Sub-ROI', orientation='G')
         self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
-        #self.btn_add_sub_roi = QPushButton("Add analysis &ROI")
-        #self.roi_group.glayout.addWidget(self.btn_add_sub_roi, 1, 0, 1, 2)
         self.subroi_group.glayout.addWidget(QLabel(
             'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
         self.spin_roi_width = QSpinBox()
@@ -414,21 +422,8 @@ class SedimentWidget(QWidget):
         
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
-        #self.tabs.add_named_tab('&Options', self.crop_group.gbox)
-
         self.check_use_external_ref = QCheckBox("Use external reference")
         self.check_use_external_ref.setChecked(True)
-
-        crop_bounds_name = ['Min row', 'Max row', 'Min col', 'Max col']
-        self.crop_bounds = {x: QSpinBox() for x in crop_bounds_name}
-        for ind, c in enumerate(crop_bounds_name):
-            self.crop_group.glayout.addWidget(QLabel(c), ind, 0, 1, 1)
-            self.crop_group.glayout.addWidget(self.crop_bounds[c], ind, 1, 1, 1)
-
-        self.check_use_crop = QCheckBox("Use crop")
-        self.btn_refresh_crop = QPushButton("Refresh crop")
-        self.crop_group.glayout.addWidget(self.check_use_crop, ind+1, 0, 1, 1)
-        self.crop_group.glayout.addWidget(self.btn_refresh_crop, ind+1, 1, 1, 1)
 
     def _create_plot_tab(self):
 
@@ -449,8 +444,6 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('P&lotting', QLabel('Smoothing window size'), (2,0,1,1))
         self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol, (2,1,1,1))
         
-
-
     def add_connections(self):
         """Add callbacks"""
 
@@ -465,8 +458,6 @@ class SedimentWidget(QWidget):
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.check_sync_bands_rgb.stateChanged.connect(self._on_click_sync_RGB)
         self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
-        self.check_use_crop.stateChanged.connect(self._on_click_use_crop)
-        self.btn_refresh_crop.clicked.connect(self._on_click_use_crop)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
         self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
@@ -476,14 +467,14 @@ class SedimentWidget(QWidget):
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
         self.btn_update_mask.clicked.connect(self._on_click_intensity_threshold)
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
-        #self.btn_compute_phasor.clicked.connect(self._on_click_compute_phasor)
-        #self.btn_select_by_phasor.clicked.connect(self._on_click_select_by_phasor)
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
         self.combo_layer_mask.currentIndexChanged.connect(self._on_select_layer_for_mask)
 
         # &ROI
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
+        self.btn_main_crop.clicked.connect(self._on_crop_with_main)
+        self.btn_main_crop_reset.clicked.connect(self._on_reset_crop)
 
         # capture
         self.btn_save_mask.clicked.connect(self._on_click_save_mask)
@@ -505,6 +496,8 @@ class SedimentWidget(QWidget):
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_background)
         self.viewer.layers.events.removed.connect(self._update_combo_layers_background)
 
+        self.viewer.layers.events.inserted.connect(self.translate_layer_on_add)
+
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
 
@@ -512,7 +505,6 @@ class SedimentWidget(QWidget):
         self.export_path_display.setText(self.export_folder.as_posix())
 
     def _on_select_file(self):
-        
         success = self.open_file()
         if not success:
             return False
@@ -525,6 +517,7 @@ class SedimentWidget(QWidget):
             imhdr_path = imhdr_path.parent
         self.set_paths(imhdr_path)
         self._on_select_file()
+        self._on_click_add_main_roi()
 
     def _on_click_select_white_file(self):
         """Interactively select white reference"""
@@ -564,11 +557,7 @@ class SedimentWidget(QWidget):
                         refpath = wr
                 if refpath is None:
                     raise Exception('No matching white reference folder found')
-        
-
-                #name_parts = self.imhdr_path.name.split('_')
-                #refpath = list(self.imhdr_path.parent.parent.parent.glob('*'+name_parts[1]+'_WR*'))[0]
-                
+                        
                 self.white_file_path = list(refpath.joinpath('capture').glob('WHITE*.hdr'))[0]
                 self.dark_for_white_file_path = list(refpath.joinpath('capture').glob('DARK*.hdr'))[0]
 
@@ -632,13 +621,6 @@ class SedimentWidget(QWidget):
             else:
                 self.imagechannels = ImChannels(self.imhdr_path)
 
-            self.crop_bounds['Min row'].setMaximum(self.imagechannels.nrows-1)
-            self.crop_bounds['Max row'].setMaximum(self.imagechannels.nrows)
-            self.crop_bounds['Min col'].setMaximum(self.imagechannels.ncols-1)
-            self.crop_bounds['Max col'].setMaximum(self.imagechannels.ncols)
-            self.crop_bounds['Max row'].setValue(self.imagechannels.nrows)
-            self.crop_bounds['Max col'].setValue(self.imagechannels.ncols)
-
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
             
@@ -650,14 +632,12 @@ class SedimentWidget(QWidget):
             [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
             self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
             self._update_threshold_limits()
-
-            #self._add_roi_layer()
-            self._add_mask()
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
             self.mlwidget.select_layer_widget.native.setCurrentText('imcube')
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
+        return True
 
     def _on_click_sync_RGB(self, event=None):
         """Select same channels for imcube as loaded for RGB"""
@@ -680,18 +660,72 @@ class SedimentWidget(QWidget):
         self.slider_batch_wavelengths.setRange(np.round(wavelengths[0]), np.round(wavelengths[-1]))
         self.slider_batch_wavelengths.setSliderPosition([np.round(wavelengths[0]), np.round(wavelengths[-1])])
 
-    def _on_click_use_crop(self):
-        """Update crop bounds. Reload cropped image if crop is checked."""
+    def _add_roi_layer(self):
+        """Add &ROI layers to napari viewer"""
+
+        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
+        if 'main-roi' not in self.viewer.layers:
+            roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
+
+        if 'rois' not in self.viewer.layers:
+            roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+
+            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
+
+    def _on_click_add_main_roi(self, event=None):
+
+        self._add_roi_layer()
+
+        new_roi = [
+            [self.row_bounds[0],self.col_bounds[0]],
+            [self.row_bounds[1],self.col_bounds[0]],
+            [self.row_bounds[1],self.col_bounds[1]],
+            [self.row_bounds[0],self.col_bounds[1]]]
+        self.viewer.layers['main-roi'].data = []
+        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
+
+    def _roi_to_int_on_mouse_release(self, layer, event):
+        """Round roi coordinates to integer on mouse release"""
         
-        if self.check_use_crop.isChecked():
-            self.row_bounds = [
-                self.crop_bounds['Min row'].value(), self.crop_bounds['Max row'].value()]
-            self.col_bounds = [
-                self.crop_bounds['Min col'].value(), self.crop_bounds['Max col'].value()]
+        yield
+        while event.type == 'mouse_move':
+            yield
+        if event.type == 'mouse_release':
+            layer.data = [np.around(x) for x in layer.data]
+
+    def _on_crop_with_main(self, event=None):
+
+        #if self.check_main_crop.isChecked():
+        if 'main-roi' in self.viewer.layers:
+            main_roi = self.viewer.layers['main-roi'].data[0]
+            self.row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
+            self.col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
         else:
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
-        
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+        self.rgb_widget.row_bounds = self.row_bounds
+        self.rgb_widget.col_bounds = self.col_bounds
+        self.rgb_widget._on_click_RGB()
+
+    def _on_reset_crop(self, event=None):
+            
+        self.row_bounds = [0, self.imagechannels.nrows]
+        self.col_bounds = [0, self.imagechannels.ncols]
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+        self.rgb_widget.row_bounds = self.row_bounds
+        self.rgb_widget.col_bounds = self.col_bounds
+        self.rgb_widget._on_click_RGB()
+
+    def crop_masks(self):
+
         layers = ['manual-mask', 'clean-mask', 'intensity-mask',
                   'complete-mask', 'border-mask', 
                   'ml-mask', 'main-roi', 'rois']
@@ -700,54 +734,7 @@ class SedimentWidget(QWidget):
                 if isinstance(self.viewer.layers[l], napari.layers.labels.labels.Labels):
                     self.viewer.layers[l].data = self.viewer.layers[l].data[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
                 self.translate_layer(l)
-        
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
-
-    def _add_roi_layer(self):
-        """Add &ROI layers to napari viewer"""
-
-        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
-        if 'main-roi' not in self.viewer.layers:
-            self.roi_layer = self.viewer.add_shapes(
-                ndim = 2,
-                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
-        
-        if 'rois' not in self.viewer.layers:
-            self.roi_layer = self.viewer.add_shapes(
-                ndim = 2,
-                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
-         
-    def _on_click_add_main_roi(self):
-
-        self._add_roi_layer()
-
-        if 'clean-mask' in self.viewer.layers:
-            mask = self.viewer.layers['clean-mask'].data.copy()
-        else:
-            if 'complete-mask' not in self.viewer.layers:
-                self._on_click_combine_masks()
-            mask = self.viewer.layers['complete-mask'].data.copy() 
-
-        bounds_col = np.where(mask.min(axis=0)==0)
-        bounds_row = np.where(mask.min(axis=1)==0)
-
-        self.set_main_roi_bounds(min_col=bounds_col[0][0], max_col=bounds_col[0][-1], min_row=bounds_row[0][0], max_row=bounds_row[0][-1])
-
-        new_roi = [
-            [self.mainroi_min_row,self.mainroi_min_col],
-            [self.mainroi_max_row,self.mainroi_min_col],
-            [self.mainroi_max_row,self.mainroi_max_col],
-            [self.mainroi_min_row,self.mainroi_max_col]]
-        self.viewer.layers['main-roi'].data = []
-        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
-
-    def set_main_roi_bounds(self, min_col, max_col, min_row, max_row):
-            
-        self.mainroi_min_col = min_col
-        self.mainroi_max_col = max_col
-        self.mainroi_min_row = min_row
-        self.mainroi_max_row = max_row
 
     def _add_analysis_roi(self, viewer=None, event=None, cursor_pos=None):
         """Add roi to layer"""
@@ -772,9 +759,10 @@ class SedimentWidget(QWidget):
         self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r')
 
 
-    def _add_mask(self):
+    def _add_manual_mask(self):
         self.mask_layer = self.viewer.add_labels(
-            np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8),
+            np.zeros((self.row_bounds[1]-self.row_bounds[0],
+                      self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8),
             name='manual-mask')
 
     def _on_click_destripe(self):
@@ -823,7 +811,7 @@ class SedimentWidget(QWidget):
             elif selected_layer == 'RGB':
                 channel_indices = np.sort(self.rgb_widget.rgb_ch)
 
-            col_bounds = (self.col_bounds if self.check_use_crop.isChecked() else None)
+            col_bounds = (self.col_bounds if self.check_main_crop.isChecked() else None)
             white_data, dark_data, dark_for_white_data = load_white_dark(
                 white_file_path=self.white_file_path,
                 dark_for_im_file_path=self.dark_for_im_file_path,
@@ -878,7 +866,16 @@ class SedimentWidget(QWidget):
         self.combo_layer_background.addItem('RGB')
         for a in admit_layers:
             if a in self.viewer.layers:
-                self.combo_layer_background.addItem(a)      
+                self.combo_layer_background.addItem(a)
+
+    def translate_layer_on_add(self, mask_layer):
+        """Translate mask"""
+
+        mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
+                        'complete-mask', 'clean-mask', 'manual-mask',
+                      'annotations', 'segmentation', 'mask']
+        if mask_layer.value.name in mask_names:
+            mask_layer.value.translate = (self.row_bounds[0], self.col_bounds[0])
         
 
     def _on_change_batch_wavelengths(self, event):
@@ -971,7 +968,6 @@ class SedimentWidget(QWidget):
         self.viewer.layers['border-mask'].data[last_row::,:] = 1
         self.viewer.layers['border-mask'].data[:, 0:first_col] = 1
         self.viewer.layers['border-mask'].data[:, last_col::] = 1
-        self.translate_layer('border-mask')
         self.viewer.layers['border-mask'].refresh()
         # update threshold limits to exclude borders
         self._update_threshold_limits()
@@ -993,7 +989,6 @@ class SedimentWidget(QWidget):
         else:
             pix_selected = np.ravel(im)
         med_val, std_val = fit_1dgaussian_without_outliers(data=pix_selected[::5])
-        #self.slider_mask_threshold.setRange(im.min(), im.max())
         fact = self.spin_automated_mask_width.value()
         self.slider_mask_threshold.setSliderPosition(
             [
@@ -1001,7 +996,6 @@ class SedimentWidget(QWidget):
                 np.min([med_val + fact*std_val, self.slider_mask_threshold.maximum()])
              ]
         ),
-        #self._on_click_update_mask()
         self._on_click_intensity_threshold()
 
 
@@ -1016,15 +1010,6 @@ class SedimentWidget(QWidget):
 
         self.slider_mask_threshold.setSliderPosition([min_th, max_th])
     
-    '''def _on_click_update_mask(self):
-        """Update mask based on current threshold"""
-        
-        data = self.get_summary_image_for_mask()
-        mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
-        self.update_mask(mask)
-        self.translate_layer('mask')
-        self.viewer.layers['mask'].refresh()'''
-
     def update_mask(self, mask, name='mask'):
 
         if name in self.viewer.layers:
@@ -1076,7 +1061,8 @@ class SedimentWidget(QWidget):
     def _on_click_combine_masks(self):
         """Combine masks from border removel, phasor and thresholding"""
 
-        mask_complete = np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8)
+        mask_complete = np.zeros((self.row_bounds[1]-self.row_bounds[0],
+                                  self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8)
         if 'manual-mask' in self.viewer.layers:
             mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
         if 'intensity-mask' in self.viewer.layers:
@@ -1094,7 +1080,6 @@ class SedimentWidget(QWidget):
             self.viewer.layers['complete-mask'].data = mask_complete
         else:
             self.viewer.add_labels(mask_complete, name='complete-mask')
-        self.translate_layer('complete-mask')
 
     def _on_click_clean_mask(self):
         
@@ -1107,7 +1092,6 @@ class SedimentWidget(QWidget):
         mask_filled = binary_fill_holes(final_mask)
         mask_filled = (mask_filled == 0).astype(np.uint8)
         self.viewer.add_labels(mask_filled, name='clean-mask')
-        self.translate_layer('clean-mask')
 
     def _on_click_save_mask(self):
         """Save mask to file"""
@@ -1119,8 +1103,6 @@ class SedimentWidget(QWidget):
             mask = self.viewer.layers['clean-mask'].data
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
-        #elif 'mask' in self.viewer.layers:
-        #    mask = self.viewer.layers['mask'].data
         else:
             mask = np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8)
             warnings.warn('No mask found. Uinsg empty mask.')
@@ -1277,7 +1259,6 @@ class SedimentWidget(QWidget):
 
         # load data
         self._on_select_file()
-        self._on_click_load_mask()
 
         # metadata
         self.metadata_location.setText(self.params.location)
@@ -1289,12 +1270,13 @@ class SedimentWidget(QWidget):
         if mainroi:
             mainroi[0] = mainroi[0].astype(int)
             self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b')
-            self.set_main_roi_bounds(
-            min_col=mainroi[0][:,1].min(),
-            max_col=mainroi[0][:,1].max(),
-            min_row=mainroi[0][:,0].min(),
-            max_row=mainroi[0][:,0].max()
-        )
+        
         rois = [np.array(x).reshape(4,2) for x in self.params.rois]
         if rois:
             self.viewer.layers['rois'].add_rectangles(rois, edge_color='r')
+
+        # crop if needed
+        self._on_crop_with_main()
+
+        # load masks
+        self._on_click_load_mask()

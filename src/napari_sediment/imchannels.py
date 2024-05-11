@@ -81,9 +81,10 @@ class ImChannels:
                 else:
                     channels_full_image.append(channel)
             else:
+                # if a new roi is provided, reload the channel even if full frame is already loaded
                 if self.rois[channel] is None:
-                    if self.channel_array[channel] is None:
-                        channels_partial_image.append(channel)
+                    #if self.channel_array[channel] is None:
+                    channels_partial_image.append(channel)
                 else:
                     if not np.array_equal(roi, self.rois[channel]):
                         channels_partial_image.append(channel)

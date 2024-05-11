@@ -393,7 +393,12 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask = load_mask(get_mask_path(self.export_folder))[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        main_roi_row_min = self.mainroi[0][:,0].min()
+        main_roi_col_min = self.mainroi[0][:,1].min()
+        mask = load_mask(get_mask_path(self.export_folder))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
+                    self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
+
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
