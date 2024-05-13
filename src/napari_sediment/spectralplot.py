@@ -106,9 +106,10 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     ax3.invert_yaxis()
     
     # set y axis scale
-    tickpos = np.array([x.get_position()[1] for x in  ax1.get_yticklabels()])[1:-1]
-    newlabels = scale * np.array(tickpos)
-    ax1.set_yticks(ticks=tickpos, labels = newlabels)
+    for ax in [ax1, ax3]:
+        tickpos = np.array([x.get_position()[1] for x in  ax.get_yticklabels()])[1:-1]
+        newlabels = scale * np.array(tickpos)
+        ax.set_yticks(ticks=tickpos, labels = newlabels)
 
     ax1.set_xticks([])
     ax2.set_xticks([])
@@ -118,7 +119,9 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     
     ax2.set_ylim(im_h-0.5, -0.5)
     #ax2.invert_yaxis()
-    ax1.set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
+    ax1.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
+    ax3.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
+    ax3.yaxis.set_label_position('right')
     fig.suptitle(index_name + '\n' + location,
                     fontsize=int(fig_size[1] * 72 * title_font_factor))
 
@@ -178,10 +181,11 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
         axes.append(fig.add_axes(rect=(left_margin+((i+shift)*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
         axes[-1].plot(proj[i], np.arange(len(proj[i])), color=np.array(color_plotline), linewidth=plot_thickness)
         axes[-1].set_ylim(0, len(proj[i]))
-        if i!=0:
+        if (i!=0) and (i!=len(proj)-1):
             axes[-1].yaxis.set_visible(False)
-        if i==0:
-            axes[-1].set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
+        if i == len(proj)-1:
+            axes[-1].yaxis.tick_right()
+            axes[-1].yaxis.set_label_position('right')
         axes[-1].invert_yaxis()
         axes[-1].set_title(index_name[i], fontsize=int(fig_size[1] * 72 * title_font_factor))
     
@@ -203,6 +207,16 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     for ax in axes:
         for label in (ax.get_yticklabels() + ax.get_yticklabels() + ax.get_xticklabels()):
             label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
+
+    axes_to_scale = [axes[0]]
+    if len(proj) > 1:
+        axes_to_scale.append(axes[-2])
+    for ax in axes_to_scale:
+        ax.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
+        tickpos = np.array([x.get_position()[1] for x in  ax.get_yticklabels()])[1:-1]
+        newlabels = scale * np.array(tickpos)
+        print(newlabels)
+        ax.set_yticks(ticks=tickpos, labels = newlabels)
 
     fig.suptitle('Spectral indices' + '\n' + location,
                     fontsize=int(fig_size[1] * 72 * title_font_factor))

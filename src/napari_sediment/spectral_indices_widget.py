@@ -744,7 +744,8 @@ class SpectralIndexWidget(QWidget):
         plot_multi_spectral_profile(
             rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
             proj=all_proj, index_name=[x.index_name for x in index_series], 
-            format_dict=format_dict, fig=self.index_plot_live.figure,
+            format_dict=format_dict, scale=self.params.scale,
+            fig=self.index_plot_live.figure,
             roi=self.viewer.layers['rois'].data[0])
         
         # save temporary low-res figure for display in napari
