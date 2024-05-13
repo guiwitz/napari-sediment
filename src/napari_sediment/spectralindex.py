@@ -178,4 +178,27 @@ def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
     ratio = np.asarray(ratio, np.float32)
     return ratio
 
+def compute_index_projection(index_image, mask, colmin, colmax):
+    """Compute the projection of the index map.
+    
+    Parameters
+    ----------
+    index_map: np.ndarray
+        index map
+    mask: np.ndarray
+        mask
+    colmin: int
+        minimum column
+    colmax: int
+        maximum column
+
+    Returns
+    -------
+    projection: np.ndarray
+        projection of the index map
+    """
+    index_image[mask==1] = np.nan
+    proj = np.nanmean(index_image[:,colmin:colmax],axis=1)
+    return proj
+
         

@@ -5,8 +5,9 @@ from cmap import Colormap
 from napari.utils import colormaps
 from microfilm import colorify
 from matplotlib_scalebar.scalebar import ScaleBar
+from .spectralindex import compute_index_projection
 
-def plot_spectral_profile(rgb_image, mask, index_image, index_name, format_dict, scale=1,
+def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format_dict, scale=1,
                           location="", fig=None, roi=None):
 
 
@@ -32,13 +33,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, index_name, format_dict,
         newmap = Colormap(colormaps.ALL_COLORMAPS['viridis'].colors)
     mpl_map = newmap.to_matplotlib()
 
-    rgb_to_plot = rgb_image.copy()
-    rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
-        rgb_to_plot,
-        cmaps=['pure_red', 'pure_green', 'pure_blue'], 
-        rescale_type='limits', 
-        limits=[red_conrast_limits, green_conrast_limits, blue_conrast_limits],
-        proj_type='sum')
+    rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
 
     # The plot has the same height as the image and 6 times the width
     # Two two images take 1 width and the plot 4
@@ -95,15 +90,9 @@ def plot_spectral_profile(rgb_image, mask, index_image, index_name, format_dict,
     ax1.add_artist(scalebary)
 
     if roi is not None:
-        colmin = int(roi[0,1])
-        colmax = int(roi[3,1])
         roi = np.concatenate([roi, roi[[0]]])
         ax2.plot(roi[:,1], roi[:,0], 'r')
-    else:
-        colmin = 0
-        colmax = index_image.shape[1]
     
-    proj = np.nanmean(index_image[:,colmin:colmax],axis=1)
     ax3.plot(proj, np.arange(len(proj)),
                 color=np.array(color_plotline),
                 linewidth=plot_thickness)
@@ -130,6 +119,95 @@ def plot_spectral_profile(rgb_image, mask, index_image, index_name, format_dict,
                     fontsize=int(fig_size[1] * 72 * title_font_factor))
 
     return fig, ax1, ax2, ax3
+
+def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, scale=1,
+                                location="", fig=None, roi=None):
+    
+    left_right_margin_fraction = format_dict['left_right_margin_fraction']
+    bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
+    #plot_image_w_fraction = format_dict['plot_image_w_fraction']
+    title_font_factor = format_dict['title_font_factor']
+    label_font_factor = format_dict['label_font_factor']
+    color_plotline = format_dict['color_plotline']
+    plot_thickness = format_dict['plot_thickness']
+    figure_size_factor = format_dict['figure_size_factor']
+    #scale_font_size = format_dict['scale_font_size']
+    #index_colormap = format_dict['index_colormap']
+    red_conrast_limits = format_dict['red_conrast_limits']
+    green_conrast_limits = format_dict['green_conrast_limits']
+    blue_conrast_limits = format_dict['blue_conrast_limits']
+    
+    rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
+
+    im_h = rgb_image[0].shape[0]
+    im_w = rgb_image[0].shape[1]
+
+    #width = width/height
+    #height = 1
+
+    width_tot = (len(proj)+1) * im_w
+
+    to_add_top = bottom_top_margin_fraction*im_h
+    to_add_bottom = bottom_top_margin_fraction*im_h
+    to_add_left = left_right_margin_fraction * width_tot
+    to_add_right = left_right_margin_fraction * width_tot
+
+    width_tot_margin = width_tot + to_add_left + to_add_right
+    height_tot_margin = im_h + to_add_top + to_add_bottom
+
+    left_margin = to_add_left / width_tot_margin
+    bottom_margin = to_add_bottom / height_tot_margin
+
+    plot_width = im_w / width_tot_margin
+    fig_size = figure_size_factor*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+    
+    fig.clear()
+    fig.set_size_inches(fig_size)
+    fig.set_facecolor('white')
+    halfplot = len(proj) // 2
+    axes = []
+    shift = 0
+    for i in range(len(proj)):
+        if i == halfplot:
+            shift = 1
+        axes.append(fig.add_axes(rect=(left_margin+((i+shift)*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
+        axes[-1].plot(proj[i], np.arange(len(proj[i])), color=np.array(color_plotline), linewidth=plot_thickness)
+        axes[-1].set_ylim(0, len(proj[i]))
+        if i!=0:
+            axes[-1].yaxis.set_visible(False)
+        if i==0:
+            axes[-1].set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
+        axes[-1].invert_yaxis()
+        axes[-1].set_title(index_name[i])
+    axes.append(fig.add_axes(rect=(left_margin+(halfplot*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
+    axes[-1].imshow(rgb_to_plot)
+    axes[-1].yaxis.set_visible(False)
+    axes[-1].xaxis.set_visible(False)
+    if roi is not None:
+        roi[1,0] -=0.5
+        roi[2,0] -=0.5
+        roi = np.concatenate([roi, roi[[0]]])
+        axes[-1].plot(roi[:,1], roi[:,0], 'r')
+    axes[-1].set_ylim(im_h, 0)
+
+    for ax in axes:
+        for label in (ax.get_yticklabels() + ax.get_yticklabels() + ax.get_xticklabels()):
+            label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
+
+    fig.suptitle('Spectral indices' + '\n' + location,
+                    fontsize=int(fig_size[1] * 72 * title_font_factor))
+    return fig
+
+def create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits):
+    
+    rgb_to_plot = rgb_image.copy()
+    rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
+        rgb_to_plot,
+        cmaps=['pure_red', 'pure_green', 'pure_blue'], 
+        rescale_type='limits', 
+        limits=[red_conrast_limits, green_conrast_limits, blue_conrast_limits],
+        proj_type='sum')
+    return rgb_to_plot
 
 class SpectralPlotter(NapariMPLWidget):
     """Subclass of napari_matplotlib NapariMPLWidget for voxel position based time series plotting.

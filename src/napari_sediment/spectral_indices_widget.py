@@ -28,7 +28,7 @@ from .widgets.channel_widget import ChannelWidget
 from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
-                            compute_index_ratio)
+                            compute_index_ratio, compute_index_projection)
 from .io import load_mask, get_mask_path
 
 
@@ -76,17 +76,20 @@ class SpectralIndexWidget(QWidget):
         super().__init__()
         
         self.viewer = napari_viewer
+        #self.viewer2 = None
 
         self.create_index_list()
 
         self.params = Param()
         self.params_indices = ParamEndMember()
         self.params_plots = Paramplot()
+        self.params_multiplots = Paramplot()
 
         self.em_boundary_lines = None
         self.end_members = None
         self.endmember_bands = None
         self.index_file = None
+        self.current_plot_type = 'single'
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -170,6 +173,8 @@ class SpectralIndexWidget(QWidget):
         self.spin_final_dpi.setValue(100)
         self.spin_final_dpi.setSingleStep(1)
 
+        self.btn_export_indices_csv = QPushButton("Export indices to csv")
+
         self.scale = 1.0
         self.pix_width = None
         self.pix_height = None
@@ -192,9 +197,13 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(15, 1, 1, 1))
         self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(16, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(16, 1, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.btn_export_indices_csv, grid_pos=(17, 0, 1, 2))
+        
 
         self.btn_create_index_plot = QPushButton("Create index plot")
-        self.tabs.add_named_tab('P&lots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 2))
+        self.btn_create_multi_index_plot = QPushButton("Create multi-index plot")
+        self.tabs.add_named_tab('P&lots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.btn_create_multi_index_plot, grid_pos=(1, 1, 1, 1))
         self.spin_left_right_margin_fraction = QDoubleSpinBox()
         self.spin_left_right_margin_fraction.setRange(0, 100)
         self.spin_left_right_margin_fraction.setValue(0.1)
@@ -330,8 +339,10 @@ class SpectralIndexWidget(QWidget):
         self.qcom_indices.activated.connect(self._on_change_index_index)
         self.btn_export_index_settings.clicked.connect(self._on_click_export_index_settings)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
-        self.btn_create_index_plot.clicked.connect(self.create_index_plot)
-        
+        self.btn_create_index_plot.clicked.connect(self._on_click_create_single_index_plot)
+        self.btn_create_multi_index_plot.clicked.connect(self._on_click_create_multi_index_plot)
+        self.btn_export_indices_csv.clicked.connect(self._on_export_index_projection)
+
         self.connect_plot_formatting()
         self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
         self.btn_save_plot.clicked.connect(self._on_click_save_plot)
@@ -408,6 +419,11 @@ class SpectralIndexWidget(QWidget):
         
         self.plot_endmembers()
         self._on_change_index_index()
+
+        self._update_save_plot_parameters()
+        self.current_plot_type = 'multi'
+        self._update_save_plot_parameters()
+        self.current_plot_type = 'single'
 
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
@@ -519,22 +535,27 @@ class SpectralIndexWidget(QWidget):
 
     def _update_save_plot_parameters(self):
 
-        self.params_plots.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
-        self.params_plots.plot_thickness = self.spin_plot_thickness.value()
-        self.params_plots.title_font_factor = self.spin_title_font_factor.value()
-        self.params_plots.label_font_factor = self.spin_label_font_factor.value()
-        self.params_plots.scale_font_size = self.spin_scale_font_size.value()
-        self.params_plots.left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
-        self.params_plots.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
-        self.params_plots.plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
-        self.params_plots.figure_size_factor = self.spin_figure_size_factor.value()
+        if self.current_plot_type == 'single':
+            current_param = self.params_plots
+        else:
+            current_param = self.params_multiplots
+
+        current_param.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
+        current_param.plot_thickness = self.spin_plot_thickness.value()
+        current_param.title_font_factor = self.spin_title_font_factor.value()
+        current_param.label_font_factor = self.spin_label_font_factor.value()
+        current_param.scale_font_size = self.spin_scale_font_size.value()
+        current_param.left_right_margin_fraction = self.spin_left_right_margin_fraction.value()
+        current_param.bottom_top_margin_fraction = self.spin_bottom_top_margin_fraction.value()
+        current_param.plot_image_w_fraction = self.spin_plot_image_w_fraction.value()
+        current_param.figure_size_factor = self.spin_figure_size_factor.value()
         for key in self.index_collection:
             if key in self.viewer.layers:
-                self.params_plots.index_colormap[key] = self.viewer.layers[key].colormap.name
-        self.params_plots.red_conrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
-        self.params_plots.green_conrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
-        self.params_plots.blue_conrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
-        self.params_plots.rgb_bands = self.rgbwidget.rgb
+                current_param.index_colormap[key] = self.viewer.layers[key].colormap.name
+        current_param.red_conrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
+        current_param.green_conrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
+        current_param.blue_conrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
+        current_param.rgb_bands = self.rgbwidget.rgb
 
     def _on_click_save_plot_parameters(self, event=None, file_path=None):
             
@@ -549,27 +570,29 @@ class SpectralIndexWidget(QWidget):
         if file_path is None:
             file_path = Path(str(QFileDialog.getOpenFileName(self, "Select plot parameters file")[0]))
         self.params_plots = load_plots_params(file_path=file_path)
-
-        self.spin_plot_thickness.setValue(self.params_plots.plot_thickness)
-        self.spin_title_font_factor.setValue(self.params_plots.title_font_factor)
-        self.spin_label_font_factor.setValue(self.params_plots.label_font_factor)
-        self.spin_scale_font_size.setValue(self.params_plots.scale_font_size)
-        self.spin_left_right_margin_fraction.setValue(self.params_plots.left_right_margin_fraction)
-        self.spin_bottom_top_margin_fraction.setValue(self.params_plots.bottom_top_margin_fraction)
-        self.spin_plot_image_w_fraction.setValue(self.params_plots.plot_image_w_fraction)
-        self.spin_figure_size_factor.setValue(self.params_plots.figure_size_factor)
-        self.qcolor_plotline.setCurrentColor(QColor(*[int(x*255) for x in self.params_plots.color_plotline]))
-        for key in self.params_plots.index_colormap:
-            if key in self.viewer.layers:
-                self.viewer.layers[key].colormap = self.params_plots.index_colormap[key]
-        self.viewer.layers['red'].contrast_limits = self.params_plots.red_conrast_limits
-        self.viewer.layers['green'].contrast_limits = self.params_plots.green_conrast_limits
-        self.viewer.layers['blue'].contrast_limits = self.params_plots.blue_conrast_limits
-        self.rgbwidget.rgb = self.params_plots.rgb_bands
-        
+        self.set_plot_interface(params=self.params_plots)
         self.rgbwidget._on_click_RGB()
         self.connect_plot_formatting()
         self.create_index_plot()
+
+    def set_plot_interface(self, params):
+        self.spin_plot_thickness.setValue(params.plot_thickness)
+        self.spin_title_font_factor.setValue(params.title_font_factor)
+        self.spin_label_font_factor.setValue(params.label_font_factor)
+        self.spin_scale_font_size.setValue(params.scale_font_size)
+        self.spin_left_right_margin_fraction.setValue(params.left_right_margin_fraction)
+        self.spin_bottom_top_margin_fraction.setValue(params.bottom_top_margin_fraction)
+        self.spin_plot_image_w_fraction.setValue(params.plot_image_w_fraction)
+        self.spin_figure_size_factor.setValue(params.figure_size_factor)
+        self.qcolor_plotline.setCurrentColor(QColor(*[int(x*255) for x in params.color_plotline]))
+        for key in params.index_colormap:
+            if key in self.viewer.layers:
+                self.viewer.layers[key].colormap = params.index_colormap[key]
+        self.viewer.layers['red'].contrast_limits = params.red_conrast_limits
+        self.viewer.layers['green'].contrast_limits = params.green_conrast_limits
+        self.viewer.layers['blue'].contrast_limits = params.blue_conrast_limits
+        self.rgbwidget.rgb = params.rgb_bands
+        
 
     def disconnect_plot_formatting(self):
         """Disconnect plot editing widgets while loading parameters to avoid overwriting
@@ -598,7 +621,39 @@ class SpectralIndexWidget(QWidget):
         self.spin_figure_size_factor.valueChanged.connect(self.create_index_plot)
         self.qcolor_plotline.currentColorChanged.connect(self.create_index_plot)
 
+    def index_map_and_proj(self, index_name):
+        toplot = self.viewer.layers[index_name].data
+        toplot[toplot == np.inf] = 0
+        percentiles = np.percentile(toplot, [1, 99])
+        toplot = np.clip(toplot, percentiles[0], percentiles[1])
+        if isinstance(toplot, da.Array):
+            toplot = toplot.compute()
+
+        proj = compute_index_projection(toplot, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+        
+        return toplot, proj
+    
+    def _on_click_create_single_index_plot(self, event=None):
+        self.current_plot_type = 'single'
+        self.disconnect_plot_formatting()
+        self.set_plot_interface(params=self.params_plots)
+        self.create_single_index_plot(event=event)
+        self.connect_plot_formatting()
+
+    def _on_click_create_multi_index_plot(self, event=None):
+        self.current_plot_type = 'multi'
+        self.disconnect_plot_formatting()
+        self.set_plot_interface(params=self.params_multiplots)
+        self.create_multi_index_plot(event=event)
+        self.connect_plot_formatting()
+    
     def create_index_plot(self, event=None):
+        if self.current_plot_type == 'single':
+            self.create_single_index_plot(event=event)
+        else:
+            self.create_multi_index_plot(event=event)
+
+    def create_single_index_plot(self, event=None):
         """Create the index plot."""
 
         self._update_save_plot_parameters()
@@ -607,20 +662,17 @@ class SpectralIndexWidget(QWidget):
         rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
         if self.qcom_indices.currentText() not in self.viewer.layers:
             self._on_click_compute_index(event=None)
-        toplot = self.viewer.layers[self.qcom_indices.currentText()].data
-        toplot[toplot == np.inf] = 0
-        percentiles = np.percentile(toplot, [1, 99])
-        toplot = np.clip(toplot, percentiles[0], percentiles[1])
+        
         mask = self.viewer.layers['mask'].data
 
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
-        if isinstance(toplot, da.Array):
-            toplot = toplot.compute()
+
+        toplot, proj = self.index_map_and_proj(index_name=self.qcom_indices.currentText())
 
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-            rgb_image=rgb_image, mask=mask, index_image=toplot, index_name=self.qcom_indices.currentText(),
+            rgb_image=rgb_image, mask=mask, index_image=toplot, proj=proj, index_name=self.qcom_indices.currentText(),
                                 format_dict=format_dict, scale=self.params.scale,
                                 location=self.params.location, fig=self.index_plot_live.figure, 
                                 roi=self.viewer.layers['rois'].data[0])
@@ -629,6 +681,24 @@ class SpectralIndexWidget(QWidget):
         self.index_plot_live.figure.savefig(
             self.export_folder.joinpath('temp.png'),
             dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
+        
+        '''import napari
+        if self.viewer2 is None:
+            self.viewer2 = napari.Viewer()
+            from qtpy.QtWidgets import QApplication
+            app = QApplication.instance()
+            app.lastWindowClosed.connect(self.on_close_callback)  
+            self.viewer2.open(self.export_folder.joinpath('temp.png'))
+        else:
+            try:
+                self.viewer2.open(self.export_folder.joinpath('temp.png'))
+            except:
+                del self.viewer2
+                self.viewer2 = napari.Viewer()
+                from qtpy.QtWidgets import QApplication
+                app = QApplication.instance()
+                app.lastWindowClosed.connect(self.on_close_callback)  
+                self.viewer2.open(self.export_folder.joinpath('temp.png'))'''
 
         # update napari preview
         if self.pix_width is None:
@@ -650,6 +720,47 @@ class SpectralIndexWidget(QWidget):
         #vsize = self.viewer.window.geometry()
         #self.viewer.window.resize(vsize[2]-10,vsize[3]-10)
         #self.viewer.window.resize(vsize[2],vsize[3])
+
+    def create_multi_index_plot(self, event=None):
+        
+        print('Creating multi-index plot')
+        self._update_save_plot_parameters()
+        # get rgb image and index image to plot
+        rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
+        if isinstance(rgb_image[0], da.Array):
+            rgb_image = [x.compute() for x in rgb_image]
+        
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        all_proj = []
+        all_spectral_indices = []
+        for i in index_series:
+            computed_index = self.compute_index(self.index_collection[i.index_name])
+            proj = compute_index_projection(computed_index, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+            all_spectral_indices.append(computed_index)
+            all_proj.append(proj)
+        from .spectralplot import plot_multi_spectral_profile
+        format_dict = asdict(self.params_multiplots)
+        plot_multi_spectral_profile(
+            rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
+            proj=all_proj, index_name=[x.index_name for x in index_series], 
+            format_dict=format_dict, fig=self.index_plot_live.figure)
+        
+        # save temporary low-res figure for display in napari
+        self.index_plot_live.figure.savefig(
+            self.export_folder.joinpath('temp.png'),
+            dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
+        
+        # update napari preview
+        if self.pix_width is None:
+            self.pix_width = self.pixlabel.size().width()
+            self.pix_height = self.pixlabel.size().height()
+        self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
+        self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
+        self.scrollArea.show()
+
+
+    def on_close_callback(self):
+        print('Viewer closed')
 
     def _on_resize_pixlabel(self, event=None):
 
@@ -688,6 +799,20 @@ class SpectralIndexWidget(QWidget):
             export_file = self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
         self.index_plot_live.figure.savefig(
             fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
+        self._on_export_index_projection()
+
+    def _on_export_index_projection(self, event=None):
+
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        proj_pd = None
+        for i in index_series:
+            computed_index = self.compute_index(self.index_collection[i.index_name])
+            proj = compute_index_projection(computed_index, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+            if proj_pd is None:
+                proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
+            proj_pd[i.index_name] = proj
+
+        proj_pd.to_csv(self.export_folder.joinpath('index_projection.csv'), index=False)
 
     def _on_click_open_plotline_color_dialog(self, event=None):
         """Show label color dialog"""
@@ -759,7 +884,36 @@ class SpectralIndexWidget(QWidget):
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[1]
             self.index_collection[name].middle_band = None            
-            
+
+    def compute_index(self, spectral_index):
+        """Compute the index and add to napari."""
+
+        if spectral_index.index_type == 'RABD':
+            computed_index = compute_index_RABD(
+                left=spectral_index.left_band,
+                trough=spectral_index.middle_band,
+                right=spectral_index.right_band,
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
+        elif spectral_index.index_type == 'RABA':
+            computed_index = compute_index_RABA(
+                left=spectral_index.left_band,
+                right=spectral_index.right_band,
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
+        elif spectral_index.index_type == 'Ratio':
+            computed_index = compute_index_ratio(
+                left=spectral_index.left_band,
+                right=spectral_index.right_band,
+                row_bounds=self.row_bounds,
+                col_bounds=self.col_bounds,
+                imagechannels=self.imagechannels)
+        else:
+            print(f'unknown index type: {spectral_index.index_type}')
+            return None
+        return computed_index
 
     def _on_click_compute_index(self, event):
         """Compute the index and add to napari."""
