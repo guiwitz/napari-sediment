@@ -150,7 +150,8 @@ class SpectralIndexWidget(QWidget):
         #self.index_plot = SpectralPlotter(napari_viewer=self.viewer)
         #self.tabs.add_named_tab('P&lots', self.index_plot)
 
-        self.pixlabel = ScaledPixmapLabel()#QLabel()
+        self.pixlabel = QLabel()
+        #self.pixlabel = ScaledPixmapLabel()#QLabel()
         '''self.pixlabel.setSizePolicy(
             QSizePolicy.Expanding,
             QSizePolicy.Expanding
@@ -707,9 +708,8 @@ class SpectralIndexWidget(QWidget):
             self.pix_width = self.pixlabel.size().width()
             self.pix_height = self.pixlabel.size().height()
         self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
-        #self.pixlabel.setPixmap(self.pixmap.scaled(self.pixlabel.size().width(), self.pixlabel.size().height(), Qt.KeepAspectRatio))
-        self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
-        #self.pixlabel.show()
+        #self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
+        self.pixlabel.setPixmap(self.pixmap)
         self.scrollArea.show()
         '''if self.pixlabel.size().height() < self.pixlabel.size().width():
             self.pixlabel.setPixmap(self.pixmap.scaledToWidth(self.pixlabel.size().width()))
@@ -725,7 +725,6 @@ class SpectralIndexWidget(QWidget):
 
     def create_multi_index_plot(self, event=None):
         
-        print('Creating multi-index plot')
         self._update_save_plot_parameters()
         # get rgb image and index image to plot
         rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
@@ -757,7 +756,8 @@ class SpectralIndexWidget(QWidget):
             self.pix_width = self.pixlabel.size().width()
             self.pix_height = self.pixlabel.size().height()
         self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
-        self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
+        #self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
+        self.pixlabel.setPixmap(self.pixmap)
         self.scrollArea.show()
 
 
