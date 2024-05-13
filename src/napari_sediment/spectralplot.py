@@ -35,7 +35,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
 
     rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
     rgb_to_plot[mask==1,:] = 0
-    
+
     # The plot has the same height as the image and 6 times the width
     # Two two images take 1 width and the plot 4
     # In addition there are margins on all sides, specified in fractions of the image dimesions
@@ -91,13 +91,14 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     ax1.add_artist(scalebary)
 
     if roi is not None:
+        roi[1,0] -=0.5
+        roi[2,0] -=0.5
+        roi[0,0] -=0.4
+        roi[3,0] -=0.4
         roi = np.concatenate([roi, roi[[0]]])
         ax2.plot(roi[:,1], roi[:,0], 'r')
     
-    ax3.plot(proj, np.arange(len(proj)),
-                color=np.array(color_plotline),
-                linewidth=plot_thickness)
-        
+    ax3.plot(proj, np.arange(len(proj)), color=np.array(color_plotline), linewidth=plot_thickness)
 
     ax3.set_ylim(0, len(proj))
     ax3.yaxis.tick_right()
@@ -114,7 +115,8 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
         label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
     
-    ax2.set_ylim(len(proj),0)
+    #ax2.set_ylim(im_h, -0.5)
+    #ax2.invert_yaxis()
     ax1.set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
     fig.suptitle(index_name + '\n' + location,
                     fontsize=int(fig_size[1] * 72 * title_font_factor))
@@ -181,6 +183,7 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
             axes[-1].set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
         axes[-1].invert_yaxis()
         axes[-1].set_title(index_name[i])
+    
     axes.append(fig.add_axes(rect=(left_margin+(halfplot*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
     axes[-1].imshow(rgb_to_plot)
     axes[-1].yaxis.set_visible(False)
@@ -188,9 +191,12 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     if roi is not None:
         roi[1,0] -=0.5
         roi[2,0] -=0.5
+        roi[0,0] -=0.4
+        roi[3,0] -=0.4
         roi = np.concatenate([roi, roi[[0]]])
         axes[-1].plot(roi[:,1], roi[:,0], 'r')
-    axes[-1].set_ylim(im_h, 0)
+    #axes[-1].set_ylim(im_h, 0)
+    #axes[-1].invert_yaxis()
 
     for ax in axes:
         for label in (ax.get_yticklabels() + ax.get_yticklabels() + ax.get_xticklabels()):
