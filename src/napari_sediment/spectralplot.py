@@ -34,7 +34,8 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     mpl_map = newmap.to_matplotlib()
 
     rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
-
+    rgb_to_plot[mask==1,:] = 0
+    
     # The plot has the same height as the image and 6 times the width
     # Two two images take 1 width and the plot 4
     # In addition there are margins on all sides, specified in fractions of the image dimesions
@@ -138,6 +139,7 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     blue_conrast_limits = format_dict['blue_conrast_limits']
     
     rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
+    rgb_to_plot[mask==1,:] = 0
 
     im_h = rgb_image[0].shape[0]
     im_w = rgb_image[0].shape[1]
