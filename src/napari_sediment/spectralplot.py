@@ -91,6 +91,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     ax1.add_artist(scalebary)
 
     if roi is not None:
+        roi = roi.copy()
         roi[1,0] -=0.5
         roi[2,0] -=0.5
         roi[0,0] -=0.4
@@ -115,7 +116,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
         label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
     
-    #ax2.set_ylim(im_h, -0.5)
+    ax2.set_ylim(im_h-0.5, -0.5)
     #ax2.invert_yaxis()
     ax1.set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
     fig.suptitle(index_name + '\n' + location,
@@ -182,20 +183,21 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
         if i==0:
             axes[-1].set_ylabel('depth [mm]', fontsize=int(label_font_factor*im_h))
         axes[-1].invert_yaxis()
-        axes[-1].set_title(index_name[i])
+        axes[-1].set_title(index_name[i], fontsize=int(fig_size[1] * 72 * title_font_factor))
     
     axes.append(fig.add_axes(rect=(left_margin+(halfplot*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
     axes[-1].imshow(rgb_to_plot)
     axes[-1].yaxis.set_visible(False)
     axes[-1].xaxis.set_visible(False)
     if roi is not None:
+        roi = roi.copy()
         roi[1,0] -=0.5
         roi[2,0] -=0.5
         roi[0,0] -=0.4
         roi[3,0] -=0.4
         roi = np.concatenate([roi, roi[[0]]])
         axes[-1].plot(roi[:,1], roi[:,0], 'r')
-    #axes[-1].set_ylim(im_h, 0)
+    axes[-1].set_ylim(im_h-0.5, -0.5)
     #axes[-1].invert_yaxis()
 
     for ax in axes:
