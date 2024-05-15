@@ -742,12 +742,12 @@ class SedimentWidget(QWidget):
         if cursor_pos is None:
             cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
             
-        if self.mainroi_min_row is None:
+        if self.row_bounds is None:
             min_row = 0
             max_row = self.imagechannels.nrows
         else:
-            min_row = self.mainroi_min_row
-            max_row = self.mainroi_max_row
+            min_row = self.row_bounds[0]
+            max_row = self.row_bounds[1]
         new_roi = [
             [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
             [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
@@ -811,7 +811,8 @@ class SedimentWidget(QWidget):
             elif selected_layer == 'RGB':
                 channel_indices = np.sort(self.rgb_widget.rgb_ch)
 
-            col_bounds = (self.col_bounds if self.check_main_crop.isChecked() else None)
+            #col_bounds = (self.col_bounds if self.check_main_crop.isChecked() else None)
+            col_bounds = self.col_bounds
             white_data, dark_data, dark_for_white_data = load_white_dark(
                 white_file_path=self.white_file_path,
                 dark_for_im_file_path=self.dark_for_im_file_path,
