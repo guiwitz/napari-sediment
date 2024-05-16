@@ -166,12 +166,12 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
 
-        self.btn_select_dark_for_white_file = QPushButton("Manual selection")
+        self.btn_select_dark_for_im_file = QPushButton("Manual selection")
         self.qtext_select_dark_for_white_file = QLineEdit()
         self.qtext_select_dark_for_white_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('Dark ref for White'), 2, 0, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 2, 0, 1, 1)
         self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_dark_for_white_file, 2, 2, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 2, 2, 1, 1)
         self.combo_layer_background = QComboBox()
         self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
         self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
@@ -451,7 +451,7 @@ class SedimentWidget(QWidget):
         self.btn_select_imhdr_file.clicked.connect(self._on_click_select_imhdr)
         self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
-        self.btn_select_dark_for_white_file.clicked.connect(self._on_click_select_dark_for_white_file)
+        self.btn_select_dark_for_im_file.clicked.connect(self._on_click_select_dark_for_im_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
         self.rgb_widget.btn_RGB.clicked.connect(self._update_threshold_limits)
@@ -531,7 +531,7 @@ class SedimentWidget(QWidget):
         self.dark_for_white_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref ofr white")[0])
         self.qtext_select_dark_file.setText(self.dark_for_white_file_path.as_posix())
 
-    def _on_click_select_dark_for_white_file(self):
+    def _on_click_select_dark_for_im_file(self):
         """Interactively select white reference"""
         
         self.dark_for_im_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0])
