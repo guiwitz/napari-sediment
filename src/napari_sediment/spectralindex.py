@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 import numpy as np
+from scipy.signal import savgol_filter
 
 from .sediproc import find_index_of_band
 
@@ -178,7 +179,7 @@ def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
     ratio = np.asarray(ratio, np.float32)
     return ratio
 
-def compute_index_projection(index_image, mask, colmin, colmax):
+def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=None):
     """Compute the projection of the index map.
     
     Parameters
@@ -191,6 +192,8 @@ def compute_index_projection(index_image, mask, colmin, colmax):
         minimum column
     colmax: int
         maximum column
+    smooth_window: int
+        window size for smoothing the projection
 
     Returns
     -------
@@ -199,6 +202,11 @@ def compute_index_projection(index_image, mask, colmin, colmax):
     """
     index_image[mask==1] = np.nan
     proj = np.nanmean(index_image[:,colmin:colmax],axis=1)
+
+    if smooth_window is not None:
+        proj = savgol_filter(proj, window_length=smooth_window, polyorder=3)
+
+
     return proj
 
         

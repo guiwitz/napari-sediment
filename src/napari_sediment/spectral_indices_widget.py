@@ -10,7 +10,8 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QColorDialog, QScrollArea)
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
-from superqt import QLabeledDoubleRangeSlider
+from superqt import QLabeledDoubleRangeSlider, QDoubleSlider
+
 from napari.utils import progress
 import pandas as pd
 from microfilm import colorify
@@ -135,6 +136,16 @@ class SpectralIndexWidget(QWidget):
         self.index_pick_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('I&O', self.index_pick_group.gbox)
         self._create_index_io_pick()
+
+        self.check_smooth_projection = QCheckBox("Smooth projection")
+        self.tabs.add_named_tab('I&O', self.check_smooth_projection)  
+        self.slider_index_savgol = QDoubleSlider(Qt.Horizontal)
+        self.slider_index_savgol.setRange(1, 100)
+        self.slider_index_savgol.setSingleStep(1)
+        self.slider_index_savgol.setSliderPosition(5)
+        self.tabs.add_named_tab('I&O', QLabel('Smoothing window size'))
+        self.tabs.add_named_tab('I&O', self.slider_index_savgol)
+
         self.btn_export_index_settings = QPushButton("Export index settings")
         self.tabs.add_named_tab('I&O', self.btn_export_index_settings)
         self.btn_import_index_settings = QPushButton("Import index settings")
@@ -632,9 +643,18 @@ class SpectralIndexWidget(QWidget):
         if isinstance(toplot, da.Array):
             toplot = toplot.compute()
 
-        proj = compute_index_projection(toplot, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+        proj = compute_index_projection(
+            toplot, self.viewer.layers['mask'].data,
+            self.col_bounds[0], self.col_bounds[1],
+            smooth_window=self.get_smoothing_window())
         
         return toplot, proj
+    
+    def get_smoothing_window(self):
+        if self.check_smooth_projection.isChecked():
+            return int(self.slider_index_savgol.value())
+        else:
+            return None
     
     def _on_click_create_single_index_plot(self, event=None):
         self.current_plot_type = 'single'
@@ -736,7 +756,10 @@ class SpectralIndexWidget(QWidget):
         all_spectral_indices = []
         for i in index_series:
             computed_index = self.compute_index(self.index_collection[i.index_name])
-            proj = compute_index_projection(computed_index, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+            proj = compute_index_projection(
+                computed_index, self.viewer.layers['mask'].data,
+                self.col_bounds[0], self.col_bounds[1],
+                smooth_window=self.get_smoothing_window())
             all_spectral_indices.append(computed_index)
             all_proj.append(proj)
         from .spectralplot import plot_multi_spectral_profile
@@ -811,7 +834,11 @@ class SpectralIndexWidget(QWidget):
         proj_pd = None
         for i in index_series:
             computed_index = self.compute_index(self.index_collection[i.index_name])
-            proj = compute_index_projection(computed_index, self.viewer.layers['mask'].data, self.col_bounds[0], self.col_bounds[1])
+            proj = compute_index_projection(
+                computed_index,
+                self.viewer.layers['mask'].data,
+                self.col_bounds[0], self.col_bounds[1],
+                smooth_window=self.get_smoothing_window())
             if proj_pd is None:
                 proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
             proj_pd[i.index_name] = proj
