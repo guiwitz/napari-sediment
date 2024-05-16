@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 import numpy as np
 from scipy.signal import savgol_filter
+import dask.array as da
 
 from .sediproc import find_index_of_band
 
@@ -178,6 +179,17 @@ def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
     ratio = numerator_denominator[0] / (numerator_denominator[1] + 0.0000001)
     ratio = np.asarray(ratio, np.float32)
     return ratio
+
+def clean_index_map(index_map):
+
+    index_map = index_map.copy()
+    index_map[index_map == np.inf] = 0
+    percentiles = np.percentile(index_map, [1, 99])
+    index_map = np.clip(index_map, percentiles[0], percentiles[1])
+    if isinstance(index_map, da.Array):
+        index_map = index_map.compute()
+
+    return index_map
 
 def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=None):
     """Compute the projection of the index map.

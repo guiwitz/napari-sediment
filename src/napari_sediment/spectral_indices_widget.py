@@ -24,12 +24,12 @@ from .parameters.parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, load_plots_params
 from .imchannels import ImChannels
 from .sediproc import find_index_of_band
-from .spectralplot import SpectralPlotter, plot_spectral_profile
+from .spectralplot import SpectralPlotter, plot_spectral_profile, plot_multi_spectral_profile
 from .widgets.channel_widget import ChannelWidget
 from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
-                            compute_index_ratio, compute_index_projection)
+                            compute_index_ratio, compute_index_projection, clean_index_map)
 from .io import load_mask, get_mask_path
 
 
@@ -636,12 +636,9 @@ class SpectralIndexWidget(QWidget):
         self.qcolor_plotline.currentColorChanged.connect(self.create_index_plot)
 
     def index_map_and_proj(self, index_name):
+        
         toplot = self.viewer.layers[index_name].data
-        toplot[toplot == np.inf] = 0
-        percentiles = np.percentile(toplot, [1, 99])
-        toplot = np.clip(toplot, percentiles[0], percentiles[1])
-        if isinstance(toplot, da.Array):
-            toplot = toplot.compute()
+        toplot = clean_index_map(toplot)
 
         proj = compute_index_projection(
             toplot, self.viewer.layers['mask'].data,
@@ -649,6 +646,7 @@ class SpectralIndexWidget(QWidget):
             smooth_window=self.get_smoothing_window())
         
         return toplot, proj
+    
     
     def get_smoothing_window(self):
         if self.check_smooth_projection.isChecked():
@@ -756,13 +754,14 @@ class SpectralIndexWidget(QWidget):
         all_spectral_indices = []
         for i in index_series:
             computed_index = self.compute_index(self.index_collection[i.index_name])
+            computed_index = clean_index_map(computed_index)
             proj = compute_index_projection(
                 computed_index, self.viewer.layers['mask'].data,
                 self.col_bounds[0], self.col_bounds[1],
                 smooth_window=self.get_smoothing_window())
             all_spectral_indices.append(computed_index)
             all_proj.append(proj)
-        from .spectralplot import plot_multi_spectral_profile
+        
         format_dict = asdict(self.params_multiplots)
         plot_multi_spectral_profile(
             rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
@@ -834,6 +833,7 @@ class SpectralIndexWidget(QWidget):
         proj_pd = None
         for i in index_series:
             computed_index = self.compute_index(self.index_collection[i.index_name])
+            computed_index = clean_index_map(computed_index)
             proj = compute_index_projection(
                 computed_index,
                 self.viewer.layers['mask'].data,
