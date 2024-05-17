@@ -36,6 +36,10 @@ class SpectralIndex:
         default numerator band to compute ratio index
     denominator_band_default: int
         default denominator band to compute ratio index
+    index_map: np.ndarray
+        index map
+    index_projection: np.ndarray
+        index projection
     
     """
 
@@ -47,6 +51,8 @@ class SpectralIndex:
     left_band_default: int = None
     right_band_default: int = None
     middle_band_default: int = None
+    index_map: np.ndarray = None
+    index_proj: np.ndarray = None
     
     
     def __post_init__(self):

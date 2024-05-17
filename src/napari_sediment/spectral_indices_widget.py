@@ -3,6 +3,7 @@ from dataclasses import asdict
 import numpy as np
 import dask.array as da
 import matplotlib.pyplot as plt
+import warnings
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
                             QComboBox, QLineEdit, QSizePolicy,
@@ -120,16 +121,21 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('&Indices', self.em_plot, grid_pos=(tab_rows, 0, 1, 3))
         self.em_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range.setValue((0, 0, 0))
-        self.tabs.add_named_tab('&Indices', self.em_boundaries_range, grid_pos=(tab_rows+1, 0, 1, 3))
+        self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.em_boundaries_range2.setValue((0, 0))
+        self.tabs.add_named_tab('&Indices', QLabel('RABD'), grid_pos=(tab_rows+1, 0, 1, 1))
+        self.tabs.add_named_tab('&Indices', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
+        self.tabs.add_named_tab('&Indices', QLabel('RABA/Ratio'), grid_pos=(tab_rows+2, 0, 1, 1))
+        self.tabs.add_named_tab('&Indices', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
         self.btn_create_index = QPushButton("New index")
-        self.tabs.add_named_tab('&Indices', self.btn_create_index, grid_pos=(tab_rows+2, 0, 1, 1))
+        self.tabs.add_named_tab('&Indices', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
         self.qtext_new_index_name = QLineEdit()
-        self.tabs.add_named_tab('&Indices', self.qtext_new_index_name, grid_pos=(tab_rows+2, 1, 1, 2))
+        self.tabs.add_named_tab('&Indices', self.qtext_new_index_name, grid_pos=(tab_rows+3, 1, 1, 2))
         self.btn_update_index = QPushButton("Update current index")
-        self.tabs.add_named_tab('&Indices', self.btn_update_index, grid_pos=(tab_rows+3, 0, 1, 1))
+        self.tabs.add_named_tab('&Indices', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
 
         self.btn_compute_RABD = QPushButton("Compute Index")
-        self.tabs.add_named_tab('&Indices', self.btn_compute_RABD, grid_pos=(tab_rows+4, 0, 1, 3))
+        self.tabs.add_named_tab('&Indices', self.btn_compute_RABD, grid_pos=(tab_rows+5, 0, 1, 3))
 
         # I&O tab
         self.index_pick_group = VHGroup('&Indices', orientation='G')
@@ -345,6 +351,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
+        self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
         self.btn_compute_RABD.clicked.connect(self._on_click_compute_index)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
         self.btn_update_index.clicked.connect(self._on_click_update_index)
@@ -378,9 +385,13 @@ class SpectralIndexWidget(QWidget):
 
     def _on_change_spin_bounds(self, event=None):
 
-        self.em_boundaries_range.setValue(
-            (self.spin_index_left.value(), self.spin_index_middle.value(),
-              self.spin_index_right.value()))
+        if self.current_index_type == 'RABD':
+            self.em_boundaries_range.setValue(
+                (self.spin_index_left.value(), self.spin_index_middle.value(),
+                self.spin_index_right.value()))
+        else:
+            self.em_boundaries_range2.setValue(
+                (self.spin_index_left.value(), self.spin_index_right.value()))
     
     def _on_click_select_export_folder(self, event=None, export_folder=None):
         """Interactively select folder to analyze"""
@@ -428,7 +439,9 @@ class SpectralIndexWidget(QWidget):
         self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
         self.em_boundaries_range.setValue(
             (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
-        
+        self.em_boundaries_range2.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
+        self.em_boundaries_range2.setValue(
+            (self.endmember_bands[0], self.endmember_bands[-1]))
         self.plot_endmembers()
         self._on_change_index_index()
 
@@ -502,12 +515,13 @@ class SpectralIndexWidget(QWidget):
         #self._disconnect_spin_bounds()
         # update from interactive limit change
         if type(event) == tuple:
-            current_triplet = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
-            if len(current_triplet) == 3:
+            if self.current_index_type == 'RABD':
+                current_triplet = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
                 self.spin_index_left.setValue(current_triplet[0])
                 self.spin_index_middle.setValue(current_triplet[1])
                 self.spin_index_right.setValue(current_triplet[2])
-            elif len(current_triplet) == 2:
+            else:
+                current_triplet = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
                 self.spin_index_left.setValue(current_triplet[0])
                 self.spin_index_right.setValue(current_triplet[1])
             
@@ -515,16 +529,17 @@ class SpectralIndexWidget(QWidget):
         else:
             if self.current_index_type == 'RABD':
                 current_triplet = [self.spin_index_left.value(), self.spin_index_middle.value(), self.spin_index_right.value()]
+                current_triplet = [float(x) for x in current_triplet]
+                self.em_boundaries_range.setValue(current_triplet)
             else:
                 current_triplet = [self.spin_index_left.value(), self.spin_index_right.value()]
-            current_triplet = [float(x) for x in current_triplet]
-
-            self.em_boundaries_range.setValue(current_triplet)
+                current_triplet = [float(x) for x in current_triplet]
+                self.em_boundaries_range2.setValue(current_triplet)
 
         if self.em_boundary_lines is not None:
-                num_lines = len(self.em_boundary_lines)
-                for i in range(num_lines):
-                    self.em_boundary_lines.pop(0).remove()
+            num_lines = len(self.em_boundary_lines)
+            for i in range(num_lines):
+                self.em_boundary_lines.pop(0).remove()
 
         if self.end_members is not None:
             ymin = self.end_members.min()
@@ -537,12 +552,15 @@ class SpectralIndexWidget(QWidget):
                 x_toplot = current_triplet
                 ymin_toplot = 2*[ymin]
                 ymax_toplot = 2*[ymax]
-            self.em_boundary_lines = self.em_plot.axes.plot(
-                [x_toplot, x_toplot],
-                [
-                    ymin_toplot, ymax_toplot
-                ], 'r--'
+            
+            try:
+                self.em_boundary_lines = self.em_plot.axes.plot(
+                    [x_toplot, x_toplot],
+                    [ymin_toplot, ymax_toplot],
+                    'r--'
             )
+            except:
+                pass
             self.em_plot.figure.canvas.draw()
         
         #self._connect_spin_bounds()
@@ -681,20 +699,36 @@ class SpectralIndexWidget(QWidget):
 
         # get rgb image and index image to plot
         rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
-        if self.qcom_indices.currentText() not in self.viewer.layers:
-            self._on_click_compute_index(event=None)
-        
-        mask = self.viewer.layers['mask'].data
-
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
 
-        toplot, proj = self.index_map_and_proj(index_name=self.qcom_indices.currentText())
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        if len(index_series) == 0:
+            warnings.warn('No index selected') 
+            return
+        elif len(index_series) > 1:
+            warnings.warn('Multiple indices selected, only the first one will be plotted')
+
+        mask = self.viewer.layers['mask'].data
+
+        if self.index_collection[index_series[0].index_name].index_map is None:
+            computed_index = self.compute_index(self.index_collection[index_series[0].index_name])
+            computed_index = clean_index_map(computed_index)
+            proj = compute_index_projection(
+                computed_index, mask,
+                self.col_bounds[0], self.col_bounds[1],
+                smooth_window=self.get_smoothing_window())
+            self.index_collection[index_series[0].index_name].index_map = computed_index
+            self.index_collection[index_series[0].index_name].index_proj = proj
+        else:
+            computed_index = self.index_collection[index_series[0].index_name].index_map
+            proj = self.index_collection[index_series[0].index_name].index_proj   
 
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-            rgb_image=rgb_image, mask=mask, index_image=toplot, proj=proj, index_name=self.qcom_indices.currentText(),
-                                format_dict=format_dict, scale=self.params.scale,
+            rgb_image=rgb_image, mask=mask, index_image=computed_index, proj=proj,
+            index_name=index_series[0].index_name,
+            format_dict=format_dict, scale=self.params.scale,
                                 location=self.params.location, fig=self.index_plot_live.figure, 
                                 roi=self.viewer.layers['rois'].data[0])
 
@@ -702,24 +736,6 @@ class SpectralIndexWidget(QWidget):
         self.index_plot_live.figure.savefig(
             self.export_folder.joinpath('temp.png'),
             dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
-        
-        '''import napari
-        if self.viewer2 is None:
-            self.viewer2 = napari.Viewer()
-            from qtpy.QtWidgets import QApplication
-            app = QApplication.instance()
-            app.lastWindowClosed.connect(self.on_close_callback)  
-            self.viewer2.open(self.export_folder.joinpath('temp.png'))
-        else:
-            try:
-                self.viewer2.open(self.export_folder.joinpath('temp.png'))
-            except:
-                del self.viewer2
-                self.viewer2 = napari.Viewer()
-                from qtpy.QtWidgets import QApplication
-                app = QApplication.instance()
-                app.lastWindowClosed.connect(self.on_close_callback)  
-                self.viewer2.open(self.export_folder.joinpath('temp.png'))'''
 
         # update napari preview
         if self.pix_width is None:
@@ -753,12 +769,18 @@ class SpectralIndexWidget(QWidget):
         all_proj = []
         all_spectral_indices = []
         for i in index_series:
-            computed_index = self.compute_index(self.index_collection[i.index_name])
-            computed_index = clean_index_map(computed_index)
-            proj = compute_index_projection(
-                computed_index, self.viewer.layers['mask'].data,
-                self.col_bounds[0], self.col_bounds[1],
-                smooth_window=self.get_smoothing_window())
+            if self.index_collection[i.index_name].index_map is None:
+                computed_index = self.compute_index(self.index_collection[i.index_name])
+                computed_index = clean_index_map(computed_index)
+                proj = compute_index_projection(
+                    computed_index, self.viewer.layers['mask'].data,
+                    self.col_bounds[0], self.col_bounds[1],
+                    smooth_window=self.get_smoothing_window())
+                self.index_collection[i.index_name].index_map = computed_index
+                self.index_collection[i.index_name].index_proj = proj
+            else:
+                computed_index = self.index_collection[i.index_name].index_map
+                proj = self.index_collection[i.index_name].index_proj   
             all_spectral_indices.append(computed_index)
             all_proj.append(proj)
         
@@ -832,13 +854,20 @@ class SpectralIndexWidget(QWidget):
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         proj_pd = None
         for i in index_series:
-            computed_index = self.compute_index(self.index_collection[i.index_name])
-            computed_index = clean_index_map(computed_index)
-            proj = compute_index_projection(
-                computed_index,
-                self.viewer.layers['mask'].data,
-                self.col_bounds[0], self.col_bounds[1],
-                smooth_window=self.get_smoothing_window())
+            if self.index_collection[i.index_name].index_map is None:
+                computed_index = self.compute_index(self.index_collection[i.index_name])
+                computed_index = clean_index_map(computed_index)
+                proj = compute_index_projection(
+                    computed_index,
+                    self.viewer.layers['mask'].data,
+                    self.col_bounds[0], self.col_bounds[1],
+                    smooth_window=self.get_smoothing_window())
+                self.index_collection[i.index_name].index_map = computed_index
+                self.index_collection[i.index_name].index_proj = proj
+            else:
+                computed_index = self.index_collection[i.index_name].index_map
+                proj = self.index_collection[i.index_name].index_proj
+            
             if proj_pd is None:
                 proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
             proj_pd[i.index_name] = proj
@@ -867,9 +896,9 @@ class SpectralIndexWidget(QWidget):
     def _on_click_new_index(self, event):
         """Add new custom index"""
 
-        current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
         name = self.qtext_new_index_name.text()
         if self.current_index_type == 'RABD':
+            current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
             self.index_collection[name] = SpectralIndex(index_name=name,
                               index_type='RABD',
                               left_band_default=current_bands[0],
@@ -878,12 +907,14 @@ class SpectralIndexWidget(QWidget):
                               )
             
         elif self.current_index_type == 'RABA':
+            current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
             self.index_collection[name] = SpectralIndex(index_name=name,
                               index_type='RABA',
                               left_band_default=current_bands[0],
                               right_band_default=current_bands[1],
                               )
         elif self.current_index_type == 'ratio':
+            current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
             self.index_collection[name] = SpectralIndex(index_name=name,
                               index_type='ratio',
                               left_band_default=current_bands[0],
@@ -904,14 +935,15 @@ class SpectralIndexWidget(QWidget):
     def _on_click_update_index(self, event):
         """Update the current index."""
 
-        current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
         name = self.qcom_indices.currentText()
         
         if self.current_index_type == 'RABD':
+            current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[2]
             self.index_collection[name].middle_band = current_bands[1]
         else:
+            current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[1]
             self.index_collection[name].middle_band = None            
@@ -1015,6 +1047,7 @@ class SpectralIndexWidget(QWidget):
 
         index_series = [pd.Series(asdict(x)) for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         index_table = pd.DataFrame(index_series)
+        index_table.drop(columns=['index_map', 'index_proj'], inplace=True)
         if file_path is None:
             file_path = Path(str(QFileDialog.getSaveFileName(self, "Select index settings file")[0]))
         if file_path.suffix != '.csv':
