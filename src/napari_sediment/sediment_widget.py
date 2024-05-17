@@ -1203,13 +1203,19 @@ class SedimentWidget(QWidget):
             self._on_click_select_export_folder()
 
         if 'main-roi' not in self.viewer.layers:
-            mainroi = []
+            mainroi = [[self.row_bounds[0], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[1],
+                          self.row_bounds[0], self.col_bounds[1]]]
         else:
             mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
             mainroi = [[x.item() for x in y] for y in mainroi]
 
         if 'rois' not in self.viewer.layers:
-            rois = []
+            rois = [[self.row_bounds[0], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[1],
+                          self.row_bounds[0], self.col_bounds[1]]]
         else:
             rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
             rois = [[x.item() for x in y] for y in rois]
