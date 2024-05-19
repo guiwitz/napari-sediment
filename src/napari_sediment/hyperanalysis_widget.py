@@ -33,15 +33,9 @@ class HyperAnalysisWidget(QWidget):
         
         self.viewer = napari_viewer
         self.params = Param()
-        self.params_endmembers = ParamEndMember()
-        self.eigen_line = None
-        self.corr_line = None
-        self.corr_limit_line = None
-        self.ppi_boundary_lines = None
         self.export_folder = None
-        self.selected_bands = None
-        self.end_members = None
-        self.end_members_raw = None
+
+        self.var_init()
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -63,6 +57,11 @@ class HyperAnalysisWidget(QWidget):
         self.check_load_corrected = QCheckBox("Load corrected data")
         self.check_load_corrected.setChecked(True)
         self.files_group.glayout.addWidget(self.check_load_corrected, 3, 0, 1, 2)
+        self.spin_selected_roi = QSpinBox()
+        self.spin_selected_roi.setRange(0, 0)
+        self.spin_selected_roi.setValue(0)
+        self.files_group.glayout.addWidget(QLabel('Selected ROI'), 4, 0, 1, 1)
+        self.files_group.glayout.addWidget(self.spin_selected_roi, 4, 1, 1, 1)
 
         # channel selection
         self.main_group = VHGroup('Bands', orientation='G')
@@ -75,15 +74,15 @@ class HyperAnalysisWidget(QWidget):
         self.btn_select_all = QPushButton("Select all")
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
-        self.rgbwidget = RGBWidget(viewer=self.viewer)
+        self.rgbwidget = RGBWidget(viewer=self.viewer, translate=False)
         self.tabs.add_named_tab('Main', self.rgbwidget.rgbmain_group.gbox)
 
         self.process_group_io = VHGroup('IO', orientation='G')
         self.tabs.add_named_tab('Main', self.process_group_io.gbox)
         self.btn_save_index_project = QPushButton("Save index project")
         self.process_group_io.glayout.addWidget(self.btn_save_index_project)
-        self.btn_load_index_project = QPushButton("Load index project")
-        self.process_group_io.glayout.addWidget(self.btn_load_index_project)
+        #self.btn_load_index_project = QPushButton("Load index project")
+        #self.process_group_io.glayout.addWidget(self.btn_load_index_project)
 
          # Plot tab
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
@@ -97,6 +96,20 @@ class HyperAnalysisWidget(QWidget):
         # mouse
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
 
+    def var_init(self):
+
+        self.params_endmembers = ParamEndMember()
+        self.eigen_line = None
+        self.corr_line = None
+        self.corr_limit_line = None
+        self.ppi_boundary_lines = None
+        self.selected_bands = None
+        self.end_members = None
+        self.end_members_raw = None
+        self.eigenvals = None
+        self.mnfr = None
+        self.spectral_pixel = None
+        self.all_coef = []
 
     def _add_processing_tab(self):
 
@@ -216,12 +229,13 @@ class HyperAnalysisWidget(QWidget):
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
         self.btn_select_all.clicked.connect(self._on_click_select_all)
+        self.spin_selected_roi.valueChanged.connect(self.load_data)
         self.btn_mnfr.clicked.connect(self._on_click_mnfr)
         self.btn_reduce_mnfr.clicked.connect(self._on_click_reduce_mnfr_on_eigen)
         self.btn_reduce_correlation.clicked.connect(self._on_click_reduce_mnfr_on_correlation)
         self.btn_ppi.clicked.connect(self._on_click_ppi)
         self.btn_save_index_project.clicked.connect(self.save_index_project)
-        self.btn_load_index_project.clicked.connect(self.import_index_project)
+        #self.btn_load_index_project.clicked.connect(self.import_index_project)
         self.slider_corr_limit.valueChanged.connect(self._on_change_corr_limit)
         self.btn_update_endmembers.clicked.connect(self._on_click_update_endmembers)
         self.ppi_boundaries_range.valueChanged.connect(self._on_change_ppi_boundaries)
@@ -255,9 +269,29 @@ class HyperAnalysisWidget(QWidget):
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
         self.rois = np.array([np.array(x).reshape(4,2) for x in self.params.rois]).astype(int)
-        self.row_bounds = [self.rois[0][:,0].min(), self.rois[0][:,0].max()]
-        self.col_bounds = [self.rois[0][:,1].min(), self.rois[0][:,1].max()]
+        
+        self.spin_selected_roi.setRange(0, len(self.mainroi)-1)
+        self.load_data()
 
+
+    def load_data(self, event=None):
+
+        self.corr_plot.axes.clear()
+        self.eigen_plot.axes.clear()
+        self.ppi_plot.axes.clear()
+        
+        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
+        for r in to_remove:
+            self.viewer.layers.remove(r)
+        self.var_init()
+
+        self.row_bounds = [
+            self.rois[self.spin_selected_roi.value()][:,0].min(),
+            self.rois[self.spin_selected_roi.value()][:,0].max()]
+        self.col_bounds = [
+            self.rois[self.spin_selected_roi.value()][:,1].min(),
+            self.rois[self.spin_selected_roi.value()][:,1].max()]
+        
         self._on_click_load_mask()
 
         if self.check_load_corrected.isChecked():
@@ -272,19 +306,23 @@ class HyperAnalysisWidget(QWidget):
         self.rgbwidget._on_click_RGB()
 
         self._on_click_select_all()
+        if self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('Parameters_indices.yml').exists():
+            self.import_index_project()
+
 
     def import_index_project(self):
         """Import pre-processed project (corrected roi and mask) as well as denoised
         and/or reduced stacks"""
 
-        if self.export_folder is None:
-            self._on_click_select_export_folder()
+        #if self.export_folder is None:
+        #    self._on_click_select_export_folder()
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}')
 
         # import main project
-        self.import_project()
+        #self.import_project()
         
         # load index parameters
-        self.params_endmembers = load_endmember_params(folder=self.export_folder)
+        self.params_endmembers = load_endmember_params(folder=export_path)
 
         # update selected channels
         for i in range(self.params_endmembers.min_max_channel[0], self.params_endmembers.min_max_channel[1]+1):
@@ -323,7 +361,8 @@ class HyperAnalysisWidget(QWidget):
     def save_index_project(self):
         """Save parameters and stacks related to denoising/reduction"""
 
-        self.params_endmembers.project_path = self.export_folder.as_posix()
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}')
+        self.params_endmembers.project_path = export_path.as_posix()
         self.params_endmembers.min_max_channel = [
             int(self.qlist_channels.channel_indices[0]),
             int(self.qlist_channels.channel_indices[-1])]
@@ -341,51 +380,56 @@ class HyperAnalysisWidget(QWidget):
     def save_stacks(self):
         """Save denoised and reduced staks to zarr"""
 
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}')
+
         layer_names = ['mnfr', 'denoised', 'pure']
         for lname in layer_names:
             if lname in self.viewer.layers:
                 save_image_to_zarr(
                     image=self.viewer.layers[lname].data,
-                    zarr_path=self.export_folder.joinpath(f'{lname}.zarr')
+                    zarr_path=export_path.joinpath(f'{lname}.zarr')
                 )
     
     def load_stacks(self):
         """Load denoised and reduced staks from zarr"""
 
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
         for name in ['mnfr', 'denoised']:
-            if self.export_folder.joinpath(f'{name}.zarr').is_dir():
-                im = np.array(zarr.open_array(self.export_folder.joinpath(f'{name}.zarr')))
+            if export_path.joinpath(f'{name}.zarr').is_dir():
+                im = np.array(zarr.open_array(export_path.joinpath(f'{name}.zarr')))
                 self.viewer.add_image(im, name=name)
         
-        if self.export_folder.joinpath('pure.zarr').is_dir():
-            im = np.array(zarr.open_array(self.export_folder.joinpath('pure.zarr')))
+        if export_path.joinpath('pure.zarr').is_dir():
+            im = np.array(zarr.open_array(export_path.joinpath('pure.zarr')))
             self.viewer.add_labels(im, name='pure')
     
     def save_plots(self):
         """Save plots to csv"""
-            
+
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
         if self.eigenvals is not None:
             df = pd.DataFrame(self.eigenvals, columns=['eigenvalues'])
-            df.to_csv(self.export_folder.joinpath('eigenvalues.csv'), index=False)
+            df.to_csv(export_path.joinpath('eigenvalues.csv'), index=False)
         if self.all_coef is not None:
             df = pd.DataFrame(self.all_coef, columns=['correlation'])
-            df.to_csv(self.export_folder.joinpath('correlation.csv'), index=False)
+            df.to_csv(export_path.joinpath('correlation.csv'), index=False)
         if self.end_members is not None:
             df = pd.DataFrame(self.end_members, columns=np.arange(self.end_members.shape[1]))
             df['bands'] = self.qlist_channels.bands
-            df.to_csv(self.export_folder.joinpath('end_members.csv'), index=False)
+            df.to_csv(export_path.joinpath('end_members.csv'), index=False)
 
     def load_plots(self):
         """Load csv files"""
-            
-        if self.export_folder.joinpath('eigenvalues.csv').is_file():
-            self.eigenvals = pd.read_csv(self.export_folder.joinpath('eigenvalues.csv')).values
+        
+        export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
+        if export_path.joinpath('eigenvalues.csv').is_file():
+            self.eigenvals = pd.read_csv(export_path.joinpath('eigenvalues.csv')).values
             self.plot_eigenvals()
-        if self.export_folder.joinpath('correlation.csv').is_file():
-            self.all_coef = pd.read_csv(self.export_folder.joinpath('correlation.csv')).values
+        if export_path.joinpath('correlation.csv').is_file():
+            self.all_coef = pd.read_csv(export_path.joinpath('correlation.csv')).values
             self.plot_correlation()
-        if self.export_folder.joinpath('end_members.csv').is_file():
-            self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
+        if export_path.joinpath('end_members.csv').is_file():
+            self.end_members = pd.read_csv(export_path.joinpath('end_members.csv')).values
             self.end_members = self.end_members[:,:-1]
             self.plot_endmembers()
     
@@ -393,9 +437,9 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        main_roi_row_min = self.mainroi[0][:,0].min()
-        main_roi_col_min = self.mainroi[0][:,1].min()
-        mask = load_mask(get_mask_path(self.export_folder))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        main_roi_row_min = self.mainroi[self.spin_selected_roi.value()][:,0].min()
+        main_roi_col_min = self.mainroi[self.spin_selected_roi.value()][:,1].min()
+        mask = load_mask(get_mask_path(self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')))
         mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
                     self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
 

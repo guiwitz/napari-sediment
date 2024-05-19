@@ -107,11 +107,16 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('&Main', self.export_path_display)
         self.btn_load_project = QPushButton("Load project")
         self.tabs.add_named_tab('&Main', self.btn_load_project)
+        self.spin_selected_roi = QSpinBox()
+        self.spin_selected_roi.setRange(0, 0)
+        self.spin_selected_roi.setValue(0)
+        self.tabs.add_named_tab('&Main', QLabel('Selected ROI'))
+        self.tabs.add_named_tab('&Main', self.spin_selected_roi)
         self.qlist_channels = ChannelWidget(self.viewer)
         self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
         self.tabs.add_named_tab('&Main', self.qlist_channels)
 
-        self.rgbwidget = RGBWidget(viewer=self.viewer)
+        self.rgbwidget = RGBWidget(viewer=self.viewer, translate=False)
         self.tabs.add_named_tab('&Main', self.rgbwidget.rgbmain_group.gbox)
 
         # indices tab
@@ -350,6 +355,7 @@ class SpectralIndexWidget(QWidget):
 
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
+        self.spin_selected_roi.valueChanged.connect(self.load_data)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
         self.btn_compute_RABD.clicked.connect(self._on_click_compute_index)
@@ -414,15 +420,37 @@ class SpectralIndexWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
+        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+
         self.params = load_project_params(folder=self.export_folder)
-        self.params_indices = load_endmember_params(folder=self.export_folder)
+        self.params_indices = load_endmember_params(folder=export_path_roi)
 
         self.imhdr_path = Path(self.params.file_path)
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
-        self.row_bounds = [self.mainroi[0][:,0].min(), self.mainroi[0][:,0].max()]
-        self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
         
+        self.spin_selected_roi.setRange(0, len(self.mainroi)-1)
+        self.spin_selected_roi.setValue(0)
+        
+        self.load_data()
+        
+    def load_data(self, event=None):
+
+        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
+        for r in to_remove:
+            self.viewer.layers.remove(r)
+
+        self.var_init()
+
+        self.row_bounds = [
+            self.mainroi[self.spin_selected_roi.value()][:,0].min(),
+            self.mainroi[self.spin_selected_roi.value()][:,0].max()]
+        self.col_bounds = [
+            self.mainroi[self.spin_selected_roi.value()][:,1].min(),
+            self.mainroi[self.spin_selected_roi.value()][:,1].max()]
+
+        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+
         self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
         self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
         self.rgbwidget.imagechannels = self.imagechannels
@@ -432,7 +460,7 @@ class SpectralIndexWidget(QWidget):
 
         self._on_click_load_mask()
 
-        self.end_members = pd.read_csv(self.export_folder.joinpath('end_members.csv')).values
+        self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
         self.endmember_bands = self.end_members[:,-1]
         self.end_members = self.end_members[:,:-1]
 
@@ -449,6 +477,18 @@ class SpectralIndexWidget(QWidget):
         self.current_plot_type = 'multi'
         self._update_save_plot_parameters()
         self.current_plot_type = 'single'
+
+    def var_init(self):
+
+        self.end_members = None
+        self.endmember_bands = None
+        self.index_file = None
+        self.current_plot_type = 'single'
+        self.em_plot.axes.clear()
+
+        for key in self.index_collection.keys():
+            self.index_collection[key].index_map = None
+            self.index_collection[key].index_proj = None
 
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
@@ -496,7 +536,8 @@ class SpectralIndexWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask = load_mask(get_mask_path(self.export_folder))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        mask = load_mask(get_mask_path(export_path_roi))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
@@ -598,7 +639,10 @@ class SpectralIndexWidget(QWidget):
 
     def _on_click_load_plot_parameters(self, event=None, file_path=None):
         
-        self.disconnect_plot_formatting()
+        try:
+            self.disconnect_plot_formatting()
+        except:
+            pass
         if file_path is None:
             file_path = Path(str(QFileDialog.getOpenFileName(self, "Select plot parameters file")[0]))
         self.params_plots = load_plots_params(file_path=file_path)
@@ -655,12 +699,14 @@ class SpectralIndexWidget(QWidget):
 
     def index_map_and_proj(self, index_name):
         
+        colmin, colmax = self.get_roi_bounds()
+
         toplot = self.viewer.layers[index_name].data
         toplot = clean_index_map(toplot)
 
         proj = compute_index_projection(
             toplot, self.viewer.layers['mask'].data,
-            self.col_bounds[0], self.col_bounds[1],
+            colmin=colmin, colmax=colmax,
             smooth_window=self.get_smoothing_window())
         
         return toplot, proj
@@ -692,6 +738,13 @@ class SpectralIndexWidget(QWidget):
         else:
             self.create_multi_index_plot(event=event)
 
+    def get_roi_bounds(self):
+
+        colmin = int(self.viewer.layers['rois'].data[0][:,1].min())
+        colmax = int(self.viewer.layers['rois'].data[0][:,1].max())
+
+        return colmin, colmax
+
     def create_single_index_plot(self, event=None):
         """Create the index plot."""
 
@@ -710,13 +763,14 @@ class SpectralIndexWidget(QWidget):
             warnings.warn('Multiple indices selected, only the first one will be plotted')
 
         mask = self.viewer.layers['mask'].data
+        colmin, colmax = self.get_roi_bounds()
 
         if self.index_collection[index_series[0].index_name].index_map is None:
             computed_index = self.compute_index(self.index_collection[index_series[0].index_name])
             computed_index = clean_index_map(computed_index)
             proj = compute_index_projection(
                 computed_index, mask,
-                self.col_bounds[0], self.col_bounds[1],
+                colmin=colmin, colmax=colmax,
                 smooth_window=self.get_smoothing_window())
             self.index_collection[index_series[0].index_name].index_map = computed_index
             self.index_collection[index_series[0].index_name].index_proj = proj
@@ -764,6 +818,8 @@ class SpectralIndexWidget(QWidget):
         rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
+
+        colmin, colmax = self.get_roi_bounds()
         
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         all_proj = []
@@ -774,7 +830,7 @@ class SpectralIndexWidget(QWidget):
                 computed_index = clean_index_map(computed_index)
                 proj = compute_index_projection(
                     computed_index, self.viewer.layers['mask'].data,
-                    self.col_bounds[0], self.col_bounds[1],
+                    colmin=colmin, colmax=colmax,
                     smooth_window=self.get_smoothing_window())
                 self.index_collection[i.index_name].index_map = computed_index
                 self.index_collection[i.index_name].index_proj = proj
@@ -843,14 +899,17 @@ class SpectralIndexWidget(QWidget):
 
     def _on_click_save_plot(self, event=None, export_file=None):
         
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
         if export_file is None:
-            export_file = self.export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
+            export_file = export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
         self.index_plot_live.figure.savefig(
             fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
         self._on_export_index_projection()
 
     def _on_export_index_projection(self, event=None):
 
+        colmin, colmax = self.get_roi_bounds()
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         proj_pd = None
         for i in index_series:
@@ -860,7 +919,7 @@ class SpectralIndexWidget(QWidget):
                 proj = compute_index_projection(
                     computed_index,
                     self.viewer.layers['mask'].data,
-                    self.col_bounds[0], self.col_bounds[1],
+                    colmin=colmin, colmax=colmax,
                     smooth_window=self.get_smoothing_window())
                 self.index_collection[i.index_name].index_map = computed_index
                 self.index_collection[i.index_name].index_proj = proj
@@ -872,7 +931,7 @@ class SpectralIndexWidget(QWidget):
                 proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
             proj_pd[i.index_name] = proj
 
-        proj_pd.to_csv(self.export_folder.joinpath('index_projection.csv'), index=False)
+        proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
     def _on_click_open_plotline_color_dialog(self, event=None):
         """Show label color dialog"""

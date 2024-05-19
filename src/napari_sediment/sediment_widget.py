@@ -9,6 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 from pathlib import Path
 import warnings
+import os
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
@@ -369,6 +370,11 @@ class SedimentWidget(QWidget):
         self.btn_main_crop_reset.setToolTip("Reset crop to full image")
         self.roi_group.glayout.addWidget(self.btn_main_crop, 1, 0, 1, 1)
         self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 1, 1, 1, 1)
+        self.spin_selected_roi = QSpinBox()
+        self.spin_selected_roi.setRange(0, 0)
+        self.spin_selected_roi.setValue(0)
+        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 2, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_selected_roi, 2, 1, 1, 1)
 
         self.subroi_group = VHGroup('Sub-ROI', orientation='G')
         self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
@@ -663,19 +669,27 @@ class SedimentWidget(QWidget):
     def _add_roi_layer(self):
         """Add &ROI layers to napari viewer"""
 
-        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
+        edge_width = np.min([10, self.imagechannels.ncols//100])
+        if edge_width < 1:
+            edge_width = 1
         if 'main-roi' not in self.viewer.layers:
             roi_layer = self.viewer.add_shapes(
                 ndim = 2,
                 name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
             roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
 
-        if 'rois' not in self.viewer.layers:
+            roi_layer.events.data.connect(self._update_roi_spinbox)
+
+        if f'rois_{self.spin_selected_roi.value()}' not in self.viewer.layers:
             roi_layer = self.viewer.add_shapes(
                 ndim = 2,
-                name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+                name=f'rois_{self.spin_selected_roi.value()}', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
 
             roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
+
+    def _update_roi_spinbox(self, event):
+
+        self.spin_selected_roi.setRange(0, len(self.viewer.layers['main-roi'].data)-1)
 
     def _on_click_add_main_roi(self, event=None):
 
@@ -702,7 +716,7 @@ class SedimentWidget(QWidget):
 
         #if self.check_main_crop.isChecked():
         if 'main-roi' in self.viewer.layers:
-            main_roi = self.viewer.layers['main-roi'].data[0]
+            main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
             self.row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
             self.col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
         else:
@@ -713,6 +727,7 @@ class SedimentWidget(QWidget):
         self.rgb_widget.row_bounds = self.row_bounds
         self.rgb_widget.col_bounds = self.col_bounds
         self.rgb_widget._on_click_RGB()
+        self.remove_masks()
 
     def _on_reset_crop(self, event=None):
             
@@ -754,9 +769,10 @@ class SedimentWidget(QWidget):
             [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
             [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
         
-        if not 'rois' in self.viewer.layers:
+        layer_name = f'rois_{self.spin_selected_roi.value()}'
+        if not layer_name in self.viewer.layers:
             self._add_roi_layer()
-        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r')
+        self.viewer.layers[layer_name].add_rectangles(new_roi, edge_color='r')
 
 
     def _add_manual_mask(self):
@@ -1018,6 +1034,16 @@ class SedimentWidget(QWidget):
         else:
             self.viewer.add_labels(mask, name=name)
 
+    def remove_masks(self):
+        """Remove all masks"""
+
+        mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
+                        'complete-mask', 'clean-mask', 'manual-mask',
+                      'annotations', 'segmentation', 'mask']
+        for m in mask_names:
+            if m in self.viewer.layers:
+                self.viewer.layers.remove(self.viewer.layers[m])
+
     def _on_click_compute_phasor(self):
         """Compute phasor from image. Opens a new viewer with 2D histogram of 
         g, s values.
@@ -1105,15 +1131,15 @@ class SedimentWidget(QWidget):
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
         else:
-            mask = np.zeros((self.imagechannels.nrows,self.imagechannels.ncols), dtype=np.uint8)
-            warnings.warn('No mask found. Uinsg empty mask.')
+            self._on_click_combine_masks()
+            mask = self.viewer.layers['complete-mask'].data
 
-        save_mask(mask, get_mask_path(self.export_folder))
+        save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
 
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        mask_path = get_mask_path(self.export_folder)
+        mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
         if mask_path.exists():
             mask = load_mask(mask_path)
             self.update_mask(mask)
@@ -1202,35 +1228,40 @@ class SedimentWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
-        if 'main-roi' not in self.viewer.layers:
-            mainroi = [[self.row_bounds[0], self.col_bounds[0],
+        full_roi = [[self.row_bounds[0], self.col_bounds[0],
                           self.row_bounds[1], self.col_bounds[0],
                           self.row_bounds[1], self.col_bounds[1],
                           self.row_bounds[0], self.col_bounds[1]]]
+
+        if 'main-roi' not in self.viewer.layers:
+            mainroi = full_roi
         else:
             mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
             mainroi = [[x.item() for x in y] for y in mainroi]
 
-        if 'rois' not in self.viewer.layers:
-            rois = [[self.row_bounds[0], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[1],
-                          self.row_bounds[0], self.col_bounds[1]]]
-        else:
-            rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
-            rois = [[x.item() for x in y] for y in rois]
+        rois = []
+        for i in range(len(mainroi)):
+            if f'rois_{i}' in self.viewer.layers:
+                if len(self.viewer.layers[f'rois_{i}'].data) == 0:
+                    rois.append([np.array(mainroi[i])])
+                else:
+                    rois.append(self.viewer.layers[f'rois_{i}'].data)
+            else:
+                rois.append([np.array(mainroi[i])])
+        rois = [[list(y.flatten()) for y in x] for x in rois]
+        rois = [[[z.item() for z in x] for x in y] for y in rois]
 
         self.params.project_path = self.export_folder
         self.params.file_path = self.imhdr_path
         self.params.white_path = self.white_file_path
         self.params.dark_for_im_path = self.dark_for_im_file_path
         self.params.dark_for_white_path = self.dark_for_white_file_path
-        self.params.main_roi = mainroi
-        self.params.rois = rois
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
         self.params.rgb = self.rgb_widget.rgb
 
+        self.params.main_roi = mainroi
+        self.params.rois = rois
         self.params.save_parameters()
 
     def export_project(self):
@@ -1247,8 +1278,9 @@ class SedimentWidget(QWidget):
         
         if self.export_folder is None:
             self._on_click_select_export_folder()
+        #main_roi_folders = self.export_folder.glob('main_roi_*')
 
-        self.params = load_project_params(folder=self.export_folder)
+        self.params = load_project_params(folder=self.export_folder)#.joinpath(f'main_roi_{self.spin_selected_roi.value()}'))
 
         # files
         self.imhdr_path = Path(self.params.file_path)
@@ -1277,10 +1309,16 @@ class SedimentWidget(QWidget):
         if mainroi:
             mainroi[0] = mainroi[0].astype(int)
             self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b')
-        
-        rois = [np.array(x).reshape(4,2) for x in self.params.rois]
-        if rois:
-            self.viewer.layers['rois'].add_rectangles(rois, edge_color='r')
+        self.spin_selected_roi.setRange(0, len(mainroi)-1)
+
+        rois = [[np.array(x).reshape(4,2) for x in y] for y in self.params.rois]
+        self.roi_list = {ind: r for ind, r in enumerate(rois)}
+        for ind, roi in enumerate(rois):
+            self.spin_selected_roi.setValue(ind)
+            self._add_roi_layer()
+            self.viewer.layers[f'rois_{ind}'].add_rectangles(roi, edge_color='r')
+
+        self.spin_selected_roi.setValue(0)
 
         # crop if needed
         self._on_crop_with_main()

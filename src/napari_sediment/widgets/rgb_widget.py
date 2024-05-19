@@ -16,7 +16,7 @@ class RGBWidget(QWidget):
     - an attribute called row_bounds and col_bounds, which are the current crop
     bounds."""
 
-    def __init__(self, viewer, imagechannels=None):
+    def __init__(self, viewer, imagechannels=None, translate=True):
         super().__init__()
 
         self.viewer = viewer
@@ -24,6 +24,7 @@ class RGBWidget(QWidget):
         self.rgb = [640, 545, 460]
         self.row_bounds = None
         self.col_bounds = None
+        self.translate = translate
 
         self.rgbmain_group = VHGroup('RGB', orientation='G')
         #self.tabs.add_named_tab('Main', self.rgbmain_group.gbox)
@@ -167,6 +168,7 @@ class RGBWidget(QWidget):
                     blending='additive')
             else:
                 self.viewer.layers[cmap].data = rgb_cube[ind]
-                self.viewer.layers[cmap].translate = (self.row_bounds[0], self.col_bounds[0])
+                if self.translate:
+                    self.viewer.layers[cmap].translate = (self.row_bounds[0], self.col_bounds[0])
             
             update_contrast_on_layer(self.viewer.layers[cmap])

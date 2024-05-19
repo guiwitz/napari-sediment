@@ -2,6 +2,7 @@ import numpy as np
 import tifffile
 import yaml
 from pathlib import Path
+import os
 
 import zarr
 from .parameters.parameters import Param
@@ -9,6 +10,9 @@ from .parameters.parameters_endmembers import ParamEndMember
 from .parameters.parameters_plots import Paramplot
 
 def save_mask(mask, filename):
+
+    if not filename.parent.exists():
+        os.makedirs(filename.parent, exist_ok=True)
    
     tifffile.imsave(filename, mask.astype('uint8'))
 
