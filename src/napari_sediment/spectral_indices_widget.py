@@ -403,7 +403,10 @@ class SpectralIndexWidget(QWidget):
         """Interactively select folder to analyze"""
 
         if export_folder is None:
-            self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+            return_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+            if return_path == '':
+                return
+            self.export_folder = Path(return_path)
         else:
             self.export_folder = Path(export_folder)
         self.export_path_display.setText(self.export_folder.as_posix())

@@ -507,7 +507,10 @@ class SedimentWidget(QWidget):
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
 
-        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        return_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        if return_dir == '':
+            return
+        self.export_folder = Path(str(return_dir))
         self.export_path_display.setText(self.export_folder.as_posix())
 
     def _on_select_file(self):
@@ -518,7 +521,10 @@ class SedimentWidget(QWidget):
     def _on_click_select_imhdr(self):
         """Interactively select hdr file"""
 
-        imhdr_path = Path(QFileDialog.getOpenFileName(self, "Select file")[0])
+        imhdr_path = QFileDialog.getOpenFileName(self, "Select file")[0]
+        if imhdr_path == '':
+            return
+        imhdr_path = Path(imhdr_path)
         if imhdr_path.parent.suffix == '.zarr':
             imhdr_path = imhdr_path.parent
         self.set_paths(imhdr_path)
@@ -528,19 +534,28 @@ class SedimentWidget(QWidget):
     def _on_click_select_white_file(self):
         """Interactively select white reference"""
         
-        self.white_file_path = Path(QFileDialog.getOpenFileName(self, "Select White Ref")[0])
+        return_path = QFileDialog.getOpenFileName(self, "Select White Ref")[0]
+        if self.white_file_path == '':
+            return
+        self.white_file_path = Path(return_path)
         self.qtext_select_white_file.setText(self.white_file_path.as_posix())
 
     def _on_click_select_dark_file(self):
         """Interactively select white reference"""
         
-        self.dark_for_white_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref ofr white")[0])
+        return_path = QFileDialog.getOpenFileName(self, "Select Dark Ref for white")[0]
+        if return_path == '':
+            return
+        self.dark_for_white_file_path = Path(return_path)
         self.qtext_select_dark_file.setText(self.dark_for_white_file_path.as_posix())
 
     def _on_click_select_dark_for_im_file(self):
         """Interactively select white reference"""
         
-        self.dark_for_im_file_path = Path(QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0])
+        return_path = QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0]
+        if return_path == '':
+            return
+        self.dark_for_im_file_path = Path(return_path)
         self.qtext_select_dark_for_white_file.setText(self.dark_for_im_file_path.as_posix())
 
     def set_paths(self, imhdr_path):

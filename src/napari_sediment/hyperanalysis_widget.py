@@ -251,7 +251,11 @@ class HyperAnalysisWidget(QWidget):
         if alternate_path is not None:
             self.export_folder = Path(alternate_path)
         else:
-            self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+            return_path = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+            if return_path == '':
+                return
+            self.export_folder = Path(return_path)
+
         self.export_path_display.setText(self.export_folder.as_posix())
 
     def import_project(self):
