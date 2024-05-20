@@ -364,17 +364,23 @@ class SedimentWidget(QWidget):
         self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
         self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
 
+        self.spin_main_roi_width = QSpinBox()
+        self.spin_main_roi_width.setRange(1, 1000)
+        self.spin_main_roi_width.setValue(20)
+        self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
+
         self.btn_main_crop = QPushButton("Crop with main")
         self.btn_main_crop.setToolTip("Crop image with main ROI")
         self.btn_main_crop_reset = QPushButton("Reset crop")
         self.btn_main_crop_reset.setToolTip("Reset crop to full image")
-        self.roi_group.glayout.addWidget(self.btn_main_crop, 1, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 1, 1, 1, 1)
+        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
         self.spin_selected_roi = QSpinBox()
         self.spin_selected_roi.setRange(0, 0)
         self.spin_selected_roi.setValue(0)
-        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 2, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_selected_roi, 2, 1, 1, 1)
+        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
 
         self.subroi_group = VHGroup('Sub-ROI', orientation='G')
         self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
@@ -656,6 +662,10 @@ class SedimentWidget(QWidget):
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
             self.mlwidget.select_layer_widget.native.setCurrentText('imcube')
+
+            # adjust main roi size
+            self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
+            self.spin_main_roi_width.setValue(self.col_bounds[1]-self.col_bounds[0])
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
         return True
@@ -710,12 +720,20 @@ class SedimentWidget(QWidget):
 
         self._add_roi_layer()
 
+        col_min = self.col_bounds[0]
+        col_max = self.col_bounds[1]
+        col_width = self.spin_main_roi_width.value()
+
+        col_middle = (col_max+col_min) // 2
+        col_left = col_middle - col_width // 2
+        col_right = col_middle + col_width - (col_width // 2)
+
         new_roi = [
-            [self.row_bounds[0],self.col_bounds[0]],
-            [self.row_bounds[1],self.col_bounds[0]],
-            [self.row_bounds[1],self.col_bounds[1]],
-            [self.row_bounds[0],self.col_bounds[1]]]
-        self.viewer.layers['main-roi'].data = []
+            [self.row_bounds[0],col_left],
+            [self.row_bounds[1],col_left],
+            [self.row_bounds[1],col_right],
+            [self.row_bounds[0],col_right]]
+        #self.viewer.layers['main-roi'].data = []
         self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
         self.viewer.layers.selection.active = self.viewer.layers['main-roi']
 
