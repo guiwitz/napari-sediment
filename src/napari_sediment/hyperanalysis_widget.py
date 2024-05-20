@@ -675,15 +675,20 @@ class HyperAnalysisWidget(QWidget):
         cursor_pos attribute and the _draw method is called afterwards.
         """
 
+        nrows = self.viewer.layers['imcube'].data.shape[0]
+        ncols = self.viewer.layers['imcube'].data.shape[2]
         if 'Shift' in event.modifiers and self.viewer.layers:
             self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
             
             #self.cursor_pos[1] = np.clip(self.cursor_pos[1], 0, self.row_bounds[1]-self.row_bounds[0]-1)
             #self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0, self.col_bounds[1]-self.col_bounds[0]-1)
-            self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
-            self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
+            #self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
+            #self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
+            self.cursor_pos[1] = np.clip(self.cursor_pos[1], 0,nrows-1)
+            self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0,ncols-1)
             self.spectral_pixel = self.viewer.layers['imcube'].data[
-                :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
+                #:, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
+                :, self.cursor_pos[1], self.cursor_pos[2]
             ]
             self.update_spectral_plot()
 
