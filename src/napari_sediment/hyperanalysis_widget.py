@@ -675,7 +675,7 @@ class HyperAnalysisWidget(QWidget):
         cursor_pos attribute and the _draw method is called afterwards.
         """
 
-        nrows = self.viewer.layers['imcube'].data.shape[0]
+        nrows = self.viewer.layers['imcube'].data.shape[1]
         ncols = self.viewer.layers['imcube'].data.shape[2]
         if 'Shift' in event.modifiers and self.viewer.layers:
             self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
