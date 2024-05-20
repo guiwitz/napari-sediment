@@ -728,6 +728,7 @@ class SedimentWidget(QWidget):
         self.rgb_widget.col_bounds = self.col_bounds
         self.rgb_widget._on_click_RGB()
         self.remove_masks()
+        self._on_click_load_mask()
 
     def _on_reset_crop(self, event=None):
             
@@ -1142,7 +1143,7 @@ class SedimentWidget(QWidget):
         mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
         if mask_path.exists():
             mask = load_mask(mask_path)
-            self.update_mask(mask)
+            self.update_mask(mask, 'complete-mask')
         else:
             warnings.warn('No mask found')
 
