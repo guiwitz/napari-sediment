@@ -717,6 +717,7 @@ class SedimentWidget(QWidget):
             [self.row_bounds[0],self.col_bounds[1]]]
         self.viewer.layers['main-roi'].data = []
         self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
+        self.viewer.layers.selection.active = self.viewer.layers['main-roi']
 
     def _roi_to_int_on_mouse_release(self, layer, event):
         """Round roi coordinates to integer on mouse release"""
