@@ -64,7 +64,11 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
 
     # The figure and axes are set explicitly to make sure that the axes fill the figure
     # This is achieved using the add_axes method instead of subplots
-    fig_size = figure_size_factor*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+    a4_size = np.array([11.69, 8.27])
+    size_ratio = a4_size / np.array([width_tot_margin, height_tot_margin])
+    min_ratio = size_ratio.min()
+    fig_size = figure_size_factor * min_ratio * np.array([width_tot_margin, height_tot_margin])
+    #fig_size = figure_size_factor*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
     fig.clear()
     fig.set_size_inches(fig_size)
     fig.set_facecolor('white')
@@ -78,7 +82,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     index_image[mask==1] = np.nan
     #ax2.imshow(index_image, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
     ax2.imshow(index_image, aspect='auto', cmap=mpl_map)
-    scalebar = ScaleBar(scale, "mm", 
+    '''scalebar = ScaleBar(scale, "mm", 
                         length_fraction=0.25, location='lower right',
                         font_properties={'size': scale_font_size}
                         )
@@ -88,7 +92,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
                             )
 
     ax1.add_artist(scalebar)
-    ax1.add_artist(scalebary)
+    ax1.add_artist(scalebary)'''
 
     if roi is not None:
         roi = roi.copy()
@@ -115,15 +119,15 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     ax2.set_xticks([])
     ax2.set_yticks([])
     for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
-        label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
+        label.set_fontsize(label_font_factor)
     
     ax2.set_ylim(im_h-0.5, -0.5)
     #ax2.invert_yaxis()
-    ax1.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
-    ax3.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
+    ax1.set_ylabel('depth [mm]', fontsize=label_font_factor)
+    ax3.set_ylabel('depth [mm]', fontsize=label_font_factor)
     ax3.yaxis.set_label_position('right')
     fig.suptitle(index_name + '\n' + location,
-                    fontsize=int(fig_size[1] * 72 * title_font_factor))
+                    fontsize=title_font_factor)
 
     return fig, ax1, ax2, ax3
 
@@ -167,7 +171,11 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     bottom_margin = to_add_bottom / height_tot_margin
 
     plot_width = im_w / width_tot_margin
-    fig_size = figure_size_factor*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+    
+    a4_size = np.array([11.69, 8.27])
+    size_ratio = a4_size / np.array([width_tot_margin, height_tot_margin])
+    min_ratio = size_ratio.min()
+    fig_size = figure_size_factor * min_ratio * np.array([width_tot_margin, height_tot_margin])
     
     fig.clear()
     fig.set_size_inches(fig_size)
@@ -187,7 +195,7 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
             axes[-1].yaxis.tick_right()
             axes[-1].yaxis.set_label_position('right')
         axes[-1].invert_yaxis()
-        axes[-1].set_title(index_name[i], fontsize=int(fig_size[1] * 72 * title_font_factor))
+        axes[-1].set_title(index_name[i], fontsize=title_font_factor)
     
     axes.append(fig.add_axes(rect=(left_margin+(halfplot*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
     axes[-1].imshow(rgb_to_plot)
@@ -206,20 +214,20 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
 
     for ax in axes:
         for label in (ax.get_yticklabels() + ax.get_yticklabels() + ax.get_xticklabels()):
-            label.set_fontsize(int(fig_size[1] * 72 * label_font_factor))
+            label.set_fontsize(label_font_factor)
 
     axes_to_scale = [axes[0]]
     if len(proj) > 1:
         axes_to_scale.append(axes[-2])
     for ax in axes_to_scale:
-        ax.set_ylabel('depth [mm]', fontsize=int(fig_size[1] * 72 * label_font_factor))
+        ax.set_ylabel('depth [mm]', fontsize=label_font_factor)
         tickpos = np.array([x.get_position()[1] for x in  ax.get_yticklabels()])[1:-1]
         newlabels = scale * np.array(tickpos)
         print(newlabels)
         ax.set_yticks(ticks=tickpos, labels = newlabels)
 
     fig.suptitle('Spectral indices' + '\n' + location,
-                    fontsize=int(fig_size[1] * 72 * title_font_factor))
+                    fontsize=title_font_factor)
     return fig
 
 def create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits):
