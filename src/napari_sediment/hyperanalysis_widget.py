@@ -649,6 +649,10 @@ class HyperAnalysisWidget(QWidget):
 
         self.ppi_plot.axes.clear()
         self.ppi_plot.axes.plot(self.qlist_channels.bands, self.end_members)
+        self.ppi_plot.axes.set_xlabel('Wavelength', color='black')
+        self.ppi_plot.axes.set_ylabel('Continuum removed', color='black')
+        self.ppi_plot.axes.tick_params(axis='both', colors='black')
+        self.ppi_plot.figure.patch.set_facecolor('white')
         self.ppi_plot.canvas.figure.canvas.draw()
 
     def _on_change_ppi_boundaries(self, event):

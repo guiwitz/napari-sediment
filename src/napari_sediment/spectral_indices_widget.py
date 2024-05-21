@@ -142,6 +142,9 @@ class SpectralIndexWidget(QWidget):
         self.btn_compute_RABD = QPushButton("Compute Index")
         self.tabs.add_named_tab('&Indices', self.btn_compute_RABD, grid_pos=(tab_rows+5, 0, 1, 3))
 
+        self.btn_save_endmembers_plot = QPushButton("Save endmembers plot")
+        self.tabs.add_named_tab('&Indices', self.btn_save_endmembers_plot, grid_pos=(tab_rows+6, 0, 1, 3))
+
         # I&O tab
         self.index_pick_group = VHGroup('&Indices', orientation='G')
         self.index_pick_group.glayout.setAlignment(Qt.AlignTop)
@@ -359,6 +362,7 @@ class SpectralIndexWidget(QWidget):
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
         self.btn_compute_RABD.clicked.connect(self._on_click_compute_index)
+        self.btn_save_endmembers_plot.clicked.connect(self.save_endmembers_plot)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
         self.btn_update_index.clicked.connect(self._on_click_update_index)
         self.qcom_indices.activated.connect(self._on_change_index_index)
@@ -551,6 +555,28 @@ class SpectralIndexWidget(QWidget):
 
         self.em_plot.axes.clear()
         self.em_plot.axes.plot(self.endmember_bands, self.end_members)
+        self.em_plot.axes.set_xlabel('Wavelength', color='white')
+        self.em_plot.axes.set_ylabel('Continuum removed', color='white')
+        self.em_plot.axes.xaxis.label.set_color('black')
+        self.em_plot.axes.yaxis.label.set_color('black')
+        self.em_plot.axes.tick_params(axis='both', colors='black')
+        self.em_plot.figure.patch.set_facecolor('white')
+        self.em_plot.figure.canvas.draw()
+
+    def save_endmembers_plot(self):
+        """Save the endmembers plot to file"""
+
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+
+        if self.em_boundary_lines is not None:
+            num_lines = len(self.em_boundary_lines)
+            for i in range(num_lines):
+                self.em_boundary_lines[i].set_color([0,0,0,0])
+        self.em_plot.figure.canvas.draw()
+        self.em_plot.figure.savefig(export_folder.joinpath('endmembers.png'), dpi=300)
+        if self.em_boundary_lines is not None:
+            for i in range(num_lines):
+                self.em_boundary_lines[i].set_color([1,0,0])
         self.em_plot.figure.canvas.draw()
 
     def _on_change_em_boundaries(self, event=None):
