@@ -32,6 +32,7 @@ from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
                             compute_index_ratio, compute_index_projection, clean_index_map)
 from .io import load_mask, get_mask_path
+from .utils import wavelength_to_rgb
 
 
 from napari_guitils.gui_structures import TabSet, VHGroup
@@ -555,6 +556,12 @@ class SpectralIndexWidget(QWidget):
 
         self.em_plot.axes.clear()
         self.em_plot.axes.plot(self.endmember_bands, self.end_members)
+
+        out = wavelength_to_rgb(self.endmember_bands.min(), self.endmember_bands.max(), 100)
+        ax_histx = self.em_plot.axes.inset_axes([0.0,-0.5, 1.0, 1], sharex=self.em_plot.axes)
+        ax_histx.imshow(out, extent=(self.endmember_bands.min(),self.endmember_bands.max(), 0,10))
+        ax_histx.set_axis_off()
+
         self.em_plot.axes.set_xlabel('Wavelength', color='white')
         self.em_plot.axes.set_ylabel('Continuum removed', color='white')
         self.em_plot.axes.xaxis.label.set_color('black')

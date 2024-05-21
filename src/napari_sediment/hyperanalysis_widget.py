@@ -22,6 +22,7 @@ from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
 from .widgets.rgb_widget import RGBWidget
+from .utils import wavelength_to_rgb
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 
@@ -649,6 +650,12 @@ class HyperAnalysisWidget(QWidget):
 
         self.ppi_plot.axes.clear()
         self.ppi_plot.axes.plot(self.qlist_channels.bands, self.end_members)
+
+        out = wavelength_to_rgb(self.qlist_channels.bands.min(), self.qlist_channels.bands.max(), 100)
+        ax_histx = self.ppi_plot.axes.inset_axes([0.0,-0.5, 1.0, 1], sharex=self.ppi_plot.axes)
+        ax_histx.imshow(out, extent=(self.qlist_channels.bands.min(),self.qlist_channels.bands.max(), 0,10))
+        ax_histx.set_axis_off()
+
         self.ppi_plot.axes.set_xlabel('Wavelength', color='black')
         self.ppi_plot.axes.set_ylabel('Continuum removed', color='black')
         self.ppi_plot.axes.tick_params(axis='both', colors='black')
