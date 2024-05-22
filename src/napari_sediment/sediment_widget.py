@@ -1176,6 +1176,8 @@ class SedimentWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
+        if self.export_folder is None:
+            return
         mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
         if mask_path.exists():
             mask = load_mask(mask_path)
