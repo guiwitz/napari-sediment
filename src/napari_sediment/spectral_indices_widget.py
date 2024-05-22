@@ -375,7 +375,7 @@ class SpectralIndexWidget(QWidget):
         self.spin_selected_roi.valueChanged.connect(self.load_data)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
-        self.btn_compute_RABD.clicked.connect(self._on_click_compute_index)
+        self.btn_compute_RABD.clicked.connect(self.on_add_index_map_to_viewer)
         self.btn_save_endmembers_plot.clicked.connect(self.save_endmembers_plot)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
         self.btn_update_index.clicked.connect(self._on_click_update_index)
@@ -674,9 +674,9 @@ class SpectralIndexWidget(QWidget):
         for key in self.index_collection:
             if key in self.viewer.layers:
                 current_param.index_colormap[key] = self.viewer.layers[key].colormap.name
-        current_param.red_conrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
-        current_param.green_conrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
-        current_param.blue_conrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
+        current_param.red_contrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
+        current_param.green_contrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
+        current_param.blue_contrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
         current_param.rgb_bands = self.rgbwidget.rgb
 
     def _on_click_save_plot_parameters(self, event=None, file_path=None):
@@ -713,9 +713,9 @@ class SpectralIndexWidget(QWidget):
         for key in params.index_colormap:
             if key in self.viewer.layers:
                 self.viewer.layers[key].colormap = params.index_colormap[key]
-        self.viewer.layers['red'].contrast_limits = params.red_conrast_limits
-        self.viewer.layers['green'].contrast_limits = params.green_conrast_limits
-        self.viewer.layers['blue'].contrast_limits = params.blue_conrast_limits
+        self.viewer.layers['red'].contrast_limits = params.red_contrast_limits
+        self.viewer.layers['green'].contrast_limits = params.green_contrast_limits
+        self.viewer.layers['blue'].contrast_limits = params.blue_contrast_limits
         self.rgbwidget.rgb = params.rgb_bands
         
 
@@ -838,11 +838,10 @@ class SpectralIndexWidget(QWidget):
 
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-            rgb_image=rgb_image, mask=mask, index_image=computed_index, proj=proj,
-            index_name=index_series[0].index_name,
+            rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[index_series[0].index_name],
             format_dict=format_dict, scale=self.params.scale,
-                                location=self.params.location, fig=self.index_plot_live.figure, 
-                                roi=roi)
+            location=self.params.location, fig=self.index_plot_live.figure, 
+            roi=roi)
 
         # save temporary low-res figure for display in napari
         self.index_plot_live.figure.savefig(
@@ -880,8 +879,6 @@ class SpectralIndexWidget(QWidget):
         colmin, colmax = self.get_roi_bounds()
         
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        all_proj = []
-        all_spectral_indices = []
         for i in index_series:
             if self.index_collection[i.index_name].index_map is None:
                 computed_index = self.compute_index(self.index_collection[i.index_name])
@@ -895,8 +892,6 @@ class SpectralIndexWidget(QWidget):
             else:
                 computed_index = self.index_collection[i.index_name].index_map
                 proj = self.index_collection[i.index_name].index_proj   
-            all_spectral_indices.append(computed_index)
-            all_proj.append(proj)
         
         roi = None
         if 'rois' in self.viewer.layers:
@@ -905,7 +900,7 @@ class SpectralIndexWidget(QWidget):
         format_dict = asdict(self.params_multiplots)
         plot_multi_spectral_profile(
             rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
-            proj=all_proj, index_name=[x.index_name for x in index_series], 
+            index_objs=index_series, 
             format_dict=format_dict, scale=self.params.scale,
             fig=self.index_plot_live.figure,
             roi=roi)
@@ -1099,7 +1094,7 @@ class SpectralIndexWidget(QWidget):
             return None
         return computed_index
 
-    def _on_click_compute_index(self, event):
+    def on_add_index_map_to_viewer(self, event):
         """Compute the index and add to napari."""
 
         self.viewer.window._status_bar._toggle_activity_dock(True)
@@ -1122,9 +1117,20 @@ class SpectralIndexWidget(QWidget):
                 else:
                     computed_index = self.index_collection[i.index_name].index_map
                     proj = self.index_collection[i.index_name].index_proj
-                self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
-
+                
+                if i.index_name in self.viewer.layers:
+                    self.viewer.layers.remove(i.index_name)
+                layer = self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
+                layer.events.contrast_limits.connect(self._on_change_contrast_limits)
         self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def _on_change_contrast_limits(self, event=None):
+        """Update the contrast limits of the index layers."""
+
+        layer = self.viewer.layers.selection.active
+        if layer.name in self.index_collection:
+            self.index_collection[layer.name].index_map_range = layer.contrast_limits
+
     
     def _on_change_index_index(self, event=None):
 

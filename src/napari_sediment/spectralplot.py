@@ -7,9 +7,13 @@ from microfilm import colorify
 from matplotlib_scalebar.scalebar import ScaleBar
 from .spectralindex import compute_index_projection
 
-def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format_dict, scale=1,
+def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
                           location="", fig=None, roi=None):
 
+    index_name = index_obj.index_name
+    index_image = index_obj.index_map
+    proj = index_obj.index_proj
+    index_contrast_limits = index_obj.index_map_range
 
     left_right_margin_fraction = format_dict['left_right_margin_fraction']
     bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
@@ -21,9 +25,9 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     figure_size_factor = format_dict['figure_size_factor']
     scale_font_size = format_dict['scale_font_size']
     index_colormap = format_dict['index_colormap']
-    red_conrast_limits = format_dict['red_conrast_limits']
-    green_conrast_limits = format_dict['green_conrast_limits']
-    blue_conrast_limits = format_dict['blue_conrast_limits']
+    red_contrast_limits = format_dict['red_contrast_limits']
+    green_contrast_limits = format_dict['green_contrast_limits']
+    blue_contrast_limits = format_dict['blue_contrast_limits']
 
 
     # get colormap
@@ -33,7 +37,7 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
         newmap = Colormap(colormaps.ALL_COLORMAPS['viridis'].colors)
     mpl_map = newmap.to_matplotlib()
 
-    rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
+    rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
     rgb_to_plot[mask==1,:] = 0
 
     # The plot has the same height as the image and 6 times the width
@@ -77,11 +81,16 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
     ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, plot_image_w_fraction*quarter, im_h / height_tot_margin))
 
     ax1.imshow(rgb_to_plot, aspect='auto')
-    vmin = np.percentile(index_image, 0.1)
-    vmax = np.percentile(index_image, 99.9)
+    if index_contrast_limits is None:
+        non_nan = index_image[~np.isnan(index_image)]
+        vmin = np.percentile(non_nan, 0.1)
+        vmax = np.percentile(non_nan, 99.9)
+    else:
+        vmin = index_contrast_limits[0]
+        vmax = index_contrast_limits[1]
     index_image[mask==1] = np.nan
     #ax2.imshow(index_image, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
-    ax2.imshow(index_image, aspect='auto', cmap=mpl_map)
+    ax2.imshow(index_image, aspect='auto', cmap=mpl_map, vmin=vmin, vmax=vmax)
     '''scalebar = ScaleBar(scale, "mm", 
                         length_fraction=0.25, location='lower right',
                         font_properties={'size': scale_font_size}
@@ -131,9 +140,9 @@ def plot_spectral_profile(rgb_image, mask, index_image, proj, index_name, format
 
     return fig, ax1, ax2, ax3
 
-def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, scale=1,
+def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=1,
                                 location="", fig=None, roi=None):
-    
+
     left_right_margin_fraction = format_dict['left_right_margin_fraction']
     bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
     #plot_image_w_fraction = format_dict['plot_image_w_fraction']
@@ -144,11 +153,11 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     figure_size_factor = format_dict['figure_size_factor']
     #scale_font_size = format_dict['scale_font_size']
     #index_colormap = format_dict['index_colormap']
-    red_conrast_limits = format_dict['red_conrast_limits']
-    green_conrast_limits = format_dict['green_conrast_limits']
-    blue_conrast_limits = format_dict['blue_conrast_limits']
+    red_contrast_limits = format_dict['red_contrast_limits']
+    green_contrast_limits = format_dict['green_contrast_limits']
+    blue_contrast_limits = format_dict['blue_contrast_limits']
     
-    rgb_to_plot = create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits)
+    rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
     rgb_to_plot[mask==1,:] = 0
 
     im_h = rgb_image[0].shape[0]
@@ -157,7 +166,7 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     #width = width/height
     #height = 1
 
-    width_tot = (len(proj)+1) * im_w
+    width_tot = (len(index_objs)+1) * im_w
 
     to_add_top = bottom_top_margin_fraction*im_h
     to_add_bottom = bottom_top_margin_fraction*im_h
@@ -180,22 +189,24 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
     fig.clear()
     fig.set_size_inches(fig_size)
     fig.set_facecolor('white')
-    halfplot = len(proj) // 2
+    halfplot = len(index_objs) // 2
     axes = []
     shift = 0
-    for i in range(len(proj)):
+    for i in range(len(index_objs)):
         if i == halfplot:
             shift = 1
+        proj = index_objs[i].index_proj
+        index_name = index_objs[i].index_name
         axes.append(fig.add_axes(rect=(left_margin+((i+shift)*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
-        axes[-1].plot(proj[i], np.arange(len(proj[i])), color=np.array(color_plotline), linewidth=plot_thickness)
-        axes[-1].set_ylim(0, len(proj[i]))
+        axes[-1].plot(proj, np.arange(len(proj)), color=np.array(color_plotline), linewidth=plot_thickness)
+        axes[-1].set_ylim(0, len(proj))
         if (i!=0) and (i!=len(proj)-1):
             axes[-1].yaxis.set_visible(False)
         if i == len(proj)-1:
             axes[-1].yaxis.tick_right()
             axes[-1].yaxis.set_label_position('right')
         axes[-1].invert_yaxis()
-        axes[-1].set_title(index_name[i], fontsize=title_font_factor)
+        axes[-1].set_title(index_name, fontsize=title_font_factor)
     
     axes.append(fig.add_axes(rect=(left_margin+(halfplot*plot_width),bottom_margin, plot_width, im_h / height_tot_margin)))
     axes[-1].imshow(rgb_to_plot)
@@ -230,14 +241,14 @@ def plot_multi_spectral_profile(rgb_image, mask, proj, index_name, format_dict, 
                     fontsize=title_font_factor)
     return fig
 
-def create_rgb_image(rgb_image, red_conrast_limits, green_conrast_limits, blue_conrast_limits):
+def create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits):
     
     rgb_to_plot = rgb_image.copy()
     rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
         rgb_to_plot,
         cmaps=['pure_red', 'pure_green', 'pure_blue'], 
         rescale_type='limits', 
-        limits=[red_conrast_limits, green_conrast_limits, blue_conrast_limits],
+        limits=[red_contrast_limits, green_contrast_limits, blue_contrast_limits],
         proj_type='sum')
     return rgb_to_plot
 
