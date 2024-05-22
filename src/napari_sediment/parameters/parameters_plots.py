@@ -24,8 +24,6 @@ class Paramplot:
         thickness of the plot line
     figure_size_factor: float
         factor to scale the figure size
-    scale_font_size: int
-        font size of the scale bar
     index_colormap: str
         colormap for index
     red_contrast_limits: list
@@ -47,7 +45,6 @@ class Paramplot:
     color_plotline: list = field(default_factory=list)
     plot_thickness: float = None
     figure_size_factor: float = None
-    scale_font_size: int = None
     index_colormap: dict = field(default_factory=dict)
     red_contrast_limits: list = field(default_factory=list)
     green_contrast_limits: list = field(default_factory=list)

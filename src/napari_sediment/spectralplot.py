@@ -23,7 +23,6 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     color_plotline = format_dict['color_plotline']
     plot_thickness = format_dict['plot_thickness']
     figure_size_factor = format_dict['figure_size_factor']
-    scale_font_size = format_dict['scale_font_size']
     index_colormap = format_dict['index_colormap']
     red_contrast_limits = format_dict['red_contrast_limits']
     green_contrast_limits = format_dict['green_contrast_limits']
