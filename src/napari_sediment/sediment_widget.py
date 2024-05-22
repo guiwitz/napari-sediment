@@ -476,6 +476,7 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
         
         # mask
+        self.btn_add_draw_mask.clicked.connect(self._add_manual_mask)
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
         self.btn_update_mask.clicked.connect(self._on_click_intensity_threshold)
         self.btn_automated_mask.clicked.connect(self._on_click_automated_threshold)
