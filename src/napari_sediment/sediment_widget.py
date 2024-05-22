@@ -67,7 +67,7 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', '&ROI', 'Mas&k', '&Export-Import', 'P&lotting']#,'&Options']
+        self.tab_names = ['&Main', 'Pro&cessing', '&ROI', 'Mas&k', 'I&O', 'P&lotting']#,'&Options']
         self.tabs = TabSet(self.tab_names, tab_layouts=[None]*(len(self.tab_names)-1) + [QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
@@ -90,6 +90,7 @@ class SedimentWidget(QWidget):
 
         # file selection
         self.files_group = VHGroup('Files and folders', orientation='G')
+        self.files_group.gbox.setToolTip("Either select data and Project export location or select Project location and import project.")
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
         self.btn_select_imhdr_file = QPushButton("Select hdr file")
@@ -98,12 +99,23 @@ class SedimentWidget(QWidget):
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
         self.files_group.glayout.addWidget(self.imhdr_path_display, 0, 1, 1, 1)
 
-        self.btn_select_export_folder = QPushButton("Set export folder")
+        self.btn_select_export_folder = QPushButton("Set Project folder")
         self.btn_select_export_folder.setToolTip(
             "Select a folder where to save the results and intermeditate files")
         self.export_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 1, 0, 1, 1)
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
+
+        self.btn_export = QPushButton("Export Project")
+        self.btn_export.setToolTip(
+            "Export all info necessary for next steps and to reload the project")
+        self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
+        self.btn_import = QPushButton("Import Project")
+        self.files_group.glayout.addWidget(self.btn_import, 2, 0, 1, 1)
+        self.check_load_corrected = QCheckBox("Load corrected data if available")
+        self.check_load_corrected.setToolTip("Load corrected data instead of raw")
+        self.check_load_corrected.setChecked(True)
+        self.files_group.glayout.addWidget(self.check_load_corrected, 2, 1, 1, 1)
 
         # metadata
         self.metadata_group = VHGroup('Metadata', orientation='G')
@@ -394,24 +406,11 @@ class SedimentWidget(QWidget):
 
     def _create_export_tab(self):
 
-        self.tabs.widget(self.tab_names.index('&Export-Import')).layout().setAlignment(Qt.AlignTop)
-
-        self.mask_group_project = VHGroup('Project', orientation='G')
-        self.tabs.add_named_tab('&Export-Import', self.mask_group_project.gbox)
-        self.btn_export = QPushButton("Export Project")
-        self.btn_export.setToolTip(
-            "Export all info necessary for next steps and to reload the project")
-        self.mask_group_project.glayout.addWidget(self.btn_export)
-        self.btn_import = QPushButton("Import Project")
-        self.mask_group_project.glayout.addWidget(self.btn_import)
-        self.check_load_corrected = QCheckBox("Load corrected data if available")
-        self.check_load_corrected.setToolTip("Load corrected data instead of raw")
-        self.check_load_corrected.setChecked(True)
-        self.mask_group_project.glayout.addWidget(self.check_load_corrected)
+        self.tabs.widget(self.tab_names.index('I&O')).layout().setAlignment(Qt.AlignTop)
 
         # io
         self.mask_group_export = VHGroup('Mask', orientation='G')
-        self.tabs.add_named_tab('&Export-Import', self.mask_group_export.gbox)
+        self.tabs.add_named_tab('I&O', self.mask_group_export.gbox)
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
@@ -419,7 +418,7 @@ class SedimentWidget(QWidget):
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
         self.mask_group_capture = VHGroup('Other exports', orientation='G')
-        self.tabs.add_named_tab('&Export-Import', self.mask_group_capture.gbox)
+        self.tabs.add_named_tab('I&O', self.mask_group_capture.gbox)
         self.btn_snapshot = QPushButton("Snapshot")
         self.btn_snapshot.setToolTip("Save snapshot of current viewer")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
