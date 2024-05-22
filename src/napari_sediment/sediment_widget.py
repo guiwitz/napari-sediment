@@ -655,6 +655,8 @@ class SedimentWidget(QWidget):
 
             self.rgb_widget.imagechannels = self.imagechannels
             self.rgb_widget._on_click_RGB()
+            self.rgb_widget.row_bounds = self.row_bounds
+            self.rgb_widget.col_bounds = self.col_bounds
             # add imcube from RGB
             [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
             self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
