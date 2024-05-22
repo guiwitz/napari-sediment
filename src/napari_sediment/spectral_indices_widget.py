@@ -97,25 +97,32 @@ class SpectralIndexWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ["&Main", "&Indices", "I&O", "&ROI", "P&lots"]#, "Plotslive"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, None, QGridLayout(), None])
+        self.tab_names = ["&Main", "&Index Definition", "Index C&ompute", "P&lots"]#, "Plotslive"]
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
 
-        self.btn_select_export_folder = QPushButton("Select project folder")
+        self.files_group = VHGroup('Files and Folders', orientation='G')
+        self.tabs.add_named_tab('&Main', self.files_group.gbox)
+
+        self.btn_select_export_folder = QPushButton("Set Project folder")
         self.export_path_display = QLineEdit("No path")
-        self.tabs.add_named_tab('&Main', self.btn_select_export_folder)
-        self.tabs.add_named_tab('&Main', self.export_path_display)
-        self.btn_load_project = QPushButton("Load project")
-        self.tabs.add_named_tab('&Main', self.btn_load_project)
+        self.files_group.glayout.addWidget(self.btn_select_export_folder, 0, 0, 1, 1)
+        self.files_group.glayout.addWidget(self.export_path_display, 0, 1, 1, 1)
+        self.btn_load_project = QPushButton("Import Project")
+        self.files_group.glayout.addWidget(self.btn_load_project, 1, 0, 1, 1)
         self.spin_selected_roi = QSpinBox()
         self.spin_selected_roi.setRange(0, 0)
         self.spin_selected_roi.setValue(0)
-        self.tabs.add_named_tab('&Main', QLabel('Selected ROI'))
-        self.tabs.add_named_tab('&Main', self.spin_selected_roi)
+        self.files_group.glayout.addWidget(QLabel('Selected ROI'), 2, 0, 1, 1)
+        self.files_group.glayout.addWidget(self.spin_selected_roi, 2, 1, 1, 1)
+        
+        self.band_group = VHGroup('Bands', orientation='G')
+        self.tabs.add_named_tab('&Main', self.band_group.gbox)
+        self.band_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
         self.qlist_channels = ChannelWidget(self.viewer)
+        self.band_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
-        self.tabs.add_named_tab('&Main', self.qlist_channels)
 
         self.rgbwidget = RGBWidget(viewer=self.viewer, translate=False)
         self.tabs.add_named_tab('&Main', self.rgbwidget.rgbmain_group.gbox)
@@ -124,54 +131,63 @@ class SpectralIndexWidget(QWidget):
         self._create_indices_tab()
         tab_rows = self.tabs.widget(1).layout().rowCount()
         self.em_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.tabs.add_named_tab('&Indices', self.em_plot, grid_pos=(tab_rows, 0, 1, 3))
+        self.tabs.add_named_tab('&Index Definition', self.em_plot, grid_pos=(tab_rows, 0, 1, 3))
         self.em_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range.setValue((0, 0, 0))
         self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range2.setValue((0, 0))
-        self.tabs.add_named_tab('&Indices', QLabel('RABD'), grid_pos=(tab_rows+1, 0, 1, 1))
-        self.tabs.add_named_tab('&Indices', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
-        self.tabs.add_named_tab('&Indices', QLabel('RABA/Ratio'), grid_pos=(tab_rows+2, 0, 1, 1))
-        self.tabs.add_named_tab('&Indices', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABD'), grid_pos=(tab_rows+1, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio'), grid_pos=(tab_rows+2, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
         self.btn_create_index = QPushButton("New index")
-        self.tabs.add_named_tab('&Indices', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
         self.qtext_new_index_name = QLineEdit()
-        self.tabs.add_named_tab('&Indices', self.qtext_new_index_name, grid_pos=(tab_rows+3, 1, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 1, 1, 2))
         self.btn_update_index = QPushButton("Update current index")
-        self.tabs.add_named_tab('&Indices', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
-
-        self.btn_compute_RABD = QPushButton("Compute Index")
-        self.tabs.add_named_tab('&Indices', self.btn_compute_RABD, grid_pos=(tab_rows+5, 0, 1, 3))
+        self.tabs.add_named_tab('&Index Definition', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
 
         self.btn_save_endmembers_plot = QPushButton("Save endmembers plot")
-        self.tabs.add_named_tab('&Indices', self.btn_save_endmembers_plot, grid_pos=(tab_rows+6, 0, 1, 3))
+        self.tabs.add_named_tab('&Index Definition', self.btn_save_endmembers_plot, grid_pos=(tab_rows+5, 0, 1, 3))
 
-        # I&O tab
-        self.index_pick_group = VHGroup('&Indices', orientation='G')
+        # Index C&ompute tab
+        self.index_pick_group = VHGroup('Index Selection', orientation='G')
         self.index_pick_group.glayout.setAlignment(Qt.AlignTop)
-        self.tabs.add_named_tab('I&O', self.index_pick_group.gbox)
+        self.tabs.add_named_tab('Index C&ompute', self.index_pick_group.gbox)
         self._create_index_io_pick()
 
+        self.index_options_group = VHGroup('Projection', orientation='G')
+        self.index_options_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('Index C&ompute', self.index_options_group.gbox)
         self.check_smooth_projection = QCheckBox("Smooth projection")
-        self.tabs.add_named_tab('I&O', self.check_smooth_projection)  
+        self.index_options_group.glayout.addWidget(self.check_smooth_projection, 0, 0, 1, 2)
         self.slider_index_savgol = QDoubleSlider(Qt.Horizontal)
         self.slider_index_savgol.setRange(1, 100)
         self.slider_index_savgol.setSingleStep(1)
         self.slider_index_savgol.setSliderPosition(5)
-        self.tabs.add_named_tab('I&O', QLabel('Smoothing window size'))
-        self.tabs.add_named_tab('I&O', self.slider_index_savgol)
-
-        self.btn_export_index_settings = QPushButton("Export index settings")
-        self.tabs.add_named_tab('I&O', self.btn_export_index_settings)
-        self.btn_import_index_settings = QPushButton("Import index settings")
-        self.tabs.add_named_tab('I&O', self.btn_import_index_settings)
-        self.index_file_display = QLineEdit("No file selected")
-        self.tabs.add_named_tab('I&O', self.index_file_display)
-
+        self.index_options_group.glayout.addWidget(QLabel('Smoothing window size'), 1, 0, 1, 1)
+        self.index_options_group.glayout.addWidget(self.slider_index_savgol, 1, 1, 1, 1)
         self.spin_roi_width = QSpinBox()
         self.spin_roi_width.setRange(1, 1000)
         self.spin_roi_width.setValue(20)
-        self.tabs.add_named_tab('&ROI', self.spin_roi_width)
+        self.index_options_group.glayout.addWidget(QLabel('Projection roi width'), 2, 0, 1, 1)
+        self.index_options_group.glayout.addWidget(self.spin_roi_width, 2, 1, 1, 1)
+
+        self.index_compute_group = VHGroup('Compute and export', orientation='G')
+        self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
+        self.btn_compute_RABD = QPushButton("Add Index Map to Viewer")
+        self.index_compute_group.glayout.addWidget(self.btn_compute_RABD)
+
+        self.btn_export_index_settings = QPushButton("Export index settings")
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
+        self.btn_export_indices_csv = QPushButton("Export index projections to csv")
+        self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv)
+        self.btn_import_index_settings = QPushButton("Import index settings")
+        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings)
+        self.index_file_display = QLineEdit("No file selected")
+        self.index_compute_group.glayout.addWidget(self.index_file_display)
+
 
         #self.index_plot = SpectralPlotter(napari_viewer=self.viewer)
         #self.tabs.add_named_tab('P&lots', self.index_plot)
@@ -200,8 +216,6 @@ class SpectralIndexWidget(QWidget):
         self.spin_final_dpi.setValue(100)
         self.spin_final_dpi.setSingleStep(1)
 
-        self.btn_export_indices_csv = QPushButton("Export indices to csv")
-
         self.scale = 1.0
         self.pix_width = None
         self.pix_height = None
@@ -224,7 +238,6 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(15, 1, 1, 1))
         self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(16, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(16, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.btn_export_indices_csv, grid_pos=(17, 0, 1, 2))
         
 
         self.btn_create_index_plot = QPushButton("Create index plot")
@@ -299,8 +312,8 @@ class SpectralIndexWidget(QWidget):
 
         self.current_index_type = 'RABD'
 
-        self.indices_group = VHGroup('&Indices', orientation='G')
-        self.tabs.add_named_tab('&Indices', self.indices_group.gbox, [1, 0, 1, 3])
+        self.indices_group = VHGroup('&Index Definition', orientation='G')
+        self.tabs.add_named_tab('&Index Definition', self.indices_group.gbox, [1, 0, 1, 3])
 
         self.qcom_indices = QComboBox()
         self.qcom_indices.addItems([value.index_name for key, value in self.index_collection.items()])
@@ -776,8 +789,13 @@ class SpectralIndexWidget(QWidget):
 
     def get_roi_bounds(self):
 
-        colmin = int(self.viewer.layers['rois'].data[0][:,1].min())
-        colmax = int(self.viewer.layers['rois'].data[0][:,1].max())
+        if 'rois' not in self.viewer.layers:
+            return self.col_bounds[0], self.col_bounds[1]
+        elif len(self.viewer.layers['rois'].data) == 0:
+            return self.col_bounds[0], self.col_bounds[1]
+        else:
+            colmin = int(self.viewer.layers['rois'].data[0][:,1].min())
+            colmax = int(self.viewer.layers['rois'].data[0][:,1].max())
 
         return colmin, colmax
 
@@ -814,13 +832,17 @@ class SpectralIndexWidget(QWidget):
             computed_index = self.index_collection[index_series[0].index_name].index_map
             proj = self.index_collection[index_series[0].index_name].index_proj   
 
+        roi = None
+        if 'rois' in self.viewer.layers:
+            roi=self.viewer.layers['rois'].data[0]
+
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
             rgb_image=rgb_image, mask=mask, index_image=computed_index, proj=proj,
             index_name=index_series[0].index_name,
             format_dict=format_dict, scale=self.params.scale,
                                 location=self.params.location, fig=self.index_plot_live.figure, 
-                                roi=self.viewer.layers['rois'].data[0])
+                                roi=roi)
 
         # save temporary low-res figure for display in napari
         self.index_plot_live.figure.savefig(
@@ -876,13 +898,17 @@ class SpectralIndexWidget(QWidget):
             all_spectral_indices.append(computed_index)
             all_proj.append(proj)
         
+        roi = None
+        if 'rois' in self.viewer.layers:
+            roi=self.viewer.layers['rois'].data[0]
+
         format_dict = asdict(self.params_multiplots)
         plot_multi_spectral_profile(
             rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
             proj=all_proj, index_name=[x.index_name for x in index_series], 
             format_dict=format_dict, scale=self.params.scale,
             fig=self.index_plot_live.figure,
-            roi=self.viewer.layers['rois'].data[0])
+            roi=roi)
         
         # save temporary low-res figure for display in napari
         self.index_plot_live.figure.savefig(
@@ -1080,33 +1106,24 @@ class SpectralIndexWidget(QWidget):
         with progress(total=0) as pbr:
             pbr.set_description("Computing index")
 
-            if self.current_index_type == 'RABD':
-                rabd_indices = compute_index_RABD(
-                    left=self.spin_index_left.value(),
-                    trough=self.spin_index_middle.value(),
-                    right=self.spin_index_right.value(),
-                    row_bounds=self.row_bounds,
-                    col_bounds=self.col_bounds,
-                    imagechannels=self.imagechannels)
-                self.viewer.add_image(rabd_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-            elif self.current_index_type == 'RABA':
-                raba_indices = compute_index_RABA(
-                    left=self.spin_index_left.value(),
-                    right=self.spin_index_right.value(),
-                    row_bounds=self.row_bounds,
-                    col_bounds=self.col_bounds,
-                    imagechannels=self.imagechannels)
-                self.viewer.add_image(raba_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-            elif self.current_index_type == 'Ratio':
-                ratio_indices = compute_index_ratio(
-                    left=self.spin_index_left.value(),
-                    right=self.spin_index_right.value(),
-                    row_bounds=self.row_bounds,
-                    col_bounds=self.col_bounds,
-                    imagechannels=self.imagechannels)
-                self.viewer.add_image(ratio_indices, name=self.qcom_indices.currentText(), colormap='viridis', blending='additive')
-            else:
-                print(f'unknown index type: {self.current_index_type}')
+            colmin, colmax = self.get_roi_bounds()
+            index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+            for i in index_series:
+                if self.index_collection[i.index_name].index_map is None:
+                    computed_index = self.compute_index(self.index_collection[i.index_name])
+                    computed_index = clean_index_map(computed_index)
+                    proj = compute_index_projection(
+                        computed_index,
+                        self.viewer.layers['mask'].data,
+                        colmin=colmin, colmax=colmax,
+                        smooth_window=self.get_smoothing_window())
+                    self.index_collection[i.index_name].index_map = computed_index
+                    self.index_collection[i.index_name].index_proj = proj
+                else:
+                    computed_index = self.index_collection[i.index_name].index_map
+                    proj = self.index_collection[i.index_name].index_proj
+                self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
+
         self.viewer.window._status_bar._toggle_activity_dock(False)
     
     def _on_change_index_index(self, event=None):
