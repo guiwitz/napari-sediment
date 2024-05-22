@@ -3,6 +3,7 @@ from qtpy.QtWidgets import (QComboBox, QPushButton, QWidget,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,)
 from qtpy.QtCore import Qt
 import numpy as np
+import dask.array as da
 from napari_guitils.gui_structures import VHGroup, TabSet
 from superqt import QDoubleRangeSlider
 
@@ -123,7 +124,10 @@ class RGBWidget(QWidget):
         
         rgb = ['red', 'green', 'blue']
         for c in rgb:
-            contrast_limits = np.percentile(self.viewer.layers[c].data.compute(), (2,98))
+            if isinstance(self.viewer.layers[c].data, da.Array):
+                contrast_limits = np.percentile(self.viewer.layers[c].data.compute(), (2,98))
+            else:
+                contrast_limits = np.percentile(self.viewer.layers[c].data, (2,98))
             contrast_range = contrast_limits[1] - contrast_limits[0]
             newlimits = contrast_limits.copy()
             newlimits[0] = contrast_limits[0] + self.slider_contrast.value()[0] * contrast_range
