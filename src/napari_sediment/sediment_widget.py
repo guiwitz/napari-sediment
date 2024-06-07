@@ -88,17 +88,19 @@ class SedimentWidget(QWidget):
 
     def _create_main_tab(self):
 
-        # file selection
+        # File selection
         self.files_group = VHGroup('Files and folders', orientation='G')
         self.files_group.gbox.setToolTip("Either select data and Project export location or select Project location and import project.")
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
+        ### hdr file ###
         self.btn_select_imhdr_file = QPushButton("Select hdr file")
         self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
         self.imhdr_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
         self.files_group.glayout.addWidget(self.imhdr_path_display, 0, 1, 1, 1)
 
+        ### Export folder ###
         self.btn_select_export_folder = QPushButton("Set Project folder")
         self.btn_select_export_folder.setToolTip(
             "Select a folder where to save the results and intermeditate files")
@@ -117,14 +119,17 @@ class SedimentWidget(QWidget):
         self.check_load_corrected.setChecked(True)
         self.files_group.glayout.addWidget(self.check_load_corrected, 2, 1, 1, 1)
 
-        # metadata
+        # Metadata
         self.metadata_group = VHGroup('Metadata', orientation='G')
         self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
 
+        ### Location ###
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
         self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
+
+        ### Spinbox ###
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
         self.spinbox_metadata_scale.setRange(1, 1000)
@@ -133,10 +138,11 @@ class SedimentWidget(QWidget):
         self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
 
-        # channel selection
+        # Channel selection
         self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('&Main', self.main_group.gbox)
 
+        ### Channel list as channel widget ###
         self.main_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
         self.qlist_channels = ChannelWidget(self.viewer, translate=True)
         self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
@@ -144,16 +150,19 @@ class SedimentWidget(QWidget):
             "Select one or more (hold shift) bands to load. Loaded bands are displayed in the imcube layer.")
         self.main_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
 
+        ### Button "Select all" ###
         self.btn_select_all = QPushButton('Select all')
         self.btn_select_all.setEnabled(False)
         self.main_group.glayout.addWidget(self.btn_select_all, 2, 0, 1, 2)
 
+        ### Checkbox "Sync bands with RGB" ###
         self.check_sync_bands_rgb = QCheckBox("Sync bands with RGB")
         self.check_sync_bands_rgb.setToolTip("Display same bands in RGB as in imcube")
         self.check_sync_bands_rgb.setChecked(True)
         self.main_group.glayout.addWidget(self.check_sync_bands_rgb, 3, 0, 1, 2)
         self.qlist_channels.setEnabled(False)
 
+        # RGB widget
         self.rgb_widget = RGBWidget(viewer=self.viewer)
         self.tabs.add_named_tab('&Main', self.rgb_widget.rgbmain_group.gbox)
         self.rgb_widget.btn_RGB.clicked.connect(self._on_click_sync_RGB)
