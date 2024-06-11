@@ -314,73 +314,125 @@ class SedimentWidget(QWidget):
             self.multiexp_batch.setStyleSheet(get_current_stylesheet())
 
         self.multiexp_batch.show()
+         
+    def _create_roi_tab(self):
+        """
+        Generates the "ROI" tab and its elements.
+        """
+
+        self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
+
+        # Group "Main ROI"
+        self.roi_group = VHGroup('Main ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
+
+        ### Button "Add main ROI" ###
+        self.btn_add_main_roi = QPushButton("Add main ROI")
+        self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
+        self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
+
+        ### Spinbox "Main ROI width" ###
+        self.spin_main_roi_width = QSpinBox()
+        self.spin_main_roi_width.setRange(1, 1000)
+        self.spin_main_roi_width.setValue(20)
+        self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
+
+        ### Button "Crop with main" ###
+        self.btn_main_crop = QPushButton("Crop with main")
+        self.btn_main_crop.setToolTip("Crop image with main ROI")
+
+        ### Button "Reset crop" ###
+        self.btn_main_crop_reset = QPushButton("Reset crop")
+        self.btn_main_crop_reset.setToolTip("Reset crop to full image")
+        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
+
+        ### Spinbox "Selected ROI" ###
+        self.spin_selected_roi = QSpinBox()
+        self.spin_selected_roi.setRange(0, 0)
+        self.spin_selected_roi.setValue(0)
+        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
+
+        # Group "Sub-ROI"
+        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
+        self.subroi_group.glayout.addWidget(QLabel(
+            'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
+        
+        ### Spinbox "Sub-ROI width" ###
+        self.spin_roi_width = QSpinBox()
+        self.spin_roi_width.setRange(1, 1000)
+        self.spin_roi_width.setValue(20)
+        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
+        self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
 
 
     def _create_mask_tab(self):
+        """
+        Generates the "Mask" tab and its elements.
+        """
             
         self.tabs.widget(self.tab_names.index('Mas&k')).layout().setAlignment(Qt.AlignTop)
         
+        # Group "Select layer to use"
         self.mask_layersel_group = VHGroup('1. Select layer to use', orientation='G')
         self.tabs.add_named_tab('Mas&k', self.mask_layersel_group.gbox)
         self.combo_layer_mask = QComboBox()
         self.mask_layersel_group.glayout.addWidget(self.combo_layer_mask)
 
+        # Group "Create one or more masks"
         self.mask_generation_group = VHGroup('2. Create one or more masks', orientation='G')
         self.tabs.add_named_tab('Mas&k', self.mask_generation_group.gbox)
 
-        self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
-        self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
-        
-        self.mask_group_draw = VHGroup('Manual drawing', orientation='G')
-        self.mask_group_draw.gbox.setToolTip("Draw a mask manually")
-
-        self.mask_group_border = VHGroup('Border mask', orientation='G')
-        self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
-        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
-        self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
-
-        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
-        self.mask_group_auto.gbox.setToolTip("Assume a Gaussian pixel intensity distribution (mu, sigma) and set a threshold at mu +/- sigma*factor")
-
-        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
-        self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
-        
+        ### "Create one or more masks" element Subtabs ###
         self.mask_tabs = TabSet(['Drawing', 'Border', 'Man. thresh.', 'Auto thresh.', 'ML'])
         self.mask_generation_group.glayout.addWidget(self.mask_tabs)
-        self.mask_tabs.add_named_tab('Drawing', self.mask_group_draw.gbox)
-        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
-        self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
-        self.mask_tabs.add_named_tab('Auto thresh.', self.mask_group_auto.gbox)
-        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.mask_group_ml.gbox)
-        self.mask_tabs.add_named_tab('ML', scroll)
-
-        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
-            g.glayout.setAlignment(Qt.AlignTop)
         
-        #draw
+        ### Subtab "Drawing" ###
+        ##### Group "Manual drawing" #####
+        self.mask_group_draw = VHGroup('Manual drawing', orientation='G')
+        self.mask_group_draw.gbox.setToolTip("Draw a mask manually")
+        self.mask_tabs.add_named_tab('Drawing', self.mask_group_draw.gbox)
+        ##### Button "Add manual mask" #####
         self.btn_add_draw_mask = QPushButton("Add manual mask")
         self.mask_group_draw.glayout.addWidget(self.btn_add_draw_mask, 0, 0, 1, 2)
 
-        # border
+        ### Subtab "Border" ###
+        ##### Group "Border mask" #####
+        self.mask_group_border = VHGroup('Border mask', orientation='G')
+        self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
+        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
+        ##### Button "Generate mask" #####
         self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
-        # manual
+        ### Subtab "Man. thresh." ###
+        ##### Group "Manual Threshold" #####
+        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
+        self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
+        self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
+        ##### "Min/Max" Slider and label #####
         self.slider_mask_threshold = QLabeledDoubleRangeSlider(Qt.Horizontal)
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
         self.mask_group_manual.glayout.addWidget(QLabel("Min/Max Threshold"), 0, 0, 1, 1)
         self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 0, 1, 1, 1)
+        ##### Button "Generate mask" #####
         self.btn_update_mask = QPushButton("Generate mask")
         self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 1, 0, 1, 2)
-        
-        # auto
+
+        ### Subtab "Auto thresh" ##
+        ##### Group "Auto Threshold" #####
+        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
+        self.mask_group_auto.gbox.setToolTip("Assume a Gaussian pixel intensity distribution (mu, sigma) and set a threshold at mu +/- sigma*factor")
+        self.mask_tabs.add_named_tab('Auto thresh.', self.mask_group_auto.gbox)
+        ##### Button "Generate mask" #####
         self.btn_automated_mask = QPushButton("Generate mask")
         self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 2)
+        ##### Elements "Distribution width factor" #####
         self.spin_automated_mask_width = QDoubleSpinBox()
         self.spin_automated_mask_width.setToolTip("Assuming a Gaussian pixel intensity distribution (mu, sigma), set a threshold at mu +/- sigma*factor.")
         self.spin_automated_mask_width.setRange(0.1, 10)
@@ -390,65 +442,46 @@ class SedimentWidget(QWidget):
         auto_threshold_label.setTextFormat(Qt.RichText)
         auto_threshold_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         auto_threshold_label.setOpenExternalLinks(True)
-
         self.mask_group_auto.glayout.addWidget(auto_threshold_label, 1, 0, 1, 1)
         self.mask_group_auto.glayout.addWidget(self.spin_automated_mask_width, 1, 1, 1, 1)
 
+        ### Subtab "ML" ###
+        ##### "Pixel Classifier" element #####
+        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
+        self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
+        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        ##### ConvPaintSpectralWidget #####
+        from .classifier import ConvPaintSpectralWidget
+        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
+        self.mask_group_ml.glayout.addWidget(self.mlwidget)
+        ##### Subtab "ML" scroller ##### 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.mask_group_ml.gbox)
+        self.mask_tabs.add_named_tab('ML', scroll)
+
+        # Align subtabs
+        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
+            g.glayout.setAlignment(Qt.AlignTop)
+        
         # phasor
         #self.btn_compute_phasor = QPushButton("Compute Phasor")
         #self.mask_group_phasor.glayout.addWidget(self.btn_compute_phasor, 0, 0, 1, 2)
         #self.btn_select_by_phasor = QPushButton("Phasor mask")
         #self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
-        # ml
-        from .classifier import ConvPaintSpectralWidget
-        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
-        self.mask_group_ml.glayout.addWidget(self.mlwidget)
+        # Group "Assemble masks"
+        self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
+        self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
         
-        # combine
+        ### Button "Combine masks" ###
         self.btn_combine_masks = QPushButton("Combine masks")
         self.mask_assemble_group.glayout.addWidget(self.btn_combine_masks, 0, 0, 1, 2)
+
+        ### Button "Clean mask" ###
         self.btn_clean_mask = QPushButton("Clean mask")
         self.mask_assemble_group.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
-        
-    def _create_roi_tab(self):
-
-        self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
-
-        self.roi_group = VHGroup('Main ROI', orientation='G')
-        self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
-        self.btn_add_main_roi = QPushButton("Add main ROI")
-        self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
-        self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
-
-        self.spin_main_roi_width = QSpinBox()
-        self.spin_main_roi_width.setRange(1, 1000)
-        self.spin_main_roi_width.setValue(20)
-        self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
-
-        self.btn_main_crop = QPushButton("Crop with main")
-        self.btn_main_crop.setToolTip("Crop image with main ROI")
-        self.btn_main_crop_reset = QPushButton("Reset crop")
-        self.btn_main_crop_reset.setToolTip("Reset crop to full image")
-        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
-        self.spin_selected_roi = QSpinBox()
-        self.spin_selected_roi.setRange(0, 0)
-        self.spin_selected_roi.setValue(0)
-        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
-
-        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
-        self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
-        self.subroi_group.glayout.addWidget(QLabel(
-            'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
-        self.spin_roi_width = QSpinBox()
-        self.spin_roi_width.setRange(1, 1000)
-        self.spin_roi_width.setValue(20)
-        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
-        self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
-
+ 
     def _create_export_tab(self):
 
         self.tabs.widget(self.tab_names.index('I&O')).layout().setAlignment(Qt.AlignTop)
