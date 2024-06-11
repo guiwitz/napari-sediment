@@ -483,23 +483,35 @@ class SedimentWidget(QWidget):
         self.mask_assemble_group.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
  
     def _create_export_tab(self):
+        """
+        Generates the "IO" tab and its elements.
+        """
 
         self.tabs.widget(self.tab_names.index('I&O')).layout().setAlignment(Qt.AlignTop)
 
-        # io
+        # Group "Mask"
         self.mask_group_export = VHGroup('Mask', orientation='G')
         self.tabs.add_named_tab('I&O', self.mask_group_export.gbox)
+
+        ### Button "Save mask" ###
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
+
+        ### Button "Load mask" ###
         self.btn_load_mask = QPushButton("Load mask")
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
+        # Group "Other exports"
         self.mask_group_capture = VHGroup('Other exports', orientation='G')
         self.tabs.add_named_tab('I&O', self.mask_group_capture.gbox)
+
+        ### Button "Snapshot" ###
         self.btn_snapshot = QPushButton("Snapshot")
         self.btn_snapshot.setToolTip("Save snapshot of current viewer")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
+
+        ### Elements "rgb.tiff" ###
         self.lineedit_rgb_tiff = QLineEdit()
         self.lineedit_rgb_tiff.setText('rgb.tiff')
         self.mask_group_capture.glayout.addWidget(self.lineedit_rgb_tiff, 1, 0, 1, 1)
@@ -515,17 +527,22 @@ class SedimentWidget(QWidget):
         self.check_use_external_ref.setChecked(True)
 
     def _create_plot_tab(self):
+        """
+        Generates the "Plotting" tab and its elements.
+        """
 
-        # Plot tab
+        # SpectralPlotter
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
         self.scan_plot.axes.set_ylabel('Intensity', color='white')
         self.tabs.add_named_tab('P&lotting', self.scan_plot, (0,0,1,2))
 
+        # Checkbox "Remove continuum"
         self.check_remove_continuum = QCheckBox("Remove continuum")
         self.check_remove_continuum.setChecked(True)
         self.tabs.add_named_tab('P&lotting', self.check_remove_continuum, (1,0,1,2))
 
+        # Slider "Smoothing window size"
         self.slider_spectrum_savgol = QDoubleSlider(Qt.Horizontal)
         self.slider_spectrum_savgol.setRange(1, 100)
         self.slider_spectrum_savgol.setSingleStep(1)
