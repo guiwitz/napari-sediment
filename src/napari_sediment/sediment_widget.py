@@ -87,20 +87,23 @@ class SedimentWidget(QWidget):
         self.viewer2 = napari.Viewer()
 
     def _create_main_tab(self):
+        """
+        Generates the "Main" tab and its elements.
+        """
 
-        # File selection
+        # Elements "Files and folders"
         self.files_group = VHGroup('Files and folders', orientation='G')
         self.files_group.gbox.setToolTip("Either select data and Project export location or select Project location and import project.")
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
-        ### hdr file ###
+        ### Elements "Select hdr file" ###
         self.btn_select_imhdr_file = QPushButton("Select hdr file")
         self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
         self.imhdr_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
         self.files_group.glayout.addWidget(self.imhdr_path_display, 0, 1, 1, 1)
 
-        ### Export folder ###
+        ### Elements "Set Project folder" ###
         self.btn_select_export_folder = QPushButton("Set Project folder")
         self.btn_select_export_folder.setToolTip(
             "Select a folder where to save the results and intermeditate files")
@@ -108,28 +111,33 @@ class SedimentWidget(QWidget):
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 1, 0, 1, 1)
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
 
-        self.btn_export = QPushButton("Export Project")
-        self.btn_export.setToolTip(
-            "Export all info necessary for next steps and to reload the project")
-        self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
+        ### Button "Import Project" ###
         self.btn_import = QPushButton("Import Project")
         self.files_group.glayout.addWidget(self.btn_import, 2, 0, 1, 1)
+
+        ### Checkbox "Load corrected data if available" ###
         self.check_load_corrected = QCheckBox("Load corrected data if available")
         self.check_load_corrected.setToolTip("Load corrected data instead of raw")
         self.check_load_corrected.setChecked(True)
         self.files_group.glayout.addWidget(self.check_load_corrected, 2, 1, 1, 1)
 
-        # Metadata
+        ### Button "Export Project" ###
+        self.btn_export = QPushButton("Export Project")
+        self.btn_export.setToolTip(
+            "Export all info necessary for next steps and to reload the project")
+        self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
+
+        # Elements "Metadata"
         self.metadata_group = VHGroup('Metadata', orientation='G')
         self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
 
-        ### Location ###
+        ### Elements "Location" ###
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
         self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
 
-        ### Spinbox ###
+        ### Spinbox "Scale" ###
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
         self.spinbox_metadata_scale.setRange(1, 1000)
@@ -138,7 +146,7 @@ class SedimentWidget(QWidget):
         self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
 
-        # Channel selection
+        # Elements "Bands"
         self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('&Main', self.main_group.gbox)
 
@@ -168,12 +176,17 @@ class SedimentWidget(QWidget):
         self.rgb_widget.btn_RGB.clicked.connect(self._on_click_sync_RGB)
 
     def _create_processing_tab(self):
+        """
+        Generates the "Processing" tab and its elements.
+        """
         
         self.tabs.widget(self.tab_names.index('Pro&cessing')).layout().setAlignment(Qt.AlignTop)
 
+        # Group "Background correction"
         self.background_group = VHGroup('Background correction', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
+        ### Elements "Dark ref" ###
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
         self.qtext_select_dark_file.setText('No path')
@@ -181,6 +194,7 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(self.qtext_select_dark_file, 0, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_dark_file, 0, 2, 1, 1)
 
+        ### Elements "White ref" ###
         self.btn_select_white_file = QPushButton("Manual selection")
         self.qtext_select_white_file = QLineEdit()
         self.qtext_select_white_file.setText('No path')
@@ -188,44 +202,55 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
 
+        ### Elements "Dark ref for image" ###
         self.btn_select_dark_for_im_file = QPushButton("Manual selection")
         self.qtext_select_dark_for_white_file = QLineEdit()
         self.qtext_select_dark_for_white_file.setText('No path')
         self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 2, 0, 1, 1)
         self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 2, 2, 1, 1)
+
+        ### Combo box "Layer" ###
         self.combo_layer_background = QComboBox()
         self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
         self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
+
+        ### Button "Correct" ###
         self.btn_background_correct = QPushButton("Correct")
         self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
 
-
+        # Group "Destripe"
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.destripe_group.gbox)
+
+        ### Combo box "Layer" ###
         self.combo_layer_destripe = QComboBox()
         self.destripe_group.glayout.addWidget(QLabel('Layer'), 0, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 1, 1, 1)
         self.qspin_destripe_width = QSpinBox()
         self.qspin_destripe_width.setRange(1, 1000)
         self.qspin_destripe_width.setValue(100)
+
+        ### Spin box "Savgol Width" ###
         self.destripe_group.glayout.addWidget(QLabel('Savgol Width'), 1, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.qspin_destripe_width, 1, 1, 1, 1)
+
+        ### Button "Destripe ###
         self.btn_destripe = QPushButton("Destripe")
         self.btn_destripe.setToolTip("Apply Savitzky-Golay filter to remove stripes")
         self.destripe_group.glayout.addWidget(self.btn_destripe, 2, 0, 1, 2)
 
-
+        # Group "Correct full dataset"
         self.batch_group = VHGroup('Correct full dataset', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.batch_group.gbox)
         
+        ### Elements "Crop bands" ###
         self.batch_group.glayout.addWidget(QLabel("Crop bands"), 0,0,1,1)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
         self.slider_batch_wavelengths.setRange(0, 1000)
         self.slider_batch_wavelengths.setSingleStep(1)
         self.slider_batch_wavelengths.setSliderPosition([0, 1000])
         self.batch_group.glayout.addWidget(self.slider_batch_wavelengths, 0,2,1,1)
-        
         self.spin_batch_wavelengths_min = QDoubleSpinBox()
         self.spin_batch_wavelengths_min.setRange(0, 1000)
         self.spin_batch_wavelengths_min.setSingleStep(1)
@@ -235,6 +260,7 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_max.setSingleStep(1)
         self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 0, 3, 1, 1)
 
+        ### Checkboxes "White correct" and "Destripe" ###
         self.check_batch_white = QCheckBox("White correct")
         self.check_batch_destripe = QCheckBox("Destripe")
         self.check_batch_white.setChecked(True)
@@ -242,29 +268,39 @@ class SedimentWidget(QWidget):
         self.batch_group.glayout.addWidget(self.check_batch_white, 1, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 0, 1, 1)
 
+        ### Spinbox "Chunk size" ###
         self.spin_chunk_size = QSpinBox()
         self.spin_chunk_size.setRange(1, 10000)
         self.spin_chunk_size.setValue(500)
         self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
         
+        ### Button "Correct and save data" ###
         self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 4, 0, 1, 4)
 
+        # Group "Correct multiple data sets"
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.multiexp_group.gbox)
+
+        ### Button "Process in batch" ###
         self.btn_show_multiexp_batch = QPushButton("Process in batch")
         self.multiexp_group.glayout.addWidget(self.btn_show_multiexp_batch, 0, 0, 1, 1)
         self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
 
+        # Checkbox "Use dask"
         self.check_use_dask = QCheckBox("Use dask")
         self.check_use_dask.setChecked(True)
         self.check_use_dask.setToolTip("Use dask to parallelize computation")
         self.tabs.add_named_tab('Pro&cessing', self.check_use_dask)
 
     def _on_click_multiexp_batch(self):
-
+        """
+        Instantiates a BatchPreprocWidget object from "batch_preproc.py"
+        Called when button "Process in batch" is clicked.
+        """
+        
         if self.multiexp_batch is None:
             self.multiexp_batch = BatchPreprocWidget(
                 self.viewer,
