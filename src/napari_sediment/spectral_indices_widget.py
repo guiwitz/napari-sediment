@@ -177,8 +177,10 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group = VHGroup('Compute and export', orientation='G')
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
-        self.btn_compute_RABD = QPushButton("Add index map(s) to Viewer")
-        self.index_compute_group.glayout.addWidget(self.btn_compute_RABD)
+        self.btn_compute_index_maps = QPushButton("(Re-)Compute index map(s)")
+        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps)
+        self.btn_add_index_maps_to_viewer = QPushButton("Add index map(s) to Viewer")
+        self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer)
 
         self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
@@ -386,7 +388,8 @@ class SpectralIndexWidget(QWidget):
         self.spin_selected_roi.valueChanged.connect(self.load_data)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
-        self.btn_compute_RABD.clicked.connect(self.on_add_index_map_to_viewer)
+        self.btn_compute_index_maps.clicked.connect(self._on_compute_index_maps)
+        self.btn_add_index_maps_to_viewer.clicked.connect(self._on_add_index_map_to_viewer)
         self.btn_save_endmembers_plot.clicked.connect(self.save_endmembers_plot)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
         self.btn_update_index.clicked.connect(self._on_click_update_index)
@@ -1109,8 +1112,24 @@ class SpectralIndexWidget(QWidget):
             print(f'unknown index type: {spectral_index.index_type}')
             return None
         return computed_index
+    
+    def _on_compute_index_maps(self, event):
+        """Compute the index and add to napari."""
 
-    def on_add_index_map_to_viewer(self, event):
+        colmin, colmax = self.get_roi_bounds()
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        for i in index_series:
+            computed_index = self.compute_index(self.index_collection[i.index_name])
+            computed_index = clean_index_map(computed_index)
+            proj = compute_index_projection(
+                computed_index,
+                self.viewer.layers['mask'].data,
+                colmin=colmin, colmax=colmax,
+                smooth_window=self.get_smoothing_window())
+            self.index_collection[i.index_name].index_map = computed_index
+            self.index_collection[i.index_name].index_proj = proj
+
+    def _on_add_index_map_to_viewer(self, event):
         """Compute the index and add to napari."""
 
         self.viewer.window._status_bar._toggle_activity_dock(True)
@@ -1135,9 +1154,12 @@ class SpectralIndexWidget(QWidget):
                     proj = self.index_collection[i.index_name].index_proj
                 
                 if i.index_name in self.viewer.layers:
-                    self.viewer.layers.remove(i.index_name)
-                layer = self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
-                layer.events.contrast_limits.connect(self._on_change_contrast_limits)
+                    #self.viewer.layers.remove(i.index_name)
+                    self.viewer.layers[i.index_name].data = computed_index
+                    self.viewer.layers[i.index_name].refresh()
+                else:
+                    layer = self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
+                    layer.events.contrast_limits.connect(self._on_change_contrast_limits)
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
     def _on_change_contrast_limits(self, event=None):
