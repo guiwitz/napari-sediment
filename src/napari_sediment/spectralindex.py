@@ -1,9 +1,12 @@
 from dataclasses import dataclass, field
+import dataclasses
+from pathlib import Path
 import numpy as np
 from scipy.signal import savgol_filter
 import dask.array as da
 import tifffile
 import cmap
+import yaml
 
 from .sediproc import find_index_of_band
 
@@ -44,6 +47,8 @@ class SpectralIndex:
         index projection
     index_map_range: nd.array
         range of index map for plotting
+    colormap: str
+        colormap for index map
     
     """
 
@@ -58,6 +63,7 @@ class SpectralIndex:
     index_map: np.ndarray = None
     index_proj: np.ndarray = None
     index_map_range: np.ndarray = None
+    colormap: str = 'viridis'
     
     def __post_init__(self):
         """Use defaults for bands."""
@@ -66,6 +72,18 @@ class SpectralIndex:
         self.right_band = self.right_band_default
         self.middle_band = self.middle_band_default
 
+    def dict_spectral_index(self):
+        """Return dataclass as dict and exclude large numpy arrays."""
+
+
+        dict_to_save = dataclasses.asdict(self)
+        del dict_to_save['index_map']
+        del dict_to_save['index_proj']
+        for key in dict_to_save:
+            if isinstance(dict_to_save[key], np.generic):
+                dict_to_save[key] = dict_to_save[key].item()
+        return dict_to_save
+    
 
 def compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannels):
     """Compute the index RABD.

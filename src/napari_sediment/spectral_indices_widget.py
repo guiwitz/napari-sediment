@@ -4,6 +4,7 @@ import numpy as np
 import dask.array as da
 import matplotlib.pyplot as plt
 import warnings
+import yaml
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
                             QComboBox, QLineEdit, QSizePolicy,
@@ -1159,16 +1160,22 @@ class SpectralIndexWidget(QWidget):
                     self.viewer.layers[i.index_name].data = computed_index
                     self.viewer.layers[i.index_name].refresh()
                 else:
-                    layer = self.viewer.add_image(computed_index, name=i.index_name, colormap='viridis', blending='additive')
-                    layer.events.contrast_limits.connect(self._on_change_contrast_limits)
+                    colormap = self.index_collection[i.index_name].colormap
+                    contrast_limits = self.index_collection[i.index_name].index_map_range
+                    layer = self.viewer.add_image(
+                        data=computed_index, name=i.index_name, colormap=colormap,
+                        blending='additive', contrast_limits=contrast_limits)
+                    layer.events.contrast_limits.connect(self._on_change_index_map_rendering)
+                    layer.events.colormap.connect(self._on_change_index_map_rendering)
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
-    def _on_change_contrast_limits(self, event=None):
+    def _on_change_index_map_rendering(self, event=None):
         """Update the contrast limits of the index layers."""
 
         layer = self.viewer.layers.selection.active
         if layer.name in self.index_collection:
             self.index_collection[layer.name].index_map_range = layer.contrast_limits
+            self.index_collection[layer.name].colormap = layer.colormap.name
 
     
     def _on_change_index_index(self, event=None):
@@ -1215,15 +1222,23 @@ class SpectralIndexWidget(QWidget):
     def _on_click_export_index_settings(self, event=None, file_path=None):
         """Export index setttings"""
 
-        index_series = [pd.Series(asdict(x)) for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        '''index_series = [pd.Series(asdict(x)) for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         index_table = pd.DataFrame(index_series)
         index_table.drop(columns=['index_map', 'index_proj'], inplace=True)
         if file_path is None:
             file_path = Path(str(QFileDialog.getSaveFileName(self, "Select index settings file")[0]))
         if file_path.suffix != '.csv':
             file_path = file_path.with_suffix('.csv')
-        index_table.to_csv(file_path, index=False)
+        index_table.to_csv(file_path, index=False)'''
 
+        index_series = [x.dict_spectral_index() for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        index_series = {'index_definition': index_series}
+        if file_path is None:
+            file_path = Path(str(QFileDialog.getSaveFileName(self, "Select index settings file")[0]))
+        if file_path.suffix != '.yml':
+                file_path = file_path.with_suffix('.yml')
+        with open(file_path, "w") as file:
+            yaml.dump(index_series, file)
 
     def _on_click_import_index_settings(self, event=None):
         """Load index settings from file."""
@@ -1240,7 +1255,18 @@ class SpectralIndexWidget(QWidget):
 
         # import table, populate combobox, export tick boxes and index_collection
         #index_table = pd.read_csv(self.export_folder.joinpath('index_settings.csv'))
-        index_table = pd.read_csv(self.index_file)
+
+        with open(self.index_file) as file:
+            index_series = yaml.full_load(file)
+        for index_element in index_series['index_definition']:
+            self.index_collection[index_element['index_name']] = SpectralIndex(**index_element)
+            self.qcom_indices.addItem(index_element['index_name'])
+            self.index_pick_boxes[index_element['index_name']] = QCheckBox()
+            self.index_pick_group.glayout.addWidget(QLabel(index_element['index_name']), self.qcom_indices.count(), 0, 1, 1)
+            self.index_pick_group.glayout.addWidget(self.index_pick_boxes[index_element['index_name']], self.qcom_indices.count(), 1, 1, 1)
+        self.qcom_indices.setCurrentText(index_element['index_name'])
+        
+        '''index_table = pd.read_csv(self.index_file)
         index_table = index_table.replace(np.nan, None)
         for _, index_row in index_table.iterrows():
             row_dict = index_row.to_dict()
@@ -1253,7 +1279,7 @@ class SpectralIndexWidget(QWidget):
             self.index_pick_boxes[index_row.index_name] = QCheckBox()
             self.index_pick_group.glayout.addWidget(QLabel(index_row.index_name), self.qcom_indices.count(), 0, 1, 1)
             self.index_pick_group.glayout.addWidget(self.index_pick_boxes[index_row.index_name], self.qcom_indices.count(), 1, 1, 1)
-        self.qcom_indices.setCurrentText(index_row.index_name)
+        self.qcom_indices.setCurrentText(index_row.index_name)'''
         self._on_change_index_index()
 
 class ScaledPixmapLabel(QLabel):
