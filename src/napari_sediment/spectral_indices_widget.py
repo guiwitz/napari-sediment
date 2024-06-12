@@ -1128,8 +1128,9 @@ class SpectralIndexWidget(QWidget):
                 smooth_window=self.get_smoothing_window())
             self.index_collection[i.index_name].index_map = computed_index
             self.index_collection[i.index_name].index_proj = proj
+        self._on_add_index_map_to_viewer()
 
-    def _on_add_index_map_to_viewer(self, event):
+    def _on_add_index_map_to_viewer(self, event=None):
         """Compute the index and add to napari."""
 
         self.viewer.window._status_bar._toggle_activity_dock(True)
