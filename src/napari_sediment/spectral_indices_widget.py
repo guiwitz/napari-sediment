@@ -1051,15 +1051,17 @@ class SpectralIndexWidget(QWidget):
                               right_band_default=current_bands[1],
                               )
         
-        self.qcom_indices.addItem(name)
-        self.qcom_indices.setCurrentText(name)
+        if name not in [self.qcom_indices.itemText(i) for i in range(self.qcom_indices.count())]:
+            self.qcom_indices.addItem(name)
 
-        ## add box to pick
-        num_boxes = len(self.index_collection)
-        self.index_pick_group.glayout.addWidget(QLabel(name), num_boxes, 0, 1, 1)
-        newbox = QCheckBox()
-        self.index_pick_boxes[name] = newbox
-        self.index_pick_group.glayout.addWidget(newbox, num_boxes, 1, 1, 1)
+            ## add box to pick
+            num_boxes = len(self.index_collection)
+            self.index_pick_group.glayout.addWidget(QLabel(name), num_boxes, 0, 1, 1)
+            newbox = QCheckBox()
+            self.index_pick_boxes[name] = newbox
+            self.index_pick_group.glayout.addWidget(newbox, num_boxes, 1, 1, 1)
+
+        self.qcom_indices.setCurrentText(name)
         
 
     def _on_click_update_index(self, event):
