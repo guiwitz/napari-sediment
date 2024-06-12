@@ -177,10 +177,10 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group = VHGroup('Compute and export', orientation='G')
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
-        self.btn_compute_RABD = QPushButton("Add Index Map to Viewer")
+        self.btn_compute_RABD = QPushButton("Add index map(s) to Viewer")
         self.index_compute_group.glayout.addWidget(self.btn_compute_RABD)
 
-        self.btn_export_index_tiff = QPushButton("Export index tiff")
+        self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
         self.btn_export_index_settings = QPushButton("Export index settings")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
