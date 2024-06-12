@@ -30,7 +30,8 @@ from .widgets.channel_widget import ChannelWidget
 from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
-                            compute_index_ratio, compute_index_projection, clean_index_map)
+                            compute_index_ratio, compute_index_projection,
+                            clean_index_map, save_tif_cmap)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
 
@@ -179,6 +180,8 @@ class SpectralIndexWidget(QWidget):
         self.btn_compute_RABD = QPushButton("Add Index Map to Viewer")
         self.index_compute_group.glayout.addWidget(self.btn_compute_RABD)
 
+        self.btn_export_index_tiff = QPushButton("Export index tiff")
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
         self.btn_export_index_settings = QPushButton("Export index settings")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
@@ -388,6 +391,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_create_index.clicked.connect(self._on_click_new_index)
         self.btn_update_index.clicked.connect(self._on_click_update_index)
         self.qcom_indices.activated.connect(self._on_change_index_index)
+        self.btn_export_index_tiff.clicked.connect(self._on_click_export_index_tiff)
         self.btn_export_index_settings.clicked.connect(self._on_click_export_index_settings)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
         self.btn_create_index_plot.clicked.connect(self._on_click_create_single_index_plot)
@@ -1169,6 +1173,19 @@ class SpectralIndexWidget(QWidget):
             self.index_pick_boxes[key_val[0]] = newbox
             self.index_pick_group.glayout.addWidget(newbox, ind, 1, 1, 1)
 
+    def _on_click_export_index_tiff(self, event=None):
+        """Export index maps to tiff"""
+        
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        
+        for key, index in self.index_collection.items():
+            if key in self.viewer.layers:
+                index_map = self.viewer.layers[key].data
+                contrast = self.viewer.layers[key].contrast_limits
+                napari_cmap = self.viewer.layers[key].colormap
+                export_path = export_folder.joinpath(f'{key}_index_map.tif')
+                save_tif_cmap(image=index_map, image_path=export_path,
+                              napari_cmap=napari_cmap, contrast=contrast)
 
     def _on_click_export_index_settings(self, event=None, file_path=None):
         """Export index setttings"""
@@ -1181,6 +1198,7 @@ class SpectralIndexWidget(QWidget):
         if file_path.suffix != '.csv':
             file_path = file_path.with_suffix('.csv')
         index_table.to_csv(file_path, index=False)
+
 
     def _on_click_import_index_settings(self, event=None):
         """Load index settings from file."""

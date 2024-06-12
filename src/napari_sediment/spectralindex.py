@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.signal import savgol_filter
 import dask.array as da
+import tifffile
+import cmap
 
 from .sediproc import find_index_of_band
 
@@ -228,5 +230,34 @@ def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=No
 
 
     return proj
+
+def save_tif_cmap(image, image_path, napari_cmap, contrast):
+    """Save image as tiff with colormap using specified contrast. The
+    saved image is only for visualization purposes, as the values are
+    rescaled and transformed to RGB.
+
+    Parameters
+    ----------
+    image: np.ndarray
+        image to save
+    image_path: str
+        path to save image
+    napari_cmap: napari Colormap
+        napari colormap
+    contrast: tuple of float
+        contrast
+
+    """
+    
+    current_cmap = cmap.Colormap(napari_cmap.colors).to_matplotlib()
+
+    norm_image = np.clip(image, a_min=contrast[0], a_max=contrast[1])
+    norm_image = (norm_image - np.nanmin(norm_image)) / (np.nanmax(norm_image) - np.nanmin(norm_image))
+    
+    colored_image = current_cmap(norm_image)
+    colored_image = (colored_image[:, :, :3] * 255).astype(np.uint8)
+
+    tifffile.imwrite(image_path, colored_image)
+    
 
         
