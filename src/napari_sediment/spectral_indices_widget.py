@@ -184,10 +184,10 @@ class SpectralIndexWidget(QWidget):
 
         self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
-        self.btn_export_index_settings = QPushButton("Export index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
         self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv)
+        self.btn_export_index_settings = QPushButton("Export index settings")
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
         self.btn_import_index_settings = QPushButton("Import index settings")
         self.index_compute_group.glayout.addWidget(self.btn_import_index_settings)
         self.index_file_display = QLineEdit("No file selected")
