@@ -87,20 +87,23 @@ class SedimentWidget(QWidget):
         self.viewer2 = napari.Viewer()
 
     def _create_main_tab(self):
+        """
+        Generates the "Main" tab and its elements.
+        """
 
-        # File selection
+        # Elements "Files and folders"
         self.files_group = VHGroup('Files and folders', orientation='G')
         self.files_group.gbox.setToolTip("Either select data and Project export location or select Project location and import project.")
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
 
-        ### hdr file ###
+        ### Elements "Select hdr file" ###
         self.btn_select_imhdr_file = QPushButton("Select hdr file")
         self.btn_select_imhdr_file.setToolTip("Select a file with .hdr extension")
         self.imhdr_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_imhdr_file, 0, 0, 1, 1)
         self.files_group.glayout.addWidget(self.imhdr_path_display, 0, 1, 1, 1)
 
-        ### Export folder ###
+        ### Elements "Set Project folder" ###
         self.btn_select_export_folder = QPushButton("Set Project folder")
         self.btn_select_export_folder.setToolTip(
             "Select a folder where to save the results and intermeditate files")
@@ -108,28 +111,33 @@ class SedimentWidget(QWidget):
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 1, 0, 1, 1)
         self.files_group.glayout.addWidget(self.export_path_display, 1, 1, 1, 1)
 
-        self.btn_export = QPushButton("Export Project")
-        self.btn_export.setToolTip(
-            "Export all info necessary for next steps and to reload the project")
-        self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
+        ### Button "Import Project" ###
         self.btn_import = QPushButton("Import Project")
         self.files_group.glayout.addWidget(self.btn_import, 2, 0, 1, 1)
+
+        ### Checkbox "Load corrected data if available" ###
         self.check_load_corrected = QCheckBox("Load corrected data if available")
         self.check_load_corrected.setToolTip("Load corrected data instead of raw")
         self.check_load_corrected.setChecked(True)
         self.files_group.glayout.addWidget(self.check_load_corrected, 2, 1, 1, 1)
 
-        # Metadata
+        ### Button "Export Project" ###
+        self.btn_export = QPushButton("Export Project")
+        self.btn_export.setToolTip(
+            "Export all info necessary for next steps and to reload the project")
+        self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
+
+        # Elements "Metadata"
         self.metadata_group = VHGroup('Metadata', orientation='G')
         self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
 
-        ### Location ###
+        ### Elements "Location" ###
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
         self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
 
-        ### Spinbox ###
+        ### Spinbox "Scale" ###
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
         self.spinbox_metadata_scale.setRange(1, 1000)
@@ -138,7 +146,7 @@ class SedimentWidget(QWidget):
         self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
 
-        # Channel selection
+        # Elements "Bands"
         self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('&Main', self.main_group.gbox)
 
@@ -168,12 +176,17 @@ class SedimentWidget(QWidget):
         self.rgb_widget.btn_RGB.clicked.connect(self._on_click_sync_RGB)
 
     def _create_processing_tab(self):
+        """
+        Generates the "Processing" tab and its elements.
+        """
         
         self.tabs.widget(self.tab_names.index('Pro&cessing')).layout().setAlignment(Qt.AlignTop)
 
+        # Group "Background correction"
         self.background_group = VHGroup('Background correction', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
+        ### Elements "Dark ref" ###
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
         self.qtext_select_dark_file.setText('No path')
@@ -181,6 +194,7 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(self.qtext_select_dark_file, 0, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_dark_file, 0, 2, 1, 1)
 
+        ### Elements "White ref" ###
         self.btn_select_white_file = QPushButton("Manual selection")
         self.qtext_select_white_file = QLineEdit()
         self.qtext_select_white_file.setText('No path')
@@ -188,44 +202,55 @@ class SedimentWidget(QWidget):
         self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
 
+        ### Elements "Dark ref for image" ###
         self.btn_select_dark_for_im_file = QPushButton("Manual selection")
         self.qtext_select_dark_for_white_file = QLineEdit()
         self.qtext_select_dark_for_white_file.setText('No path')
         self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 2, 0, 1, 1)
         self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
         self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 2, 2, 1, 1)
+
+        ### Combo box "Layer" ###
         self.combo_layer_background = QComboBox()
         self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
         self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
+
+        ### Button "Correct" ###
         self.btn_background_correct = QPushButton("Correct")
         self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
 
-
+        # Group "Destripe"
         self.destripe_group = VHGroup('Destripe', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.destripe_group.gbox)
+
+        ### Combo box "Layer" ###
         self.combo_layer_destripe = QComboBox()
         self.destripe_group.glayout.addWidget(QLabel('Layer'), 0, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.combo_layer_destripe, 0, 1, 1, 1)
         self.qspin_destripe_width = QSpinBox()
         self.qspin_destripe_width.setRange(1, 1000)
         self.qspin_destripe_width.setValue(100)
+
+        ### Spin box "Savgol Width" ###
         self.destripe_group.glayout.addWidget(QLabel('Savgol Width'), 1, 0, 1, 1)
         self.destripe_group.glayout.addWidget(self.qspin_destripe_width, 1, 1, 1, 1)
+
+        ### Button "Destripe ###
         self.btn_destripe = QPushButton("Destripe")
         self.btn_destripe.setToolTip("Apply Savitzky-Golay filter to remove stripes")
         self.destripe_group.glayout.addWidget(self.btn_destripe, 2, 0, 1, 2)
 
-
+        # Group "Correct full dataset"
         self.batch_group = VHGroup('Correct full dataset', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.batch_group.gbox)
         
+        ### Elements "Crop bands" ###
         self.batch_group.glayout.addWidget(QLabel("Crop bands"), 0,0,1,1)
         self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
         self.slider_batch_wavelengths.setRange(0, 1000)
         self.slider_batch_wavelengths.setSingleStep(1)
         self.slider_batch_wavelengths.setSliderPosition([0, 1000])
         self.batch_group.glayout.addWidget(self.slider_batch_wavelengths, 0,2,1,1)
-        
         self.spin_batch_wavelengths_min = QDoubleSpinBox()
         self.spin_batch_wavelengths_min.setRange(0, 1000)
         self.spin_batch_wavelengths_min.setSingleStep(1)
@@ -235,6 +260,7 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_max.setSingleStep(1)
         self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 0, 3, 1, 1)
 
+        ### Checkboxes "White correct" and "Destripe" ###
         self.check_batch_white = QCheckBox("White correct")
         self.check_batch_destripe = QCheckBox("Destripe")
         self.check_batch_white.setChecked(True)
@@ -242,29 +268,39 @@ class SedimentWidget(QWidget):
         self.batch_group.glayout.addWidget(self.check_batch_white, 1, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 0, 1, 1)
 
+        ### Spinbox "Chunk size" ###
         self.spin_chunk_size = QSpinBox()
         self.spin_chunk_size.setRange(1, 10000)
         self.spin_chunk_size.setValue(500)
         self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
         
+        ### Button "Correct and save data" ###
         self.btn_batch_correct = QPushButton("Correct and save data")
         self.batch_group.glayout.addWidget(self.btn_batch_correct, 4, 0, 1, 4)
 
+        # Group "Correct multiple data sets"
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.multiexp_group.gbox)
+
+        ### Button "Process in batch" ###
         self.btn_show_multiexp_batch = QPushButton("Process in batch")
         self.multiexp_group.glayout.addWidget(self.btn_show_multiexp_batch, 0, 0, 1, 1)
         self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
 
+        # Checkbox "Use dask"
         self.check_use_dask = QCheckBox("Use dask")
         self.check_use_dask.setChecked(True)
         self.check_use_dask.setToolTip("Use dask to parallelize computation")
         self.tabs.add_named_tab('Pro&cessing', self.check_use_dask)
 
     def _on_click_multiexp_batch(self):
-
+        """
+        Instantiates a BatchPreprocWidget object from "batch_preproc.py"
+        Called when button "Process in batch" is clicked.
+        """
+        
         if self.multiexp_batch is None:
             self.multiexp_batch = BatchPreprocWidget(
                 self.viewer,
@@ -278,73 +314,125 @@ class SedimentWidget(QWidget):
             self.multiexp_batch.setStyleSheet(get_current_stylesheet())
 
         self.multiexp_batch.show()
+         
+    def _create_roi_tab(self):
+        """
+        Generates the "ROI" tab and its elements.
+        """
+
+        self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
+
+        # Group "Main ROI"
+        self.roi_group = VHGroup('Main ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
+
+        ### Button "Add main ROI" ###
+        self.btn_add_main_roi = QPushButton("Add main ROI")
+        self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
+        self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
+
+        ### Spinbox "Main ROI width" ###
+        self.spin_main_roi_width = QSpinBox()
+        self.spin_main_roi_width.setRange(1, 1000)
+        self.spin_main_roi_width.setValue(20)
+        self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
+
+        ### Button "Crop with main" ###
+        self.btn_main_crop = QPushButton("Crop with main")
+        self.btn_main_crop.setToolTip("Crop image with main ROI")
+
+        ### Button "Reset crop" ###
+        self.btn_main_crop_reset = QPushButton("Reset crop")
+        self.btn_main_crop_reset.setToolTip("Reset crop to full image")
+        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
+
+        ### Spinbox "Selected ROI" ###
+        self.spin_selected_roi = QSpinBox()
+        self.spin_selected_roi.setRange(0, 0)
+        self.spin_selected_roi.setValue(0)
+        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
+        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
+
+        # Group "Sub-ROI"
+        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
+        self.subroi_group.glayout.addWidget(QLabel(
+            'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
+        
+        ### Spinbox "Sub-ROI width" ###
+        self.spin_roi_width = QSpinBox()
+        self.spin_roi_width.setRange(1, 1000)
+        self.spin_roi_width.setValue(20)
+        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
+        self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
 
 
     def _create_mask_tab(self):
+        """
+        Generates the "Mask" tab and its elements.
+        """
             
         self.tabs.widget(self.tab_names.index('Mas&k')).layout().setAlignment(Qt.AlignTop)
         
+        # Group "Select layer to use"
         self.mask_layersel_group = VHGroup('1. Select layer to use', orientation='G')
         self.tabs.add_named_tab('Mas&k', self.mask_layersel_group.gbox)
         self.combo_layer_mask = QComboBox()
         self.mask_layersel_group.glayout.addWidget(self.combo_layer_mask)
 
+        # Group "Create one or more masks"
         self.mask_generation_group = VHGroup('2. Create one or more masks', orientation='G')
         self.tabs.add_named_tab('Mas&k', self.mask_generation_group.gbox)
 
-        self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
-        self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
-        
-        self.mask_group_draw = VHGroup('Manual drawing', orientation='G')
-        self.mask_group_draw.gbox.setToolTip("Draw a mask manually")
-
-        self.mask_group_border = VHGroup('Border mask', orientation='G')
-        self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
-        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
-        self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
-
-        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
-        self.mask_group_auto.gbox.setToolTip("Assume a Gaussian pixel intensity distribution (mu, sigma) and set a threshold at mu +/- sigma*factor")
-
-        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
-        self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
-        
+        ### "Create one or more masks" element Subtabs ###
         self.mask_tabs = TabSet(['Drawing', 'Border', 'Man. thresh.', 'Auto thresh.', 'ML'])
         self.mask_generation_group.glayout.addWidget(self.mask_tabs)
-        self.mask_tabs.add_named_tab('Drawing', self.mask_group_draw.gbox)
-        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
-        self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
-        self.mask_tabs.add_named_tab('Auto thresh.', self.mask_group_auto.gbox)
-        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.mask_group_ml.gbox)
-        self.mask_tabs.add_named_tab('ML', scroll)
-
-        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
-            g.glayout.setAlignment(Qt.AlignTop)
         
-        #draw
+        ### Subtab "Drawing" ###
+        ##### Group "Manual drawing" #####
+        self.mask_group_draw = VHGroup('Manual drawing', orientation='G')
+        self.mask_group_draw.gbox.setToolTip("Draw a mask manually")
+        self.mask_tabs.add_named_tab('Drawing', self.mask_group_draw.gbox)
+        ##### Button "Add manual mask" #####
         self.btn_add_draw_mask = QPushButton("Add manual mask")
         self.mask_group_draw.glayout.addWidget(self.btn_add_draw_mask, 0, 0, 1, 2)
 
-        # border
+        ### Subtab "Border" ###
+        ##### Group "Border mask" #####
+        self.mask_group_border = VHGroup('Border mask', orientation='G')
+        self.mask_group_border.gbox.setToolTip("Detect background regions on the borders and remove them")
+        self.mask_tabs.add_named_tab('Border', self.mask_group_border.gbox)
+        ##### Button "Generate mask" #####
         self.btn_border_mask = QPushButton("Generate mask")
         self.mask_group_border.glayout.addWidget(self.btn_border_mask, 0, 0, 1, 2)
 
-        # manual
+        ### Subtab "Man. thresh." ###
+        ##### Group "Manual Threshold" #####
+        self.mask_group_manual = VHGroup('Manual Threshold', orientation='G')
+        self.mask_group_manual.gbox.setToolTip("Manually set a threshold on intensity of average imcube")
+        self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
+        ##### "Min/Max" Slider and label #####
         self.slider_mask_threshold = QLabeledDoubleRangeSlider(Qt.Horizontal)
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
         self.mask_group_manual.glayout.addWidget(QLabel("Min/Max Threshold"), 0, 0, 1, 1)
         self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 0, 1, 1, 1)
+        ##### Button "Generate mask" #####
         self.btn_update_mask = QPushButton("Generate mask")
         self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 1, 0, 1, 2)
-        
-        # auto
+
+        ### Subtab "Auto thresh" ##
+        ##### Group "Auto Threshold" #####
+        self.mask_group_auto = VHGroup('Auto Threshold', orientation='G')
+        self.mask_group_auto.gbox.setToolTip("Assume a Gaussian pixel intensity distribution (mu, sigma) and set a threshold at mu +/- sigma*factor")
+        self.mask_tabs.add_named_tab('Auto thresh.', self.mask_group_auto.gbox)
+        ##### Button "Generate mask" #####
         self.btn_automated_mask = QPushButton("Generate mask")
         self.mask_group_auto.glayout.addWidget(self.btn_automated_mask, 0, 0, 1, 2)
+        ##### Elements "Distribution width factor" #####
         self.spin_automated_mask_width = QDoubleSpinBox()
         self.spin_automated_mask_width.setToolTip("Assuming a Gaussian pixel intensity distribution (mu, sigma), set a threshold at mu +/- sigma*factor.")
         self.spin_automated_mask_width.setRange(0.1, 10)
@@ -354,83 +442,76 @@ class SedimentWidget(QWidget):
         auto_threshold_label.setTextFormat(Qt.RichText)
         auto_threshold_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         auto_threshold_label.setOpenExternalLinks(True)
-
         self.mask_group_auto.glayout.addWidget(auto_threshold_label, 1, 0, 1, 1)
         self.mask_group_auto.glayout.addWidget(self.spin_automated_mask_width, 1, 1, 1, 1)
 
+        ### Subtab "ML" ###
+        ##### "Pixel Classifier" element #####
+        self.mask_group_ml = VHGroup('Pixel Classifier', orientation='G')
+        self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
+        #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
+        ##### ConvPaintSpectralWidget #####
+        from .classifier import ConvPaintSpectralWidget
+        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
+        self.mask_group_ml.glayout.addWidget(self.mlwidget)
+        ##### Subtab "ML" scroller ##### 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.mask_group_ml.gbox)
+        self.mask_tabs.add_named_tab('ML', scroll)
+
+        # Align subtabs
+        for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
+            g.glayout.setAlignment(Qt.AlignTop)
+        
         # phasor
         #self.btn_compute_phasor = QPushButton("Compute Phasor")
         #self.mask_group_phasor.glayout.addWidget(self.btn_compute_phasor, 0, 0, 1, 2)
         #self.btn_select_by_phasor = QPushButton("Phasor mask")
         #self.mask_group_phasor.glayout.addWidget(self.btn_select_by_phasor, 1, 0, 1, 2)
 
-        # ml
-        from .classifier import ConvPaintSpectralWidget
-        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
-        self.mask_group_ml.glayout.addWidget(self.mlwidget)
+        # Group "Assemble masks"
+        self.mask_assemble_group = VHGroup('3. Assemble masks', orientation='G')
+        self.tabs.add_named_tab('Mas&k', self.mask_assemble_group.gbox)
         
-        # combine
+        ### Button "Combine masks" ###
         self.btn_combine_masks = QPushButton("Combine masks")
         self.mask_assemble_group.glayout.addWidget(self.btn_combine_masks, 0, 0, 1, 2)
+
+        ### Button "Clean mask" ###
         self.btn_clean_mask = QPushButton("Clean mask")
         self.mask_assemble_group.glayout.addWidget(self.btn_clean_mask, 1, 0, 1, 2)
-        
-    def _create_roi_tab(self):
-
-        self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
-
-        self.roi_group = VHGroup('Main ROI', orientation='G')
-        self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
-        self.btn_add_main_roi = QPushButton("Add main ROI")
-        self.btn_add_main_roi.setToolTip("Maximal &ROI only removing fully masked border")
-        self.roi_group.glayout.addWidget(self.btn_add_main_roi, 0, 0, 1, 2)
-
-        self.spin_main_roi_width = QSpinBox()
-        self.spin_main_roi_width.setRange(1, 1000)
-        self.spin_main_roi_width.setValue(20)
-        self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
-
-        self.btn_main_crop = QPushButton("Crop with main")
-        self.btn_main_crop.setToolTip("Crop image with main ROI")
-        self.btn_main_crop_reset = QPushButton("Reset crop")
-        self.btn_main_crop_reset.setToolTip("Reset crop to full image")
-        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
-        self.spin_selected_roi = QSpinBox()
-        self.spin_selected_roi.setRange(0, 0)
-        self.spin_selected_roi.setValue(0)
-        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
-
-        self.subroi_group = VHGroup('Sub-ROI', orientation='G')
-        self.tabs.add_named_tab('&ROI', self.subroi_group.gbox)
-        self.subroi_group.glayout.addWidget(QLabel(
-            'Set desired sub-&ROI width and double-click in viewer to place them'), 0, 0, 1, 2)
-        self.spin_roi_width = QSpinBox()
-        self.spin_roi_width.setRange(1, 1000)
-        self.spin_roi_width.setValue(20)
-        self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
-        self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
-
+ 
     def _create_export_tab(self):
+        """
+        Generates the "IO" tab and its elements.
+        """
 
         self.tabs.widget(self.tab_names.index('I&O')).layout().setAlignment(Qt.AlignTop)
 
-        # io
+        # Group "Mask"
         self.mask_group_export = VHGroup('Mask', orientation='G')
         self.tabs.add_named_tab('I&O', self.mask_group_export.gbox)
+
+        ### Button "Save mask" ###
         self.btn_save_mask = QPushButton("Save mask")
         self.btn_save_mask.setToolTip("Save only mask as tiff")
         self.mask_group_export.glayout.addWidget(self.btn_save_mask)
+
+        ### Button "Load mask" ###
         self.btn_load_mask = QPushButton("Load mask")
         self.mask_group_export.glayout.addWidget(self.btn_load_mask)
         
+        # Group "Other exports"
         self.mask_group_capture = VHGroup('Other exports', orientation='G')
         self.tabs.add_named_tab('I&O', self.mask_group_capture.gbox)
+
+        ### Button "Snapshot" ###
         self.btn_snapshot = QPushButton("Snapshot")
         self.btn_snapshot.setToolTip("Save snapshot of current viewer")
         self.mask_group_capture.glayout.addWidget(self.btn_snapshot, 0, 0, 1, 2)
+
+        ### Elements "rgb.tiff" ###
         self.lineedit_rgb_tiff = QLineEdit()
         self.lineedit_rgb_tiff.setText('rgb.tiff')
         self.mask_group_capture.glayout.addWidget(self.lineedit_rgb_tiff, 1, 0, 1, 1)
@@ -446,17 +527,22 @@ class SedimentWidget(QWidget):
         self.check_use_external_ref.setChecked(True)
 
     def _create_plot_tab(self):
+        """
+        Generates the "Plotting" tab and its elements.
+        """
 
-        # Plot tab
+        # SpectralPlotter
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
         self.scan_plot.axes.set_ylabel('Intensity', color='white')
         self.tabs.add_named_tab('P&lotting', self.scan_plot, (0,0,1,2))
 
+        # Checkbox "Remove continuum"
         self.check_remove_continuum = QCheckBox("Remove continuum")
         self.check_remove_continuum.setChecked(True)
         self.tabs.add_named_tab('P&lotting', self.check_remove_continuum, (1,0,1,2))
 
+        # Slider "Smoothing window size"
         self.slider_spectrum_savgol = QDoubleSlider(Qt.Horizontal)
         self.slider_spectrum_savgol.setRange(1, 100)
         self.slider_spectrum_savgol.setSingleStep(1)
