@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 import numpy as np
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSlider,
@@ -63,6 +64,7 @@ class HyperAnalysisWidget(QWidget):
         self.spin_selected_roi = QSpinBox()
         self.spin_selected_roi.setRange(0, 0)
         self.spin_selected_roi.setValue(0)
+        self.spin_selected_roi_current = 0
         self.files_group.glayout.addWidget(QLabel('Selected ROI'), 4, 0, 1, 1)
         self.files_group.glayout.addWidget(self.spin_selected_roi, 4, 1, 1, 1)
 
@@ -275,14 +277,24 @@ class HyperAnalysisWidget(QWidget):
         self.dark_for_white_path = Path(self.params.dark_for_white_path)
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
-        self.rois = np.array([np.array(x).reshape(4,2) for x in self.params.rois]).astype(int)
+        self.rois = [np.array([np.array(x).reshape(4,2) for x in roi]).astype(int) for roi in self.params.rois]
         
         self.spin_selected_roi.setRange(0, len(self.mainroi)-1)
         self.load_data()
 
 
-    def load_data(self, event=None):
+    def load_data(self, new_val=None):
+        """Load data for selected ROI"""
 
+        roi_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        if not roi_folder.exists():
+            warnings.warn('No data for selected ROI')
+            self.spin_selected_roi.valueChanged.disconnect(self.load_data)
+            self.spin_selected_roi.setValue(self.spin_selected_roi_current)
+            self.spin_selected_roi.valueChanged.connect(self.load_data)
+            return
+        
+        self.spin_selected_roi_current = self.spin_selected_roi.value()
         self.corr_plot.axes.clear()
         self.eigen_plot.axes.clear()
         self.ppi_plot.axes.clear()
@@ -291,13 +303,14 @@ class HyperAnalysisWidget(QWidget):
         for r in to_remove:
             self.viewer.layers.remove(r)
         self.var_init()
-
+        
+        curremt_sub_roi = 0# to be used to select the correct sub-roi in future
         self.row_bounds = [
-            self.rois[self.spin_selected_roi.value()][:,0].min(),
-            self.rois[self.spin_selected_roi.value()][:,0].max()]
+            self.rois[self.spin_selected_roi.value()][curremt_sub_roi,:,0].min(),
+            self.rois[self.spin_selected_roi.value()][curremt_sub_roi,:,0].max()]
         self.col_bounds = [
-            self.rois[self.spin_selected_roi.value()][:,1].min(),
-            self.rois[self.spin_selected_roi.value()][:,1].max()]
+            self.rois[self.spin_selected_roi.value()][curremt_sub_roi,:,1].min(),
+            self.rois[self.spin_selected_roi.value()][curremt_sub_roi,:,1].max()]
         
         self._on_click_load_mask()
 
@@ -389,7 +402,7 @@ class HyperAnalysisWidget(QWidget):
 
         export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}')
 
-        layer_names = ['mnfr', 'denoised', 'pure']
+        layer_names = ['mnf', 'denoised', 'pure']
         for lname in layer_names:
             if lname in self.viewer.layers:
                 save_image_to_zarr(
@@ -401,7 +414,7 @@ class HyperAnalysisWidget(QWidget):
         """Load denoised and reduced staks from zarr"""
 
         export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
-        for name in ['mnfr', 'denoised']:
+        for name in ['mnf', 'denoised']:
             if export_path.joinpath(f'{name}.zarr').is_dir():
                 im = np.array(zarr.open_array(export_path.joinpath(f'{name}.zarr')))
                 self.viewer.add_image(im, name=name)
@@ -464,11 +477,11 @@ class HyperAnalysisWidget(QWidget):
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
 
     def _on_click_mnfr(self):
-        """Compute MNFR transform and compute vertical correlation. Keep all bands."""
+        """Compute MNF transform and compute vertical correlation. Keep all bands."""
         
         self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
-            pbr.set_description("Computing MNFR")
+            pbr.set_description("Computing MNF")
             data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
             signal = calc_stats(
                 image=data,
@@ -498,10 +511,10 @@ class HyperAnalysisWidget(QWidget):
         data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
         self.image_mnfr = self.mnfr.reduce(data, num=data.shape[2])#, num=last_index)
 
-        if 'mnfr' in self.viewer.layers:
-            self.viewer.layers['mnfr'].data = np.moveaxis(self.image_mnfr, 2, 0)
+        if 'mnf' in self.viewer.layers:
+            self.viewer.layers['mnf'].data = np.moveaxis(self.image_mnfr, 2, 0)
         else:
-            self.viewer.add_image(np.moveaxis(self.image_mnfr, 2, 0), name='mnfr', rgb=False)
+            self.viewer.add_image(np.moveaxis(self.image_mnfr, 2, 0), name='mnf', rgb=False)
 
 
     def _on_click_reduce_mnfr_on_eigen(self):
@@ -544,7 +557,7 @@ class HyperAnalysisWidget(QWidget):
         """Select bands based on correlation between lines. As a general rule, keep
         bands with correlated signal >0 meaning there are structures in the image."""
 
-        if 'mnfr' not in self.viewer.layers:
+        if 'mnf' not in self.viewer.layers:
             raise ValueError('Must compute MNF first.')
         
         acceptable_range = np.arange(self.slider_corr_limit.value())
