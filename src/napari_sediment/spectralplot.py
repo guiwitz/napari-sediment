@@ -8,76 +8,55 @@ from matplotlib_scalebar.scalebar import ScaleBar
 from .spectralindex import compute_index_projection
 
 def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
-                          location="", fig=None, roi=None):
+                          location="", fig=None, roi=None, left_margin=0,
+                            right_margin=0, bottom_margin=0, top_margin=0,
+                          repeat=True):
 
     index_name = index_obj.index_name
     index_image = index_obj.index_map
     proj = index_obj.index_proj
     index_contrast_limits = index_obj.index_map_range
+    index_colormap = index_obj.colormap
 
-    left_right_margin_fraction = format_dict['left_right_margin_fraction']
-    bottom_top_margin_fraction = format_dict['bottom_top_margin_fraction']
-    plot_image_w_fraction = format_dict['plot_image_w_fraction']
-    title_font_factor = format_dict['title_font_factor']
-    label_font_factor = format_dict['label_font_factor']
+    im_w = index_image.shape[1]
+    im_h = index_image.shape[0]
+
+    title_font = format_dict['title_font']
+    label_font = format_dict['label_font']
     color_plotline = format_dict['color_plotline']
     plot_thickness = format_dict['plot_thickness']
-    figure_size_factor = format_dict['figure_size_factor']
-    index_colormap = format_dict['index_colormap']
     red_contrast_limits = format_dict['red_contrast_limits']
     green_contrast_limits = format_dict['green_contrast_limits']
     blue_contrast_limits = format_dict['blue_contrast_limits']
 
-
     # get colormap
-    if index_name in index_colormap.keys():
-        newmap = Colormap(colormaps.ALL_COLORMAPS[index_colormap[index_name]].colors)
-    else:
-        newmap = Colormap(colormaps.ALL_COLORMAPS['viridis'].colors)
+    newmap = Colormap(colormaps.ALL_COLORMAPS[index_colormap].colors)
     mpl_map = newmap.to_matplotlib()
 
     rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
-    rgb_to_plot[mask==1,:] = 0
+    rgb_to_plot[mask == 1, :] = 0
 
-    # The plot has the same height as the image and 6 times the width
-    # Two two images take 1 width and the plot 4
-    # In addition there are margins on all sides, specified in fractions of the image dimesions
-    # The axes are added in fractions of the figure dimensions. It is made sure
-    # that the axes fille the space of the full figure minus the margins
-    im_w = index_image.shape[1]
-    im_h = index_image.shape[0]
-    width_tot = (2 + plot_image_w_fraction) *im_w
+    if im_h / im_w > 2:
+        a4_size = np.array([11.69, 8.27])
+    else:
+        a4_size = np.array([8.27, 11.69])
+    a4_margins = a4_size - np.array([bottom_margin + top_margin, left_margin + right_margin])
 
-    to_add_top = bottom_top_margin_fraction*im_h
-    to_add_bottom = bottom_top_margin_fraction*im_h
-    to_add_left = left_right_margin_fraction * width_tot
-    to_add_right = left_right_margin_fraction * width_tot
-
-    # width_tot_margin 
-    # = 6 * im_w + (2*left_right_margin_fraction) * 6 * im_w 
-    # = 6 * im_w (1 + 2*left_right_margin_fraction)
-    width_tot_margin = width_tot + to_add_left + to_add_right
-    height_tot_margin = im_h + to_add_top + to_add_bottom
-    # left_margin = (0.25 * 6*im_w) / (9*im_w) = 0.5/3 * im_w
-    left_margin = to_add_left / width_tot_margin
-    bottom_margin = to_add_bottom / height_tot_margin
-
-    # quarter = (im_w) / (9*im_w) = 1/9
-    quarter = im_w / width_tot_margin
+    pixel_in_inches = a4_margins[0] / im_h
+    im_height_inches = a4_margins[0]
+    im_width_inches = im_w * pixel_in_inches
+    plot_width_inches = a4_margins[1] - 2 * im_width_inches 
 
     # The figure and axes are set explicitly to make sure that the axes fill the figure
     # This is achieved using the add_axes method instead of subplots
-    a4_size = np.array([11.69, 8.27])
-    size_ratio = a4_size / np.array([width_tot_margin, height_tot_margin])
-    min_ratio = size_ratio.min()
-    fig_size = figure_size_factor * min_ratio * np.array([width_tot_margin, height_tot_margin])
-    #fig_size = figure_size_factor*np.array([width_tot_margin, height_tot_margin]) / height_tot_margin
+    fig_size = [a4_size[1], a4_size[0]]
     fig.clear()
     fig.set_size_inches(fig_size)
     fig.set_facecolor('white')
-    ax1 = fig.add_axes(rect=(left_margin,bottom_margin,quarter, im_h / height_tot_margin))
-    ax2 = fig.add_axes(rect=(quarter+left_margin,bottom_margin,quarter,im_h / height_tot_margin))
-    ax3 = fig.add_axes(rect=(2*quarter+left_margin, bottom_margin, plot_image_w_fraction*quarter, im_h / height_tot_margin))
+    
+    ax1 = fig.add_axes(rect=(left_margin/a4_size[1], bottom_margin/a4_size[0], im_width_inches/a4_size[1], im_height_inches/a4_size[0]))
+    ax2 = fig.add_axes(rect=(im_width_inches/a4_size[1]+left_margin/a4_size[1], bottom_margin/a4_size[0], im_width_inches/a4_size[1], im_height_inches/a4_size[0]))
+    ax3 = fig.add_axes(rect=((2*im_width_inches+left_margin)/a4_size[1], bottom_margin/a4_size[0], plot_width_inches/a4_size[1], im_height_inches/a4_size[0]))
 
     ax1.imshow(rgb_to_plot, aspect='auto')
     if index_contrast_limits is None:
@@ -88,19 +67,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
         vmin = index_contrast_limits[0]
         vmax = index_contrast_limits[1]
     index_image[mask==1] = np.nan
-    #ax2.imshow(index_image, vmin=vmin, vmax=vmax, aspect='auto', cmap=mpl_map)
-    ax2.imshow(index_image, aspect='auto', cmap=mpl_map, vmin=vmin, vmax=vmax)
-    '''scalebar = ScaleBar(scale, "mm", 
-                        length_fraction=0.25, location='lower right',
-                        font_properties={'size': scale_font_size}
-                        )
-    scalebary = ScaleBar(scale, "mm", 
-                            length_fraction=0.25, location='lower left', rotation='vertical',
-                            font_properties={'size': scale_font_size}
-                            )
-
-    ax1.add_artist(scalebar)
-    ax1.add_artist(scalebary)'''
+    ax2.imshow(index_image, aspect='auto', interpolation='none', cmap=mpl_map, vmin=vmin, vmax=vmax)
 
     if roi is not None:
         roi = roi.copy()
@@ -127,17 +94,68 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     ax2.set_xticks([])
     ax2.set_yticks([])
     for label in (ax1.get_yticklabels() + ax3.get_yticklabels() + ax3.get_xticklabels()):
-        label.set_fontsize(label_font_factor)
+        label.set_fontsize(label_font)
     
-    ax2.set_ylim(im_h-0.5, -0.5)
-    #ax2.invert_yaxis()
-    ax1.set_ylabel('depth [mm]', fontsize=label_font_factor)
-    ax3.set_ylabel('depth [mm]', fontsize=label_font_factor)
+    ax2.set_ylim(im_h - 0.5, -0.5)
+    ax1.set_ylabel('depth [mm]', fontsize=label_font)
+    ax3.set_ylabel('depth [mm]', fontsize=label_font)
+    ax3.set_xlabel('Index value', fontsize=label_font)
     ax3.yaxis.set_label_position('right')
-    fig.suptitle(index_name + '\n' + location,
-                    fontsize=title_font_factor)
+    suptitle = fig.suptitle(index_name + '\n' + location,
+                    fontsize=title_font)
+    
+    # check the size of titles labels and tickmarks, adjust margins accordingly,
+    # and repeat the plot
+
+    # adjust left margin
+    renderer = fig.canvas.get_renderer()
+    text = ax1.yaxis.label
+    label_width = get_text_width(text, renderer, fig)
+    y_tick_widths = [get_text_width(label, renderer, fig) for label in ax1.get_yticklabels()]
+    max_y_tick_width = max(y_tick_widths)
+    left_margin = 1.0 * (3 * label_width + max_y_tick_width) * a4_size[1]
+
+    # adjust right margin
+    text = ax3.yaxis.label
+    label_width = get_text_width(text, renderer, fig)
+    y_tick_widths = [get_text_width(label, renderer, fig) for label in ax3.get_yticklabels()]
+    max_y_tick_width = max(y_tick_widths)
+    right_margin = 1.0 * (3 * label_width + max_y_tick_width) * a4_size[1]
+
+    # adjust bottom margin
+    text = ax3.xaxis.label
+    label_height = get_text_height(text, renderer, fig)
+    x_tick_heights = [get_text_height(label, renderer, fig) for label in ax3.get_xticklabels()]
+    max_x_tick_height = max(x_tick_heights)
+    bottom_margin = 1.0 * (3 * label_height + max_x_tick_height) * a4_size[0]
+
+    # adjust top margin
+    bbox = suptitle.get_window_extent(renderer).transformed(fig.transFigure.inverted())
+    title_height = bbox.ymax - bbox.ymin
+    top_margin = 2 * title_height * a4_size[0]
+
+    if repeat:
+        plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=scale,
+                          location=location, fig=fig, roi=roi, left_margin=left_margin,
+                          right_margin=right_margin, bottom_margin=bottom_margin,
+                          top_margin=top_margin,
+                          repeat=False)
+
 
     return fig, ax1, ax2, ax3
+
+def get_text_width(text, renderer, fig):
+    bbox = text.get_window_extent(renderer)
+    # Convert from display to figure coordinates
+    bbox = bbox.transformed(fig.transFigure.inverted())
+    return bbox.xmax - bbox.xmin
+
+def get_text_height(text, renderer, fig):
+    bbox = text.get_window_extent(renderer)
+    # Convert from display to figure coordinates
+    bbox = bbox.transformed(fig.transFigure.inverted())
+    return bbox.ymax - bbox.ymin
+
 
 def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=1,
                                 location="", fig=None, roi=None):
