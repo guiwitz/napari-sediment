@@ -91,32 +91,28 @@ def get_mask_path(export_folder):
 
 def get_data_background_path(current_folder, background_text='_WR_'):
 
+    main_folder = current_folder.parent
     current_folder = Path(current_folder)
-    wr_folders = list(current_folder.glob(f'*{background_text}*'))
+
+    wr_folders = list(main_folder.glob(f'*{background_text}*'))
     wr_folders = [x for x in wr_folders if x.is_dir()]
-    other_folders = list(current_folder.glob('*'))
-    other_folders = [x for x in other_folders if x.is_dir()]
-    if len(wr_folders) == 0:
+    wr_folder_beginnings = [wr.name.split(background_text)[0] for wr in wr_folders]
+
+    wr_folder = None
+    for ind, wf in enumerate(wr_folder_beginnings):
+        if wf in current_folder.name:
+            wr_folder = wr_folders[ind]
+            wr_folder_beginning = wr_folder_beginnings[ind]
+
+    if wr_folder is None:
         raise Exception('No white reference folder found')
-    if len(wr_folders) > 1:
-        raise Exception('More than one white reference folder found')
-    
-    wr_folder = wr_folders[0]
-    wr_beginning = wr_folder.name.split('WR')[0]
-    acquistion_folder = None
-    for of in other_folders:
-        if wr_folder.name != of.name:
-            if wr_beginning in of.name:
-                acquistion_folder = of
-    if acquistion_folder is None:
-        raise Exception('No matching acquisition folder found')
 
     white_file_path = list(wr_folder.joinpath('capture').glob('WHITE*.hdr'))[0]
     dark_for_white_file_path = list(wr_folder.joinpath('capture').glob('DARK*.hdr'))[0]
-    dark_for_im_file_path = list(acquistion_folder.joinpath('capture').glob('DARK*.hdr'))[0]
-    imhdr_path = list(acquistion_folder.joinpath('capture').glob(wr_beginning+'*.hdr'))[0]
+    dark_for_im_file_path = list(current_folder.joinpath('capture').glob('DARK*.hdr'))[0]
+    imhdr_path = list(current_folder.joinpath('capture').glob(wr_folder_beginning+'*.hdr'))[0]
     
-    return acquistion_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path
+    return current_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path
     
 
 

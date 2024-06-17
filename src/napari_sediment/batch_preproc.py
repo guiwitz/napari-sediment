@@ -50,6 +50,7 @@ class BatchPreprocWidget(QWidget):
         
         self.viewer = napari_viewer
         self.index_file = None
+        self.preproc_export_path = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
