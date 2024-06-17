@@ -37,15 +37,10 @@ class Paramplot:
     
     """
 
-    left_right_margin_fraction: float = None
-    bottom_top_margin_fraction: float = None
-    plot_image_w_fraction: float = None
-    title_font_factor: float = None
-    label_font_factor: float = None
+    title_font: float = None
+    label_font: float = None
     color_plotline: list = field(default_factory=list)
     plot_thickness: float = None
-    figure_size_factor: float = None
-    index_colormap: dict = field(default_factory=dict)
     red_contrast_limits: list = field(default_factory=list)
     green_contrast_limits: list = field(default_factory=list)
     blue_contrast_limits: list = field(default_factory=list)
