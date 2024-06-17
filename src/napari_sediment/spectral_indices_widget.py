@@ -187,6 +187,8 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
         self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv)
+        self.btn_save_all_plot = QPushButton("Create and Save all index plots")
+        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot)
         self.btn_export_index_settings = QPushButton("Export index settings")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
         self.btn_import_index_settings = QPushButton("Import index settings")
@@ -219,7 +221,7 @@ class SpectralIndexWidget(QWidget):
 
         self.spin_final_dpi = QSpinBox()
         self.spin_final_dpi.setRange(100, 1000)
-        self.spin_final_dpi.setValue(100)
+        self.spin_final_dpi.setValue(300)
         self.spin_final_dpi.setSingleStep(1)
 
         self.scale = 1.0
@@ -289,12 +291,10 @@ class SpectralIndexWidget(QWidget):
 
         self.btn_save_plot = QPushButton("Save plot")
         self.tabs.add_named_tab('P&lots', self.btn_save_plot, grid_pos=(6, 0, 1, 2))
-        self.btn_save_all_plot = QPushButton("Create and Save all plots")
-        self.tabs.add_named_tab('P&lots', self.btn_save_all_plot, grid_pos=(7, 0, 1, 2))
         self.btn_save_plot_params = QPushButton("Save plot parameters")
-        self.tabs.add_named_tab('P&lots', self.btn_save_plot_params, grid_pos=(8, 0, 1, 2))
+        self.tabs.add_named_tab('P&lots', self.btn_save_plot_params, grid_pos=(7, 0, 1, 2))
         self.btn_load_plot_params = QPushButton("Load plot parameters")
-        self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(9, 0, 1, 2))
+        self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
 
         
         self._connect_spin_bounds()
@@ -383,7 +383,7 @@ class SpectralIndexWidget(QWidget):
         self.connect_plot_formatting()
         self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
         self.btn_save_plot.clicked.connect(self._on_click_save_plot)
-        self.btn_save_all_plot.clicked.connect(self._on_click_create_all_single_index_plot)
+        self.btn_save_all_plot.clicked.connect(self._on_click_create_and_save_all_plots)
         #self.btn_reset_figure_size.clicked.connect(self._on_click_reset_figure_size)
         self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
         self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
@@ -747,11 +747,15 @@ class SpectralIndexWidget(QWidget):
         self.create_single_index_plot(event=event)
         self.connect_plot_formatting()
 
-    def _on_click_create_all_single_index_plot(self, event=None):
+    def _on_click_create_and_save_all_plots(self, event=None):
         self.current_plot_type = 'single'
         self.disconnect_plot_formatting()
         self.set_plot_interface(params=self.params_plots)
         self.create_all_single_index_plot(event=event)
+        self.create_multi_index_plot(event=event, show_plot=False)
+        self.index_plot_live.figure.savefig(
+                self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath(f'multi_index_plot.png'),
+            dpi=self.spin_final_dpi.value())
         self.connect_plot_formatting()
 
     def _on_click_create_multi_index_plot(self, event=None):
@@ -892,7 +896,7 @@ class SpectralIndexWidget(QWidget):
             rgb_image = [x.compute() for x in rgb_image]
         return rgb_image
         
-    def create_multi_index_plot(self, event=None):
+    def create_multi_index_plot(self, event=None, show_plot=True):
         
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
@@ -931,19 +935,20 @@ class SpectralIndexWidget(QWidget):
             fig=self.index_plot_live.figure,
             roi=roi)
         
-        # save temporary low-res figure for display in napari
-        self.index_plot_live.figure.savefig(
-            self.export_folder.joinpath('temp.png'),
-            dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
-        
-        # update napari preview
-        if self.pix_width is None:
-            self.pix_width = self.pixlabel.size().width()
-            self.pix_height = self.pixlabel.size().height()
-        self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
-        #self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
-        self.pixlabel.setPixmap(self.pixmap)
-        self.scrollArea.show()
+        if show_plot:
+            # save temporary low-res figure for display in napari
+            self.index_plot_live.figure.savefig(
+                self.export_folder.joinpath('temp.png'),
+                dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
+            
+            # update napari preview
+            if self.pix_width is None:
+                self.pix_width = self.pixlabel.size().width()
+                self.pix_height = self.pixlabel.size().height()
+            self.pixmap = QPixmap(self.export_folder.joinpath('temp.png').as_posix())
+            #self.pixlabel.setPixmap(self.pixmap.scaled(self.pix_width, self.pix_height, Qt.KeepAspectRatio))
+            self.pixlabel.setPixmap(self.pixmap)
+            self.scrollArea.show()
 
 
     def on_close_callback(self):
