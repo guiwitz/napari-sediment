@@ -21,6 +21,19 @@ class BatchPreprocWidget(QWidget):
     Parameters
     ----------
     napari_viewer: napari.Viewer
+        napari viewer
+    destripe: bool
+        If True, apply destriping
+    background_correct: bool
+        If True, apply background correction
+    savgol_window: int
+        Width of the savgol filter
+    min_band: int
+        Minimum band to crop
+    max_band: int
+        Maximum band to crop
+    chunk_size: int
+        Chunk size for zarr saving
 
     Attributes
     ----------
