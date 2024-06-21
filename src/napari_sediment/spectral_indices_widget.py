@@ -35,6 +35,7 @@ from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RAB
                             clean_index_map, save_tif_cmap)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
+from .folder_list_widget import FolderListWidget
 
 
 from napari_guitils.gui_structures import TabSet, VHGroup
@@ -54,8 +55,6 @@ class SpectralIndexWidget(QWidget):
         napari viewer
     params: Param
         parameters for data
-    params_indices: ParamEndMember
-        parameters for end members
     params_plots: Paramplot
         parameters for plots
     em_boundary_lines: list of matplotlib.lines.Line2D
@@ -86,7 +85,6 @@ class SpectralIndexWidget(QWidget):
         self.create_index_list()
 
         self.params = Param()
-        self.params_indices = ParamEndMember()
         self.params_plots = Paramplot()
         self.params_multiplots = Paramplot()
 
@@ -99,8 +97,8 @@ class SpectralIndexWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ["&Main", "&Index Definition", "Index C&ompute", "P&lots"]#, "Plotslive"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout()])
+        self.tab_names = ["&Main", "&Index Definition", "Index C&ompute", "P&lots", "Batch"]#, "Plotslive"]
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout(), None])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -196,18 +194,11 @@ class SpectralIndexWidget(QWidget):
         self.index_file_display = QLineEdit("No file selected")
         self.index_compute_group.glayout.addWidget(self.index_file_display)
 
-
-        #self.index_plot = SpectralPlotter(napari_viewer=self.viewer)
-        #self.tabs.add_named_tab('P&lots', self.index_plot)
+        # Plots tab
 
         self.pixlabel = QLabel()
-        #self.pixlabel = ScaledPixmapLabel()#QLabel()
-        '''self.pixlabel.setSizePolicy(
-            QSizePolicy.Expanding,
-            QSizePolicy.Expanding
-        )
-        self.pixlabel.setScaledContents(True)
-        self.pixlabel.resizeEvent = self._on_resize_pixlabel'''
+
+        self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
 
         self.button_zoom_in = QPushButton('Zoom IN', self)
         self.button_zoom_in.clicked.connect(self.on_zoom_in)
@@ -231,14 +222,10 @@ class SpectralIndexWidget(QWidget):
         self.scrollArea = QScrollArea()
         self.scrollArea.setWidget(self.pixlabel)
 
-        #self.index_plot_live = SpectralPlotter(napari_viewer=self.viewer)
         self.index_plot_live = NapariMPLWidget(napari_viewer=self.viewer)
         self.index_plot_live.figure.set_layout_engine('none')
-        #self.tabs.add_named_tab('Plotslive', self.index_plot_live)
 
-        #self.tabs.add_named_tab('P&lots', self.scrollArea, grid_pos=(0, 0, 1, 2))
         self.scrollArea.setWidgetResizable(True)
-        #self.scrollArea.setFixedHeight(200)
 
         self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(14, 0, 1, 1))
         self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(14, 1, 1, 1))
@@ -273,8 +260,6 @@ class SpectralIndexWidget(QWidget):
         self.spin_plot_thickness.setSingleStep(0.1)
         self.tabs.add_named_tab('P&lots', QLabel('Plot line thickness'), grid_pos=(3, 2, 1, 1))
         self.tabs.add_named_tab('P&lots', self.spin_plot_thickness, grid_pos=(3, 3, 1, 1))
-        #self.btn_reset_figure_size = QPushButton("Reset figure size")
-        #self.tabs.add_named_tab('P&lots', self.btn_reset_figure_size, grid_pos=(9, 0, 1, 2))
 
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
@@ -296,6 +281,16 @@ class SpectralIndexWidget(QWidget):
         self.btn_load_plot_params = QPushButton("Load plot parameters")
         self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
 
+        # Batch tab
+
+        self.btn_select_main_folder = QPushButton("Select main folder")
+        self.tabs.add_named_tab('Batch', self.btn_select_main_folder)
+        self.main_path_display = QLineEdit("No path")
+        self.tabs.add_named_tab('Batch',self.main_path_display)
+        self.tabs.add_named_tab('Batch', QLabel('Available folders'))
+        self.file_list = FolderListWidget(napari_viewer)
+        self.tabs.add_named_tab('Batch',self.file_list)
+        self.file_list.setMaximumHeight(100)
         
         self._connect_spin_bounds()
         self.add_connections()
@@ -324,6 +319,7 @@ class SpectralIndexWidget(QWidget):
         return spin
           
     def create_index_list(self):
+        """Create a collection of spectral indices as index_collection attribute."""
 
         index_def = {
             'RABD510': [470, 510, 530],
@@ -388,6 +384,9 @@ class SpectralIndexWidget(QWidget):
         self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
         self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
 
+        self.btn_select_main_folder.clicked.connect(self._on_click_select_main_folder)
+        self.file_list.currentTextChanged.connect(self._on_change_filelist)
+
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
     def _connect_spin_bounds(self):
@@ -441,7 +440,6 @@ class SpectralIndexWidget(QWidget):
         self.params = load_project_params(folder=self.export_folder)
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
-        self.params_indices = load_endmember_params(folder=export_path_roi)
 
         self.imhdr_path = Path(self.params.file_path)
 
@@ -1265,6 +1263,22 @@ class SpectralIndexWidget(QWidget):
         self.qcom_indices.setCurrentText(index_element['index_name'])
     
         self._on_change_index_index()
+
+    def _on_click_select_main_folder(self, event=None, main_folder=None):
+        
+        if main_folder is None:
+            main_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        else:
+            main_folder = Path(main_folder)
+        self.main_path_display.setText(main_folder.as_posix())
+        self.file_list.update_from_path(main_folder)
+
+    def _on_change_filelist(self):
+        
+        main_folder = Path(self.file_list.folder_path)
+        if self.file_list.currentItem() is None:
+            return
+        current_folder = main_folder.joinpath(self.file_list.currentItem().text())
 
 class ScaledPixmapLabel(QLabel):
     def __init__(self):
