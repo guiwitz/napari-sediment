@@ -41,7 +41,7 @@ from .widgets.channel_widget import ChannelWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
 from .utils import update_contrast_on_layer
-from .batch_preproc import BatchPreprocWidget
+from .batch_preproc_widget import BatchPreprocWidget
 
 import napari
 
