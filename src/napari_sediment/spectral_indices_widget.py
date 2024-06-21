@@ -28,7 +28,7 @@ from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_projection,
                             clean_index_map, save_tif_cmap, create_index, export_index_series,
-                            compute_index)
+                            compute_index, load_index_series)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
 from .folder_list_widget import FolderListWidget
@@ -282,6 +282,15 @@ class SpectralIndexWidget(QWidget):
         self.file_list = FolderListWidget(napari_viewer)
         self.tabs.add_named_tab('Batch',self.file_list)
         self.file_list.setMaximumHeight(100)
+        from magicgui.widgets import FileEdit
+        self.batch_plot_params_file = FileEdit()
+        self.tabs.add_named_tab('Batch', QLabel('Plot parameters file'))
+        self.tabs.add_named_tab('Batch', self.batch_plot_params_file.native)
+        self.batch_index_params_file = FileEdit()
+        self.tabs.add_named_tab('Batch', QLabel('Index settings file'))
+        self.tabs.add_named_tab('Batch', self.batch_index_params_file.native)
+        self.btn_batch_create_plots = QPushButton("Create plots")
+        self.tabs.add_named_tab('Batch', self.btn_batch_create_plots)
         
         self._connect_spin_bounds()
         self.add_connections()
@@ -377,6 +386,7 @@ class SpectralIndexWidget(QWidget):
 
         self.btn_select_main_folder.clicked.connect(self._on_click_select_main_folder)
         self.file_list.currentTextChanged.connect(self._on_change_filelist)
+        self.btn_batch_create_plots.clicked.connect(self._on_click_batch_create_plots)
 
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
@@ -722,7 +732,6 @@ class SpectralIndexWidget(QWidget):
         
         return toplot, proj
     
-    
     def get_smoothing_window(self):
         if self.check_smooth_projection.isChecked():
             return int(self.slider_index_savgol.value())
@@ -759,6 +768,79 @@ class SpectralIndexWidget(QWidget):
             self.create_single_index_plot(event=event)
         else:
             self.create_multi_index_plot(event=event)
+
+    def _on_click_batch_create_plots(self, event=None):
+        """Create all plots for all projects in the main folder, given
+        index and plotting settings"""
+
+        export_folder = self.file_list.folder_path
+        exported_projects = list(export_folder.iterdir())
+        exported_projects = [e for e in exported_projects if e.is_dir()]
+
+        indices = load_index_series('/Users/gw18g940/Desktop/Test_data/Zahajska/export_series/Synthetic2_123/index_settings.yaml')
+        params_plots = load_plots_params('/Users/gw18g940/Desktop/Test_data/Zahajska/export_series/plot_params.yml')
+
+        for ex in exported_projects:
+
+            roin_ind = 0
+            colmin = 60
+            colmax = 80
+            dpi = 300
+            
+            params = load_project_params(folder=ex)
+            roi_folder = ex.joinpath(f'roi_{roin_ind}')
+
+            mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
+            row_bounds = [
+                        mainroi[roin_ind][:,0].min(),
+                        mainroi[roin_ind][:,0].max()]
+            col_bounds = [
+                        mainroi[roin_ind][:,1].min(),
+                        mainroi[roin_ind][:,1].max()]
+
+            # get RGB and mask
+            mask = load_mask(get_mask_path(roi_folder))
+            myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
+
+            rgb = params.rgb
+            roi = np.concatenate([row_bounds, col_bounds])
+            rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
+            rgb_cube = np.array(myimage.get_image_cube(rgb_ch, roi=roi))
+
+            for k in indices.keys():
+                computed_index = compute_index(indices[k],
+                                        row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
+                computed_index = clean_index_map(computed_index)
+            
+                indices[k].index_map = computed_index
+
+                proj = compute_index_projection(
+                            computed_index, mask,
+                            colmin=colmin, colmax=colmax,
+                            smooth_window=5)
+                indices[k].index_proj = proj
+
+                fig, ax = plt.subplots()
+                format_dict = asdict(params_plots)
+                fig, ax1, ax2, ax3 = plot_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
+                    format_dict=format_dict, scale=params.scale,
+                    location=params.location, fig=fig, 
+                    roi=None, repeat=True)
+
+                fig.savefig(
+                        roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
+                    dpi=dpi)
+
+            plot_multi_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask,
+                    index_objs=[indices[k] for k in indices.keys()], 
+                    format_dict=format_dict, scale=params.scale,
+                    fig=fig, roi=None, repeat=True)
+
+            fig.savefig(
+                        roi_folder.joinpath('multi_index_plot'),
+                    dpi=dpi)
 
     def get_roi_bounds(self):
 
