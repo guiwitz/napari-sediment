@@ -16,30 +16,22 @@ from superqt import QLabeledDoubleRangeSlider, QDoubleSlider
 
 from napari.utils import progress
 import pandas as pd
-from microfilm import colorify
-from cmap import Colormap
-from matplotlib_scalebar.scalebar import ScaleBar
 from napari_matplotlib.base import NapariMPLWidget
+from napari_guitils.gui_structures import TabSet, VHGroup
 
 from .parameters.parameters import Param
-from .parameters.parameters_endmembers import ParamEndMember
-from .io import load_project_params, load_endmember_params, load_plots_params
+from .io import load_project_params, load_plots_params
 from .imchannels import ImChannels
-from .sediproc import find_index_of_band
 from .spectralplot import SpectralPlotter, plot_spectral_profile, plot_multi_spectral_profile
 from .widgets.channel_widget import ChannelWidget
 from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
-from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
-                            compute_index_ratio, compute_index_projection,
-                            clean_index_map, save_tif_cmap)
+from .spectralindex import (SpectralIndex, compute_index_projection,
+                            clean_index_map, save_tif_cmap, create_index, export_index_series,
+                            compute_index)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
 from .folder_list_widget import FolderListWidget
-
-
-from napari_guitils.gui_structures import TabSet, VHGroup
-
 
 class SpectralIndexWidget(QWidget):
     """
@@ -282,7 +274,6 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
 
         # Batch tab
-
         self.btn_select_main_folder = QPushButton("Select main folder")
         self.tabs.add_named_tab('Batch', self.btn_select_main_folder)
         self.main_path_display = QLineEdit("No path")
@@ -780,6 +771,15 @@ class SpectralIndexWidget(QWidget):
             colmax = int(self.viewer.layers['rois'].data[0][:,1].max())
 
         return colmin, colmax
+    
+    def compute_and_clean_index(self, index_name):
+        computed_index = compute_index(
+            spectral_index=self.index_collection[index_name],
+            row_bounds=self.row_bounds, col_bounds=self.col_bounds,
+            imagechannels=self.imagechannels)
+        computed_index = clean_index_map(computed_index)
+
+        return computed_index
 
     def create_single_index_plot(self, event=None):
         """Create the index plot."""
@@ -802,8 +802,7 @@ class SpectralIndexWidget(QWidget):
         colmin, colmax = self.get_roi_bounds()
 
         if self.index_collection[index_series[0].index_name].index_map is None:
-            computed_index = self.compute_index(self.index_collection[index_series[0].index_name])
-            computed_index = clean_index_map(computed_index)
+            computed_index = self.compute_and_clean_index(index_series[0].index_name)
             proj = compute_index_projection(
                 computed_index, mask,
                 colmin=colmin, colmax=colmax,
@@ -858,8 +857,7 @@ class SpectralIndexWidget(QWidget):
 
         for i_s in index_series:
             if self.index_collection[i_s.index_name].index_map is None:
-                computed_index = self.compute_index(self.index_collection[i_s.index_name])
-                computed_index = clean_index_map(computed_index)
+                computed_index = self.compute_and_clean_index(i_s.index_name)
                 proj = compute_index_projection(
                     computed_index, mask,
                     colmin=colmin, colmax=colmax,
@@ -909,8 +907,7 @@ class SpectralIndexWidget(QWidget):
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         for i in index_series:
             if self.index_collection[i.index_name].index_map is None:
-                computed_index = self.compute_index(self.index_collection[i.index_name])
-                computed_index = clean_index_map(computed_index)
+                computed_index = self.compute_and_clean_index(i.index_name)
                 proj = compute_index_projection(
                     computed_index, self.viewer.layers['mask'].data,
                     colmin=colmin, colmax=colmax,
@@ -1000,8 +997,7 @@ class SpectralIndexWidget(QWidget):
         proj_pd = None
         for i in index_series:
             if self.index_collection[i.index_name].index_map is None:
-                computed_index = self.compute_index(self.index_collection[i.index_name])
-                computed_index = clean_index_map(computed_index)
+                computed_index = self.compute_and_clean_index(i.index_name)
                 proj = compute_index_projection(
                     computed_index,
                     self.viewer.layers['mask'].data,
@@ -1042,29 +1038,14 @@ class SpectralIndexWidget(QWidget):
         """Add new custom index"""
 
         name = self.qtext_new_index_name.text()
+
         if self.current_index_type == 'RABD':
             current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
-            self.index_collection[name] = SpectralIndex(index_name=name,
-                              index_type='RABD',
-                              left_band_default=current_bands[0],
-                              middle_band_default=current_bands[1],
-                              right_band_default=current_bands[2]
-                              )
-            
-        elif self.current_index_type == 'RABA':
+        else:
             current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
-            self.index_collection[name] = SpectralIndex(index_name=name,
-                              index_type='RABA',
-                              left_band_default=current_bands[0],
-                              right_band_default=current_bands[1],
-                              )
-        elif self.current_index_type == 'ratio':
-            current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
-            self.index_collection[name] = SpectralIndex(index_name=name,
-                              index_type='ratio',
-                              left_band_default=current_bands[0],
-                              right_band_default=current_bands[1],
-                              )
+        self.index_collection[name] = create_index(
+            index_name=name, index_type=self.current_index_type, 
+            boundaries=current_bands)
         
         if name not in [self.qcom_indices.itemText(i) for i in range(self.qcom_indices.count())]:
             self.qcom_indices.addItem(name)
@@ -1093,37 +1074,7 @@ class SpectralIndexWidget(QWidget):
             current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[1]
-            self.index_collection[name].middle_band = None            
-
-    def compute_index(self, spectral_index):
-        """Compute the index and add to napari."""
-
-        if spectral_index.index_type == 'RABD':
-            computed_index = compute_index_RABD(
-                left=spectral_index.left_band,
-                trough=spectral_index.middle_band,
-                right=spectral_index.right_band,
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-        elif spectral_index.index_type == 'RABA':
-            computed_index = compute_index_RABA(
-                left=spectral_index.left_band,
-                right=spectral_index.right_band,
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-        elif spectral_index.index_type == 'Ratio':
-            computed_index = compute_index_ratio(
-                left=spectral_index.left_band,
-                right=spectral_index.right_band,
-                row_bounds=self.row_bounds,
-                col_bounds=self.col_bounds,
-                imagechannels=self.imagechannels)
-        else:
-            print(f'unknown index type: {spectral_index.index_type}')
-            return None
-        return computed_index
+            self.index_collection[name].middle_band = None
     
     def _on_compute_index_maps(self, event):
         """Compute the index and add to napari."""
@@ -1131,8 +1082,7 @@ class SpectralIndexWidget(QWidget):
         colmin, colmax = self.get_roi_bounds()
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         for i in index_series:
-            computed_index = self.compute_index(self.index_collection[i.index_name])
-            computed_index = clean_index_map(computed_index)
+            computed_index = self.compute_and_clean_index(i.index_name)
             proj = compute_index_projection(
                 computed_index,
                 self.viewer.layers['mask'].data,
@@ -1153,8 +1103,7 @@ class SpectralIndexWidget(QWidget):
             index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
             for i in index_series:
                 if self.index_collection[i.index_name].index_map is None:
-                    computed_index = self.compute_index(self.index_collection[i.index_name])
-                    computed_index = clean_index_map(computed_index)
+                    computed_index = self.compute_and_clean_index(i.index_name)
                     proj = compute_index_projection(
                         computed_index,
                         self.viewer.layers['mask'].data,
@@ -1233,11 +1182,10 @@ class SpectralIndexWidget(QWidget):
     def _on_click_export_index_settings(self, event=None, file_path=None):
         """Export index setttings"""
 
-        index_series = [x.dict_spectral_index() for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        index_series = {'index_definition': index_series}
+        index_series = {key: x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()}
         file_path = self.export_folder.joinpath('index_settings.yaml')
-        with open(file_path, "w") as file:
-            yaml.dump(index_series, file)
+        export_index_series(index_series, file_path)
+        
 
     def _on_click_import_index_settings(self, event=None):
         """Load index settings from file."""

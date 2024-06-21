@@ -276,6 +276,83 @@ def save_tif_cmap(image, image_path, napari_cmap, contrast):
     colored_image = (colored_image[:, :, :3] * 255).astype(np.uint8)
 
     tifffile.imwrite(image_path, colored_image)
-    
 
+def create_index(index_name, index_type, boundaries):
+    
+    if index_type == 'RABD':
+        new_index = SpectralIndex(index_name=index_name,
+                            index_type='RABD',
+                            left_band_default=boundaries[0],
+                            middle_band_default=boundaries[1],
+                            right_band_default=boundaries[2],
+                            )
         
+    elif index_type == 'RABA':
+        new_index = SpectralIndex(index_name=index_name,
+                            index_type='RABA',
+                            left_band_default=boundaries[0],
+                            right_band_default=boundaries[1],
+                            )
+    elif index_type == 'ratio':
+        new_index = SpectralIndex(index_name=index_name,
+                            index_type='ratio',
+                            left_band_default=boundaries[0],
+                            right_band_default=boundaries[1],
+                            )
+    else:
+        raise ValueError('Index type not recognized.')
+        
+    return new_index
+
+def export_index_series(index_series, file_path):
+
+    index_series = [x.dict_spectral_index() for key, x in index_series.items()]
+    index_series = {'index_definition': index_series}
+    if file_path.suffix !='.yaml':
+        file_path = file_path.with_suffix('.yaml')
+    with open(file_path, "w") as file:
+        yaml.dump(index_series, file)
+
+def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
+    """Compute the index and add to napari."""
+
+    if spectral_index.index_type == 'RABD':
+        computed_index = compute_index_RABD(
+            left=spectral_index.left_band,
+            trough=spectral_index.middle_band,
+            right=spectral_index.right_band,
+            row_bounds=row_bounds,
+            col_bounds=col_bounds,
+            imagechannels=imagechannels)
+    elif spectral_index.index_type == 'RABA':
+        computed_index = compute_index_RABA(
+            left=spectral_index.left_band,
+            right=spectral_index.right_band,
+            row_bounds=row_bounds,
+            col_bounds=col_bounds,
+            imagechannels=imagechannels)
+    elif spectral_index.index_type == 'Ratio':
+        computed_index = compute_index_ratio(
+            left=spectral_index.left_band,
+            right=spectral_index.right_band,
+            row_bounds=row_bounds,
+            col_bounds=col_bounds,
+            imagechannels=imagechannels)
+    else:
+        print(f'unknown index type: {spectral_index.index_type}')
+        return None
+    return computed_index
+
+def load_index_series(index_file):
+    """Load the index series from a yaml file."""
+    
+    index_collection = {}
+    with open(index_file) as file:
+        index_series = yaml.full_load(file)
+    for index_element in index_series['index_definition']:
+        index_collection[index_element['index_name']] = SpectralIndex(**index_element)
+
+    return index_collection
+
+
+    
