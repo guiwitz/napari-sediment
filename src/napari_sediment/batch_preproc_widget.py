@@ -12,7 +12,8 @@ from .folder_list_widget import FolderListWidget
 from .sediproc import correct_save_to_zarr
 from .io import get_data_background_path
 from .widgets.channel_widget import ChannelWidget
-from .parameters.parameters import Param
+from .batch_preproc import batch_preprocessing
+
 
 class BatchPreprocWidget(QWidget):
     """
@@ -267,46 +268,20 @@ class BatchPreprocWidget(QWidget):
                 f = self.file_list.item(c).text()
                 current_folder = main_folder.joinpath(f)
 
-                _, _, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
-                export_folder = self.preproc_export_path.joinpath(f)#wr_beginning)
-
-                if not export_folder.is_dir():
-                    export_folder.mkdir()
-
                 min_max_band = None
                 if self.check_do_min_max.isChecked():
                     min_band = self.qspin_min_band.value()
                     max_band = self.qspin_max_band.value()
                     min_max_band = [min_band, max_band]
 
-                param = Param(
-                    project_path=export_folder,
-                    file_path=imhdr_path,
-                    white_path=white_file_path,
-                    dark_for_im_path=dark_for_im_file_path,
-                    dark_for_white_path=dark_for_white_file_path,
-                    main_roi=[],
-                    rois=[])
-                
-                correct_save_to_zarr(
-                    imhdr_path=imhdr_path,
-                    white_file_path=white_file_path,
-                    dark_for_im_file_path=dark_for_im_file_path,
-                    dark_for_white_file_path=dark_for_white_file_path,
-                    zarr_path=export_folder.joinpath('corrected.zarr'),
-                    band_indices=None,
-                    min_max_bands=min_max_band,
+                batch_preprocessing(
+                    folder_to_analyze=current_folder,
+                    export_folder=self.preproc_export_path,
+                    background_text=background_text,
+                    min_max_band=min_max_band,
                     background_correction=self.check_do_background_correction.isChecked(),
                     destripe=self.check_do_destripe.isChecked(),
                     use_dask=self.check_use_dask.isChecked(),
                     chunk_size=self.spin_chunksize.value()
-                    )
-                imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
-                param.main_roi = [[
-                    0, 0,
-                    imchannels.nrows, 0,
-                    imchannels.nrows, imchannels.ncols,
-                    0, imchannels.ncols
-                    ]]
-                param.save_parameters()
+                )
         self.viewer.window._status_bar._toggle_activity_dock(False)
