@@ -45,7 +45,13 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     pixel_in_inches = a4_margins[0] / im_h
     im_height_inches = a4_margins[0]
     im_width_inches = im_w * pixel_in_inches
-    plot_width_inches = a4_margins[1] - 2 * im_width_inches 
+    plot_width_inches = a4_margins[1] - 2 * im_width_inches
+    if plot_width_inches < 2:
+        im_width_inches_new = (a4_margins[1] - 2) / 2
+        ratio = im_width_inches_new / im_width_inches
+        im_height_inches = im_height_inches * ratio
+        im_width_inches = im_width_inches_new
+        plot_width_inches = 2
 
     # The figure and axes are set explicitly to make sure that the axes fill the figure
     # This is achieved using the add_axes method instead of subplots
