@@ -22,8 +22,12 @@ class Param:
         main roi 
     rois: dict of arrays
         flat list of rois
+    measurement_roi: array
+        roi for measurement
     scale: float
-        scale of the image in mm/px
+        scale of the image in scale_units/px
+    scale_units: str
+        units of the scale
     location: str
         location of the sample
     rgb: list
@@ -37,7 +41,9 @@ class Param:
     dark_for_white_path: str = None
     main_roi: list = field(default_factory=list)
     rois: list = field(default_factory=list)
+    measurement_roi: list = field(default_factory=list)
     scale: float = 1
+    scale_units: str = 'mm'
     location: str = ''
     rgb: list = field(default_factory=list)
 

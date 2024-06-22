@@ -25,8 +25,6 @@ class ParamEndMember:
     corr_limit: int
         last index to take into account for correlation
         (removing large correlation in bad bands)
-    index_boundaries: list of int
-        [left, trough, right] boundaries for index calculation
 
     
     """
@@ -37,7 +35,6 @@ class ParamEndMember:
     ppi_threshold: float = None
     ppi_iterations: int = None
     corr_limit = int = None
-    index_boundaries: list = field(default_factory=list)
 
 
     def save_parameters(self, alternate_path=None):

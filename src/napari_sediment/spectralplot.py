@@ -73,7 +73,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
         vmin = index_contrast_limits[0]
         vmax = index_contrast_limits[1]
     index_image[mask==1] = np.nan
-    ax2.imshow(index_image, aspect='auto', interpolation='none', cmap=mpl_map, vmin=vmin, vmax=vmax)
+    ax2.imshow(index_image, aspect='auto', interpolation='none', cmap=mpl_map, vmin=vmin, vmax=vmax) 
 
     if roi is not None:
         roi = roi.copy()

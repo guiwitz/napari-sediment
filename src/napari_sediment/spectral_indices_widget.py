@@ -164,6 +164,8 @@ class SpectralIndexWidget(QWidget):
         self.spin_roi_width.setValue(20)
         self.index_options_group.glayout.addWidget(QLabel('Projection roi width'), 2, 0, 1, 1)
         self.index_options_group.glayout.addWidget(self.spin_roi_width, 2, 1, 1, 1)
+        self.btn_save_roi = QPushButton("Save Projection ROI")
+        self.index_options_group.glayout.addWidget(self.btn_save_roi, 3, 0, 1, 2)
 
         self.index_compute_group = VHGroup('Compute and export', orientation='G')
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
@@ -361,6 +363,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_load_project.clicked.connect(self.import_project)
         self.spin_selected_roi.valueChanged.connect(self.load_data)
+        self.btn_save_roi.clicked.connect(self._on_click_save_roi)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
         self.btn_compute_index_maps.clicked.connect(self._on_compute_index_maps)
@@ -477,17 +480,19 @@ class SpectralIndexWidget(QWidget):
 
         self._on_click_load_mask()
 
-        self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
-        self.endmember_bands = self.end_members[:,-1]
-        self.end_members = self.end_members[:,:-1]
+        if export_path_roi.joinpath('end_members.csv').exists():
+            self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
+            self.endmember_bands = self.end_members[:,-1]
+            self.end_members = self.end_members[:,:-1]
 
-        self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
-        self.em_boundaries_range.setValue(
-            (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
-        self.em_boundaries_range2.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
-        self.em_boundaries_range2.setValue(
-            (self.endmember_bands[0], self.endmember_bands[-1]))
-        self.plot_endmembers()
+            self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
+            self.em_boundaries_range.setValue(
+                (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
+            self.em_boundaries_range2.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
+            self.em_boundaries_range2.setValue(
+                (self.endmember_bands[0], self.endmember_bands[-1]))
+            self.plot_endmembers()
+
         self._on_change_index_index()
 
         self._update_save_plot_parameters()
@@ -777,19 +782,16 @@ class SpectralIndexWidget(QWidget):
         exported_projects = list(export_folder.iterdir())
         exported_projects = [e for e in exported_projects if e.is_dir()]
 
-        indices = load_index_series('/Users/gw18g940/Desktop/Test_data/Zahajska/export_series/Synthetic2_123/index_settings.yaml')
-        params_plots = load_plots_params('/Users/gw18g940/Desktop/Test_data/Zahajska/export_series/plot_params.yml')
+        indices = load_index_series(self.batch_index_params_file.value)
+        params_plots = load_plots_params(self.batch_plot_params_file.value)
 
         for ex in exported_projects:
 
             roin_ind = 0
-            colmin = 60
-            colmax = 80
             dpi = 300
             
             params = load_project_params(folder=ex)
             roi_folder = ex.joinpath(f'roi_{roin_ind}')
-
             mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
             row_bounds = [
                         mainroi[roin_ind][:,0].min(),
@@ -797,15 +799,25 @@ class SpectralIndexWidget(QWidget):
             col_bounds = [
                         mainroi[roin_ind][:,1].min(),
                         mainroi[roin_ind][:,1].max()]
+            
+            measurement_roi = None
+            if len(params.measurement_roi) > 0:
+                measurement_roi = np.array(params.measurement_roi).reshape(4,2).astype(int)
+                colmin = measurement_roi[:,1].min()
+                colmax = measurement_roi[:,1].max()
+            else:
+                colmin = col_bounds[0]
+                colmax = col_bounds[1]
 
             # get RGB and mask
             mask = load_mask(get_mask_path(roi_folder))
             myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
 
             rgb = params.rgb
-            roi = np.concatenate([row_bounds, col_bounds])
+            roi = measurement_roi
             rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
-            rgb_cube = np.array(myimage.get_image_cube(rgb_ch, roi=roi))
+            rgb_cube = np.array(myimage.get_image_cube(
+                rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
 
             for k in indices.keys():
                 computed_index = compute_index(indices[k],
@@ -822,11 +834,12 @@ class SpectralIndexWidget(QWidget):
 
                 fig, ax = plt.subplots()
                 format_dict = asdict(params_plots)
+                
                 fig, ax1, ax2, ax3 = plot_spectral_profile(
                     rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
                     format_dict=format_dict, scale=params.scale,
                     location=params.location, fig=fig, 
-                    roi=None, repeat=True)
+                    roi=roi, repeat=True)
 
                 fig.savefig(
                         roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
@@ -836,7 +849,7 @@ class SpectralIndexWidget(QWidget):
                     rgb_image=rgb_cube, mask=mask,
                     index_objs=[indices[k] for k in indices.keys()], 
                     format_dict=format_dict, scale=params.scale,
-                    fig=fig, roi=None, repeat=True)
+                    fig=fig, roi=roi, repeat=True)
 
             fig.savefig(
                         roi_folder.joinpath('multi_index_plot'),
@@ -1293,6 +1306,23 @@ class SpectralIndexWidget(QWidget):
         self.qcom_indices.setCurrentText(index_element['index_name'])
     
         self._on_change_index_index()
+
+    def _on_click_save_roi(self, event=None):
+
+        full_roi = [[self.row_bounds[0], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[1],
+                          self.row_bounds[0], self.col_bounds[1]]]
+
+        if 'rois' not in self.viewer.layers:
+            measurement_roi = full_roi
+        else:
+            measurement_roi = [list(x.astype(int).flatten()) for x in self.viewer.layers['rois'].data]
+            measurement_roi = [[x.item() for x in y] for y in measurement_roi]
+        
+        self.params.measurement_roi = measurement_roi
+
+        self.params.save_parameters()
 
     def _on_click_select_main_folder(self, event=None, main_folder=None):
         
