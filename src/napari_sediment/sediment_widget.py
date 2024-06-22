@@ -13,7 +13,7 @@ import os
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
-                            QScrollArea, QGridLayout)
+                            QScrollArea, QGridLayout, QVBoxLayout)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider, QLabeledDoubleRangeSlider, QDoubleSlider
 from napari.qt import get_current_stylesheet
@@ -32,9 +32,9 @@ from ._reader import read_spectral
 from .sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
-                       find_index_of_band, savgol_destripe)
+                       savgol_destripe)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, get_mask_path, load_project_params
+from .io import save_mask, load_mask, load_project_params
 from .parameters.parameters import Param
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
@@ -67,8 +67,11 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', '&ROI', 'Mas&k', 'I&O', 'P&lotting']#,'&Options']
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None]*(len(self.tab_names)-1) + [QGridLayout()])
+        self.tab_names = ['&Main', 'Pro&cessing', '&ROI',
+                          'Mas&k', 'I&O', 'P&lotting','Meta&data']
+        self.tabs = TabSet(self.tab_names,
+                           tab_layouts=[QVBoxLayout(), QVBoxLayout(), QVBoxLayout(), QVBoxLayout(),
+                                        QVBoxLayout(), QGridLayout(), QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -79,6 +82,7 @@ class SedimentWidget(QWidget):
         self._create_roi_tab()
         self._create_export_tab()
         self._create_plot_tab()
+        self._create_metadata_tab()
 
         self.add_connections()
 
@@ -126,25 +130,6 @@ class SedimentWidget(QWidget):
         self.btn_export.setToolTip(
             "Export all info necessary for next steps and to reload the project")
         self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
-
-        # Elements "Metadata"
-        self.metadata_group = VHGroup('Metadata', orientation='G')
-        self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
-
-        ### Elements "Location" ###
-        self.metadata_location = QLineEdit("No location")
-        self.metadata_location.setToolTip("Indicate the location of data acquisition")
-        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
-        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
-
-        ### Spinbox "Scale" ###
-        self.spinbox_metadata_scale = QDoubleSpinBox()
-        self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
-        self.spinbox_metadata_scale.setRange(1, 1000)
-        self.spinbox_metadata_scale.setSingleStep(0.1)
-        self.spinbox_metadata_scale.setValue(1)
-        self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
-        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
 
         # Elements "Bands"
         self.main_group = VHGroup('Bands', orientation='G')
@@ -531,6 +516,51 @@ class SedimentWidget(QWidget):
         self.slider_spectrum_savgol.setSliderPosition(5)
         self.tabs.add_named_tab('P&lotting', QLabel('Smoothing window size'), (2,0,1,1))
         self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol, (2,1,1,1))
+
+    def _create_metadata_tab(self):
+        """
+        Generates the "Metadata" tab and its elements.
+        """
+
+        # Elements "Metadata"
+        self.metadata_group = VHGroup('Metadata', orientation='G')
+        self.tabs.add_named_tab('Meta&data', self.metadata_group.gbox)
+        self.tabs.widget(self.tab_names.index('Meta&data')).layout().setAlignment(Qt.AlignTop)
+
+        ### Elements "Location" ###
+        self.metadata_location = QLineEdit("No location")
+        self.metadata_location.setToolTip("Indicate the location of data acquisition")
+        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
+
+        ### Spinbox "Scale" ###
+        self.spinbox_metadata_scale = QDoubleSpinBox()
+        self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
+        self.spinbox_metadata_scale.setRange(1, 1000)
+        self.spinbox_metadata_scale.setSingleStep(0.1)
+        self.spinbox_metadata_scale.setValue(1)
+        self.metadata_group.glayout.addWidget(QLabel('Pixel Size'), 1, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
+
+        ### Spinbox "Unit" ###
+        self.metadata_scale_unit = QLineEdit("mm")
+        self.metadata_scale_unit.setToolTip("Indicate the unit of the scale")
+        self.metadata_group.glayout.addWidget(QLabel('Unit'), 2, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_scale_unit, 2, 1, 1, 1)
+
+         # Elements "Interactive scale"
+        self.interactive_scale_group = VHGroup('Interactive scale', orientation='G')
+        self.tabs.add_named_tab('Meta&data', self.interactive_scale_group.gbox)
+        self.btn_add_scale_layer = QPushButton("Add scale layer")
+        self.interactive_scale_group.glayout.addWidget(self.btn_add_scale_layer, 0, 0, 1, 2)
+        self.spinbox_scale_size_units = QDoubleSpinBox()
+        self.spinbox_scale_size_units.setRange(1, 100000)
+        self.spinbox_scale_size_units.setValue(100)
+        self.spinbox_scale_size_units.setSingleStep(1)
+        self.interactive_scale_group.glayout.addWidget(QLabel('Scale size in units'), 1, 0, 1, 1)
+        self.interactive_scale_group.glayout.addWidget(self.spinbox_scale_size_units, 1, 1, 1, 1)
+        self.btn_compute_pixel_size = QPushButton("Compute pixel size")
+        self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size, 2, 0, 1, 2)
         
     def add_connections(self):
         """
@@ -581,6 +611,10 @@ class SedimentWidget(QWidget):
         # Elements of the "Plotting" tab
         self.slider_spectrum_savgol.valueChanged.connect(self.update_spectral_plot)
         self.check_remove_continuum.stateChanged.connect(self.update_spectral_plot)
+
+        # Elements of the "Metadata" tab
+        self.btn_add_scale_layer.clicked.connect(self._on_click_add_scale_layer)
+        self.btn_compute_pixel_size.clicked.connect(self._on_click_compute_pixel_size)
         
         # Viewer callbacks for mouse behaviour
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
@@ -652,6 +686,7 @@ class SedimentWidget(QWidget):
         # metadata
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
+        self.metadata_scale_unit.setText(self.params.scale_units)
 
         # rois
         self._add_roi_layer()
@@ -1193,6 +1228,40 @@ class SedimentWidget(QWidget):
         
         self.scan_plot.canvas.figure.canvas.draw()
 
+    # Functions for "Metadata" tab elements
+    def _on_click_add_scale_layer(self):
+        """
+        Add interactive scale layer
+        Called: "Metadata" tab, button "Add scale layer"
+        """
+        if 'scale' not in self.viewer.layers:
+            image_height = self.row_bounds[1] - self.row_bounds[0]
+            line = np.array([[self.row_bounds[0] + image_height//3, self.col_bounds[0]],
+                             [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]]])
+            self.viewer.add_shapes(
+                data=line,
+                shape_type='line',
+                edge_color='g',
+                edge_width=5,
+                name='scale',
+                ndim=2,
+            )
+
+    def _on_click_compute_pixel_size(self):
+        """
+        Compute pixel size with interactive scale
+        Called: "Metadata" tab, button "Compute pixel size"
+        """
+        if 'scale' not in self.viewer.layers:
+            warnings.warn('No scale layer found. Please add scale layer first.')
+            return
+
+        scale = self.viewer.layers['scale'].data[0]
+        scale_size_px = np.sqrt(np.sum((scale[0] - scale[1])**2))
+        scale_size_units = self.spinbox_scale_size_units.value()
+        pixel_size = scale_size_units / scale_size_px
+        self.spinbox_metadata_scale.setValue(pixel_size)
+
 
     # Helper Functions
     ### Helper functions used in tab element functions ###
@@ -1289,6 +1358,7 @@ class SedimentWidget(QWidget):
         self.params.dark_for_white_path = self.dark_for_white_file_path
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
+        self.params.scale_units = self.metadata_scale_unit.text()
         self.params.rgb = self.rgb_widget.rgb
 
         self.params.main_roi = mainroi
