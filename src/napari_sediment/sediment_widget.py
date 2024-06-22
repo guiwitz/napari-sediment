@@ -186,7 +186,7 @@ class SedimentWidget(QWidget):
         self.background_group = VHGroup('Background correction', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
-        ### Elements "Dark ref" ###
+        # ### Elements "Dark ref" ###
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
         self.qtext_select_dark_file.setText('No path')
@@ -294,27 +294,7 @@ class SedimentWidget(QWidget):
         self.check_use_dask.setChecked(True)
         self.check_use_dask.setToolTip("Use dask to parallelize computation")
         self.tabs.add_named_tab('Pro&cessing', self.check_use_dask)
-
-    def _on_click_multiexp_batch(self):
-        """
-        Instantiates a BatchPreprocWidget object from "batch_preproc.py"
-        Called when button "Process in batch" is clicked.
-        """
-        
-        if self.multiexp_batch is None:
-            self.multiexp_batch = BatchPreprocWidget(
-                self.viewer,
-                background_correct=self.check_batch_white.isChecked(),
-                destripe=self.check_batch_destripe.isChecked(),
-                savgol_window=self.qspin_destripe_width.value(),
-                min_band=self.slider_batch_wavelengths.value()[0],
-                max_band=self.slider_batch_wavelengths.value()[1],
-                chunk_size=self.spin_chunk_size.value(),
-            )
-            self.multiexp_batch.setStyleSheet(get_current_stylesheet())
-
-        self.multiexp_batch.show()
-         
+  
     def _create_roi_tab(self):
         """
         Generates the "ROI" tab and its elements.
@@ -367,7 +347,6 @@ class SedimentWidget(QWidget):
         self.spin_roi_width.setValue(20)
         self.subroi_group.glayout.addWidget(QLabel('Sub-ROI width'), 1, 0, 1, 1)
         self.subroi_group.glayout.addWidget(self.spin_roi_width, 1, 1, 1, 1)
-
 
     def _create_mask_tab(self):
         """
@@ -520,7 +499,10 @@ class SedimentWidget(QWidget):
         self.mask_group_capture.glayout.addWidget(self.btn_save_rgb_tiff, 1, 1, 1, 1)
 
     def _create_options_tab(self):
-        
+        """
+        "Options" tab not implemented so far
+        """
+
         self.crop_group = VHGroup('Crop selection', orientation='G')
 
         self.check_use_external_ref = QCheckBox("Use external reference")
@@ -551,25 +533,35 @@ class SedimentWidget(QWidget):
         self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol, (2,1,1,1))
         
     def add_connections(self):
-        """Add callbacks"""
-
+        """
+        Connects GUI elements to functions to be executed when GUI elements are activated 
+        """
+        
+        # Elements of the "Main" tab
         self.btn_select_export_folder.clicked.connect(self._on_click_select_export_folder)
         self.btn_select_imhdr_file.clicked.connect(self._on_click_select_imhdr)
+        self.rgb_widget.btn_RGB.clicked.connect(self._update_threshold_limits)
+        self.btn_select_all.clicked.connect(self._on_click_select_all)
+        self.check_sync_bands_rgb.stateChanged.connect(self._on_click_sync_RGB)
+        self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
+
+        # Elements of the "Processing" tab
         self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
         self.btn_select_dark_file.clicked.connect(self._on_click_select_dark_file)
         self.btn_select_dark_for_im_file.clicked.connect(self._on_click_select_dark_for_im_file)
         self.btn_destripe.clicked.connect(self._on_click_destripe)
         self.btn_background_correct.clicked.connect(self._on_click_background_correct)
-        self.rgb_widget.btn_RGB.clicked.connect(self._update_threshold_limits)
-        self.btn_select_all.clicked.connect(self._on_click_select_all)
-        self.check_sync_bands_rgb.stateChanged.connect(self._on_click_sync_RGB)
-        self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
         self.btn_batch_correct.clicked.connect(self._on_click_batch_correct)
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
         self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
         self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+
+        # Elements of the "ROI" tab
+        self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
+        self.btn_main_crop.clicked.connect(self._on_crop_with_main)
+        self.btn_main_crop_reset.clicked.connect(self._on_reset_crop)
         
-        # mask
+        # Elements of the "Mask" tab
         self.btn_add_draw_mask.clicked.connect(self._add_manual_mask)
         self.btn_border_mask.clicked.connect(self._on_click_remove_borders)
         self.btn_update_mask.clicked.connect(self._on_click_intensity_threshold)
@@ -578,50 +570,36 @@ class SedimentWidget(QWidget):
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
         self.combo_layer_mask.currentIndexChanged.connect(self._on_select_layer_for_mask)
 
-        # &ROI
-        self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
-        self.btn_main_crop.clicked.connect(self._on_crop_with_main)
-        self.btn_main_crop_reset.clicked.connect(self._on_reset_crop)
-
-        # capture
+        # Elements of the "IO" tab
         self.btn_save_mask.clicked.connect(self._on_click_save_mask)
         self.btn_load_mask.clicked.connect(self._on_click_load_mask)
         self.btn_snapshot.clicked.connect(self._on_click_snapshot)
         self.btn_export.clicked.connect(self.export_project)
         self.btn_import.clicked.connect(self.import_project)
         self.btn_save_rgb_tiff.clicked.connect(self._on_click_save_rgb_tiff)
-        
-        # mouse
-        self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
-        self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
+
+        # Elements of the "Plotting" tab
         self.slider_spectrum_savgol.valueChanged.connect(self.update_spectral_plot)
         self.check_remove_continuum.stateChanged.connect(self.update_spectral_plot)
+        
+        # Viewer callbacks for mouse behaviour
+        self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
+        self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
 
-        # layer callbacks
+        # Viewer callbacks for layer behaviour
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_destripe)
         self.viewer.layers.events.removed.connect(self._update_combo_layers_destripe)
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_background)
         self.viewer.layers.events.removed.connect(self._update_combo_layers_background)
-
         self.viewer.layers.events.inserted.connect(self.translate_layer_on_add)
 
-    def _on_click_select_export_folder(self):
-        """Interactively select folder to analyze"""
 
-        return_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
-        if return_dir == '':
-            return
-        self.export_folder = Path(str(return_dir))
-        self.export_path_display.setText(self.export_folder.as_posix())
-
-    def _on_select_file(self):
-        success = self.open_file()
-        if not success:
-            return False
-        
+    # Functions for "Main" tab elements
     def _on_click_select_imhdr(self):
-        """Interactively select hdr file"""
-
+        """
+        Interactively select hdr file
+        Called: "Main" tab, button "Select hdr file"
+        """
         imhdr_path = QFileDialog.getOpenFileName(self, "Select file")[0]
         if imhdr_path == '':
             return
@@ -632,36 +610,609 @@ class SedimentWidget(QWidget):
         self._on_select_file()
         self._on_click_add_main_roi()
 
-    def _on_click_select_white_file(self):
-        """Interactively select white reference"""
-        
-        return_path = QFileDialog.getOpenFileName(self, "Select White Ref")[0]
-        if self.white_file_path == '':
+    def _on_click_select_export_folder(self):
+        """
+        Interactively select folder to analyze
+        Called: "Main" tab, button "Set Project folder"
+        """
+        return_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        if return_dir == '':
             return
-        self.white_file_path = Path(return_path)
-        self.qtext_select_white_file.setText(self.white_file_path.as_posix())
+        self.export_folder = Path(str(return_dir))
+        self.export_path_display.setText(self.export_folder.as_posix())
+      
+    def import_project(self):
+        """
+        Import a project
+        Called: "Main" tab, button "Import Project"
+        """
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+        #main_roi_folders = self.export_folder.glob('main_roi_*')
 
+        self.params = load_project_params(folder=self.export_folder)#.joinpath(f'main_roi_{self.spin_selected_roi.value()}'))
+
+        # files
+        self.imhdr_path = Path(self.params.file_path)
+
+        # check if background references have already been set
+        if self.params.white_path is not None:
+            self.white_file_path = Path(self.params.white_path)
+            self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
+            self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
+        else:
+            self.set_paths(self.imhdr_path)
+
+        # set defaults
+        self.rgb_widget.set_rgb(self.params.rgb)
+
+        # load data
+        self._on_select_file()
+
+        # metadata
+        self.metadata_location.setText(self.params.location)
+        self.spinbox_metadata_scale.setValue(self.params.scale)
+
+        # rois
+        self._add_roi_layer()
+        mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
+        if mainroi:
+            mainroi[0] = mainroi[0].astype(int)
+            self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b')
+        self.spin_selected_roi.setRange(0, len(mainroi)-1)
+
+        rois = [[np.array(x).reshape(4,2) for x in y] for y in self.params.rois]
+        self.roi_list = {ind: r for ind, r in enumerate(rois)}
+        for ind, roi in enumerate(rois):
+            self.spin_selected_roi.setValue(ind)
+            self._add_roi_layer()
+            self.viewer.layers[f'rois_{ind}'].add_rectangles(roi, edge_color='r')
+
+        self.spin_selected_roi.setValue(0)
+
+        # crop if needed
+        self._on_crop_with_main()
+
+        # load masks
+        self._on_click_load_mask()
+
+    def export_project(self):
+        """
+        Export data
+        Called: "Main" tab, button "Export Project"
+        """
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        self.save_params()
+
+        self._on_click_save_mask()
+    
+    def _on_change_select_bands(self, event=None):
+        """
+        Select individual RGB channel
+        Called: "Main" tab, channel in channel widget
+        """
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+    
+    def _on_click_select_all(self):
+        """
+        Select all RGB channels
+        Called: "Main" tab, button "Select all"
+        """
+        self.qlist_channels.selectAll()
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+
+    def _on_click_sync_RGB(self, event=None):
+        """
+        Select same channels for imcube as loaded for RGB
+        Called: "Main" tab, checkbox "Sync bands with RGB"
+        """
+        if not self.check_sync_bands_rgb.isChecked():
+            self.qlist_channels.setEnabled(True)
+            self.btn_select_all.setEnabled(True)
+        else:
+            self.qlist_channels.setEnabled(False)
+            self.btn_select_all.setEnabled(False)
+            self.qlist_channels.clearSelection()
+            [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
+            self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+            self._update_threshold_limits()
+
+    def _update_threshold_limits(self):
+        """
+        Load selected RGB channels
+        Called: "Main" tab, button "Load RGB", see "rgb_widget.py"
+        """
+        im = self.get_summary_image_for_mask()
+        if 'border-mask' in self.viewer.layers:
+            im = im[self.viewer.layers['border-mask'].data == 0]
+        self.slider_mask_threshold.setRange(im.min(), im.max())
+        self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
+
+
+    # Functions for "Processing" tab elements
     def _on_click_select_dark_file(self):
-        """Interactively select white reference"""
-        
+        """
+        Interactively select dark reference
+        Called: "Processing" tab, button "Manual selection" for "Dark ref"
+        """
         return_path = QFileDialog.getOpenFileName(self, "Select Dark Ref for white")[0]
         if return_path == '':
             return
         self.dark_for_white_file_path = Path(return_path)
         self.qtext_select_dark_file.setText(self.dark_for_white_file_path.as_posix())
 
+    def _on_click_select_white_file(self):
+        """
+        Interactively select white reference
+        Called: "Processing" tab, button "Manual selection" for "White ref"
+        """
+        return_path = QFileDialog.getOpenFileName(self, "Select White Ref")[0]
+        if self.white_file_path == '':
+            return
+        self.white_file_path = Path(return_path)
+        self.qtext_select_white_file.setText(self.white_file_path.as_posix())
+
     def _on_click_select_dark_for_im_file(self):
-        """Interactively select white reference"""
-        
+        """
+        Interactively select dark reference for image
+        Called: "Processing" tab, button "Manual selection" for "Dark ref for image"
+        """
         return_path = QFileDialog.getOpenFileName(self, "Select Dark Ref for image")[0]
         if return_path == '':
             return
         self.dark_for_im_file_path = Path(return_path)
         self.qtext_select_dark_for_white_file.setText(self.dark_for_im_file_path.as_posix())
+    
+    def _on_click_background_correct(self, event=None):
+        """
+        White correct image
+        Called: "Processing" tab, button "Correct"
+        """
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("White correcting image")
+
+            selected_layer = self.combo_layer_background.currentText()
+            if selected_layer == 'imcube':
+                channel_indices = self.qlist_channels.channel_indices
+            elif selected_layer == 'RGB':
+                channel_indices = np.sort(self.rgb_widget.rgb_ch)
+
+            #col_bounds = (self.col_bounds if self.check_main_crop.isChecked() else None)
+            col_bounds = self.col_bounds
+            white_data, dark_data, dark_for_white_data = load_white_dark(
+                white_file_path=self.white_file_path,
+                dark_for_im_file_path=self.dark_for_im_file_path,
+                dark_for_white_file_path=self.dark_for_white_file_path,
+                channel_indices=channel_indices,
+                col_bounds=col_bounds,
+                clean_white=True
+                )
+
+            if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
+                im_corr = white_dark_correct(
+                    self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+                
+                if 'imcube_corrected' in self.viewer.layers:
+                    self.viewer.layers['imcube_corrected'].data = im_corr
+                else:
+                    self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
+                    self.viewer.layers['imcube_corrected'].visible = False
+                    self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
+
+            if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
+                sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
+                rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
+                rgb_sorted = [str(x) for x in rgb_sorted]
+
+                im_corr = white_dark_correct(
+                    np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
+                    white_data, dark_data, dark_for_white_data)
+                
+                for ind, c in enumerate(rgb_sorted):
+                    self.viewer.layers[c].data = im_corr[ind]
+                    update_contrast_on_layer(self.viewer.layers[c])
+                    self.viewer.layers[c].refresh()
+
+        self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def _on_click_destripe(self):
+        """
+        Destripe image
+        Called: "Processing" tab, button "Destripe"
+        """
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Destriping image")
+
+        selected_layer = self.combo_layer_destripe.currentText()
+        if (selected_layer == 'None') or (selected_layer == 'imcube'):
+            data_destripe = self.viewer.layers['imcube'].data.copy()
+        elif selected_layer == 'imcube_corrected':
+            data_destripe = self.viewer.layers['imcube_corrected'].data.copy()
+        elif selected_layer == 'RGB':
+            data_destripe = np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0)
+        
+        for d in range(data_destripe.shape[0]):
+            #data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
+            width = self.qspin_destripe_width.value()
+            data_destripe[d] = savgol_destripe(data_destripe[d], width=width, order=2)
+
+        if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
+            for ind, x in enumerate(['red', 'green', 'blue']):
+                self.viewer.layers[x].data = data_destripe[ind]
+        
+        if (selected_layer == 'None') or (selected_layer == 'imcube') | (selected_layer == 'imcube_corrected') | (self.check_sync_bands_rgb.isChecked()):
+            if 'imcube_destripe' in self.viewer.layers:
+                self.viewer.layers['imcube_destripe'].data = data_destripe
+            else:
+                self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
+                self.viewer.layers['imcube_destripe'].visible = False
+        self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def _on_change_batch_wavelengths(self, event):
+        """
+        Called: "Processing" tab, slider "Crop bands"
+        """
+        self.spin_batch_wavelengths_min.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.setMinimum(self.slider_batch_wavelengths.minimum())
+        self.spin_batch_wavelengths_max.setMaximum(self.slider_batch_wavelengths.maximum())
+        self.spin_batch_wavelengths_min.setMinimum(self.slider_batch_wavelengths.minimum())
+        self.spin_batch_wavelengths_min.setMaximum(self.slider_batch_wavelengths.maximum())
+        self.spin_batch_wavelengths_max.setValue(self.slider_batch_wavelengths.value()[1])
+        self.spin_batch_wavelengths_min.setValue(self.slider_batch_wavelengths.value()[0])
+        self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+        self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
+
+    def _on_change_spin_batch_wavelengths(self, event):
+        """
+        Called: "Processing" tab, slider "Crop bands"
+        """
+
+        self.slider_batch_wavelengths.valueChanged.disconnect(self._on_change_batch_wavelengths)
+        self.slider_batch_wavelengths.setSliderPosition([self.spin_batch_wavelengths_min.value(), self.spin_batch_wavelengths_max.value()])
+        self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
+
+    def _on_click_batch_correct(self):
+        """
+        Applies and saves data correction
+        Called: "Processing" tab, button "Correct and save data"
+        """
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        min_max_band = [self.slider_batch_wavelengths.value()[0], self.slider_batch_wavelengths.value()[1]]
+        
+        self.viewer.window._status_bar._toggle_activity_dock(True)
+        with progress(total=0) as pbr:
+            pbr.set_description("Preprocessing full image")
+        
+            correct_save_to_zarr(
+                imhdr_path=self.imhdr_path,
+                white_file_path=self.white_file_path,
+                dark_for_im_file_path=self.dark_for_im_file_path,
+                dark_for_white_file_path=self.dark_for_white_file_path,
+                zarr_path=self.export_folder.joinpath('corrected.zarr'),
+                band_indices=None,
+                min_max_bands=min_max_band,
+                background_correction=self.check_batch_white.isChecked(),
+                destripe=self.check_batch_destripe.isChecked(),
+                use_dask=self.check_use_dask.isChecked(),
+                chunk_size=self.spin_chunk_size.value()
+                )
+            self.save_params()
+            
+            # reload corrected image as zarr
+            self.open_file()
+            
+        self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def _on_click_multiexp_batch(self):
+        """
+        Instantiates a BatchPreprocWidget object from "batch_preproc.py"
+        Called: "Processing" tab, button "Process in batch"
+        """
+        
+        if self.multiexp_batch is None:
+            self.multiexp_batch = BatchPreprocWidget(
+                self.viewer,
+                background_correct=self.check_batch_white.isChecked(),
+                destripe=self.check_batch_destripe.isChecked(),
+                savgol_window=self.qspin_destripe_width.value(),
+                min_band=self.slider_batch_wavelengths.value()[0],
+                max_band=self.slider_batch_wavelengths.value()[1],
+                chunk_size=self.spin_chunk_size.value(),
+            )
+            self.multiexp_batch.setStyleSheet(get_current_stylesheet())
+
+        self.multiexp_batch.show()
+
+
+    # Functions for "ROI" tab elements
+    def _on_click_add_main_roi(self, event=None):
+        """
+        Add main ROI
+        Called: "ROI" tab, button "Add main ROI"
+        """
+        self._add_roi_layer()
+
+        col_min = self.col_bounds[0]
+        col_max = self.col_bounds[1]
+        col_width = self.spin_main_roi_width.value()
+
+        col_middle = (col_max+col_min) // 2
+        col_left = col_middle - col_width // 2
+        col_right = col_middle + col_width - (col_width // 2)
+
+        new_roi = [
+            [self.row_bounds[0],col_left],
+            [self.row_bounds[1],col_left],
+            [self.row_bounds[1],col_right],
+            [self.row_bounds[0],col_right]]
+        #self.viewer.layers['main-roi'].data = []
+        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
+        self.viewer.layers.selection.active = self.viewer.layers['main-roi']
+
+    def _on_crop_with_main(self, event=None):
+        """
+        Generate sub-ROI
+        Called: "ROI" tab, button "Crop with main"
+        """
+        #if self.check_main_crop.isChecked():
+        if 'main-roi' in self.viewer.layers:
+            main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
+            self.row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
+            self.col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
+        else:
+            self.row_bounds = [0, self.imagechannels.nrows]
+            self.col_bounds = [0, self.imagechannels.ncols]
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+        self.rgb_widget.row_bounds = self.row_bounds
+        self.rgb_widget.col_bounds = self.col_bounds
+        self.rgb_widget._on_click_RGB()
+        self.remove_masks()
+        self._on_click_load_mask()
+
+    def _on_reset_crop(self, event=None):
+        """
+        Called: "ROI" tab, button "Reset crop
+        """    
+        self.row_bounds = [0, self.imagechannels.nrows]
+        self.col_bounds = [0, self.imagechannels.ncols]
+
+        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
+        self.rgb_widget.row_bounds = self.row_bounds
+        self.rgb_widget.col_bounds = self.col_bounds
+        self.rgb_widget._on_click_RGB()
+
+
+    # Functions for "Mask" tab elements
+    def _on_select_layer_for_mask(self):
+        """
+        Select layer to use
+        Called: "Mask" tab, combobox at label "Select layer to use"
+        """
+        selected_layer = self.combo_layer_mask.currentText()
+        if selected_layer in self.viewer.layers:
+            im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
+            if 'border-mask' in self.viewer.layers:
+                im = im[self.viewer.layers['border-mask'].data == 0]
+            self.slider_mask_threshold.setRange(im.min(), im.max())
+            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
+    
+    def _add_manual_mask(self):
+        """
+        Add manual mask
+        Called: "Mask" tab, subtab "Drawing", button "Add manual mask"
+        """
+        self.mask_layer = self.viewer.add_labels(
+            np.zeros((self.row_bounds[1]-self.row_bounds[0],
+                      self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8),
+            name='manual-mask')
+
+    def _on_click_remove_borders(self):
+        """
+        Remove borders from image
+        Called: "Mask" tab, "Border" subtab, button "Generate mask"
+        """
+        im = self.get_summary_image_for_mask()
+
+        first_row, last_row = remove_top_bottom(im)
+        first_col, last_col = remove_left_right(im)
+        if 'border-mask' in self.viewer.layers:
+            self.viewer.layers['border-mask'].data[:] = 0
+        else:
+            mask = np.asarray(np.zeros(im.shape, dtype=np.uint8))
+            self.viewer.add_labels(mask, name='border-mask', opacity=0.5)
+        self.viewer.layers['border-mask'].data[0:first_row,:] = 1
+        self.viewer.layers['border-mask'].data[last_row::,:] = 1
+        self.viewer.layers['border-mask'].data[:, 0:first_col] = 1
+        self.viewer.layers['border-mask'].data[:, last_col::] = 1
+        self.viewer.layers['border-mask'].refresh()
+        # update threshold limits to exclude borders
+        self._update_threshold_limits()
+
+    def _on_click_intensity_threshold(self, event=None):
+        """
+        Create mask based on intensity threshold
+        Called: "Mask" tab, "Man. thresh." subtab, button "Generate mask"
+        """
+        data = self.get_summary_image_for_mask()
+        min_th = self.slider_mask_threshold.value()[0]
+        max_th = self.slider_mask_threshold.value()[1]
+        mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
+        self.update_mask(mask, 'intensity-mask')
+
+        self.slider_mask_threshold.setSliderPosition([min_th, max_th])
+
+    def _on_click_automated_threshold(self):
+        """
+        Automatically set threshold for mask based on mean RGB pixel intensity
+        Called: "Mask" tab, "Auto thresh." subtab, button "Generate mask"
+        """
+        im = np.asarray(self.get_summary_image_for_mask())
+        if 'border-mask' in self.viewer.layers:
+            pix_selected = im[self.viewer.layers['border-mask'].data == 0]
+        else:
+            pix_selected = np.ravel(im)
+        med_val, std_val = fit_1dgaussian_without_outliers(data=pix_selected[::5])
+        fact = self.spin_automated_mask_width.value()
+        self.slider_mask_threshold.setSliderPosition(
+            [
+                np.max([med_val - fact*std_val, self.slider_mask_threshold.minimum()]),
+                np.min([med_val + fact*std_val, self.slider_mask_threshold.maximum()])
+             ]
+        ),
+        self._on_click_intensity_threshold()
+
+    def _on_click_combine_masks(self):
+        """
+        Combine masks from border removel, phasor and thresholding
+        Called: "Mask" tab, button "Combine masks"
+        """
+        mask_complete = np.zeros((self.row_bounds[1]-self.row_bounds[0],
+                                  self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8)
+        if 'manual-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
+        if 'intensity-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['intensity-mask'].data
+        if 'phasor-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
+        if 'border-mask' in self.viewer.layers:
+            mask_complete = mask_complete + self.viewer.layers['border-mask'].data
+        if 'ml-mask' in self.viewer.layers:
+            mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
+        
+        mask_complete = np.asarray((mask_complete > 0), np.uint8)
+
+        if 'complete-mask' in self.viewer.layers:
+            self.viewer.layers['complete-mask'].data = mask_complete
+        else:
+            self.viewer.add_labels(mask_complete, name='complete-mask')
+
+    def _on_click_clean_mask(self):
+        """
+        Called: "Mask" tab, button "Clean mask"
+        """
+        if 'complete-mask' not in self.viewer.layers:
+            self._on_click_combine_masks()
+        mask = self.viewer.layers['complete-mask'].data == 0
+        mask_lab = skimage.morphology.label(mask)
+        mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
+        final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
+        mask_filled = binary_fill_holes(final_mask)
+        mask_filled = (mask_filled == 0).astype(np.uint8)
+        self.viewer.add_labels(mask_filled, name='clean-mask')
+    
+
+    # Functions for "IO" tab elements
+    def _on_click_save_mask(self):
+        """
+        Save mask to file
+        Called: "IO" tab, button "Save mask" 
+        """
+        if self.export_folder is None: 
+            self._on_click_select_export_folder()
+
+        if 'clean-mask' in self.viewer.layers:
+            mask = self.viewer.layers['clean-mask'].data
+        elif 'complete-mask' in self.viewer.layers:
+            mask = self.viewer.layers['complete-mask'].data
+        else:
+            self._on_click_combine_masks()
+            mask = self.viewer.layers['complete-mask'].data
+
+        save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
+
+    def _on_click_load_mask(self):
+        """
+        Load mask from file
+        Called: "IO" tab, button "Load mask"
+        """
+        if self.export_folder is None:
+            return
+        mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
+        if mask_path.exists():
+            mask = load_mask(mask_path)
+            self.update_mask(mask, 'complete-mask')
+        else:
+            warnings.warn('No mask found')
+
+    def _on_click_snapshot(self):
+        """
+        Save snapshot of viewer
+        Called: "IO" tab, button "Snapshot"
+        """
+        if self.export_folder is None: 
+            self._on_click_select_export_folder()
+
+        self.viewer.screenshot(str(self.export_folder.joinpath('snapshot.png')))
+
+    def _on_click_save_rgb_tiff(self):
+        """
+        Save RGB image to tiff file
+        Called: "IO" tab, button "Save RGB tiff"
+        """
+        rgb = ['red', 'green', 'blue']
+        image_list = [self.viewer.layers[c].data for c in rgb]
+        contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
+        save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
+
+
+    # Functions for "Plotting" tab elements
+    def update_spectral_plot(self, event=None):
+        """
+        Called: "Plotting" tab, slider at label "Smoothing window size"
+        """   
+        if self.spectral_pixel is None:
+            return
+
+        self.scan_plot.axes.clear()
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
+        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+
+        spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
+        
+        if self.check_remove_continuum.isChecked(): 
+            spectral_pixel = remove_continuum(spectral_pixel, self.qlist_channels.bands)
+
+        filter_window = int(self.slider_spectrum_savgol.value())
+        if filter_window > 3:
+            if filter_window > len(spectral_pixel):
+                warnings.warn(f'No smoothing applied. Filter window size, currently {filter_window},\n'
+                              f'is larger than the number of bands, {len(spectral_pixel)}.\n'
+                              f'Please select a smaller window size or add more bands.')
+            else:
+                spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
+
+        self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
+        
+        self.scan_plot.canvas.figure.canvas.draw()
+
+
+    # Helper Functions
+    ### Helper functions used in tab element functions ###
+    def _on_select_file(self):
+        """
+        Helper function used in: 
+        "_on_click_select_imhdr" ("Main" tab), 
+        "import_project" ("Main" tab)
+        """
+        success = self.open_file()
+        if not success:
+            return False
 
     def set_paths(self, imhdr_path):
-        """Update image and white/dark image paths"""
-
+        """
+        Update image and white/dark image paths
+        Helper function used in: 
+        "_on_click_select_imhdr" ("Main" tab), 
+        "import_project" ("Main" tab)
+        """
         self.white_file_path = None
         self.dark_for_white_file_path = None
         self.dark_for_im_file_path = None
@@ -698,10 +1249,122 @@ class SedimentWidget(QWidget):
             self.dark_for_im_file_path = list(self.imhdr_path.parent.glob('DARK*.hdr'))[0]
             self.white_file_path = list(self.imhdr_path.parent.glob('WHITE*.hdr'))[0]
 
+    def save_params(self):
+        """
+        Save parameters
+        Helper function used in:
+        "_on_click_batch_correct" ("Main" tab), 
+        "export_project" ("Processing" tab)
+        """
+        if self.export_folder is None:
+            self._on_click_select_export_folder()
+
+        full_roi = [[self.row_bounds[0], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[0],
+                          self.row_bounds[1], self.col_bounds[1],
+                          self.row_bounds[0], self.col_bounds[1]]]
+
+        if 'main-roi' not in self.viewer.layers:
+            mainroi = full_roi
+        else:
+            mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
+            mainroi = [[x.item() for x in y] for y in mainroi]
+
+        rois = []
+        for i in range(len(mainroi)):
+            if f'rois_{i}' in self.viewer.layers:
+                if len(self.viewer.layers[f'rois_{i}'].data) == 0:
+                    rois.append([np.array(mainroi[i])])
+                else:
+                    rois.append(self.viewer.layers[f'rois_{i}'].data)
+            else:
+                rois.append([np.array(mainroi[i])])
+        rois = [[list(y.flatten()) for y in x] for x in rois]
+        rois = [[[z.item() for z in x] for x in y] for y in rois]
+
+        self.params.project_path = self.export_folder
+        self.params.file_path = self.imhdr_path
+        self.params.white_path = self.white_file_path
+        self.params.dark_for_im_path = self.dark_for_im_file_path
+        self.params.dark_for_white_path = self.dark_for_white_file_path
+        self.params.location = self.metadata_location.text()
+        self.params.scale = self.spinbox_metadata_scale.value()
+        self.params.rgb = self.rgb_widget.rgb
+
+        self.params.main_roi = mainroi
+        self.params.rois = rois
+        self.params.save_parameters()
+
+    def get_summary_image_for_mask(self):
+        """
+        Get summary image
+        Helper function used in: 
+        "_update_threshold_limits" ("Main" tab), 
+        "_on_click_remove_borders" ("Mask" tab), 
+        "_on_click_automated_threshold" ("Mask" tab), 
+        "_on_click_intensity_threshold" ("Mask" tab)
+        """
+        selected_layer = self.combo_layer_mask.currentText()
+        im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
+        return im
+
+    def _add_roi_layer(self):
+        """
+        Add &ROI layers to napari viewer
+        Helper function used in:
+        "import_project" ("Main" tab),
+        "_on_click_add_main_roi" ("ROI" tab), 
+        "_add_analysis_roi" (Viewer callbacks for mouse behaviour)
+        """
+        edge_width = np.min([10, self.imagechannels.ncols//100])
+        if edge_width < 1:
+            edge_width = 1
+        if 'main-roi' not in self.viewer.layers:
+            roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
+
+            roi_layer.events.data.connect(self._update_roi_spinbox)
+
+        if f'rois_{self.spin_selected_roi.value()}' not in self.viewer.layers:
+            roi_layer = self.viewer.add_shapes(
+                ndim = 2,
+                name=f'rois_{self.spin_selected_roi.value()}', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+
+            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
+
+    def remove_masks(self):
+        """
+        Remove all masks
+        Helper function used in "_on_crop_with_main" ("ROI" tab)
+        """
+
+        mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
+                        'complete-mask', 'clean-mask', 'manual-mask',
+                      'annotations', 'segmentation', 'mask']
+        for m in mask_names:
+            if m in self.viewer.layers:
+                self.viewer.layers.remove(self.viewer.layers[m])
+
+    def update_mask(self, mask, name='mask'):
+        """
+        Helper function used in: 
+        "_on_click_intensity_threshold" ("Mask" tab), 
+        "_on_click_load_mask" ("IO" tab)
+        """
+        if name in self.viewer.layers:
+            self.viewer.layers[name].data = mask
+        else:
+            self.viewer.add_labels(mask, name=name)
 
     def open_file(self):
-        """Open file in napari"""
-
+        """
+        Open file in napari
+        Helper function used in:
+        "_on_click_batch_correct" ("Processing" tab),
+        "_on_select_file" (Helper function)
+        """
         # clear existing layers.
         while len(self.viewer.layers) > 0:
             self.viewer.layers.clear()
@@ -767,122 +1430,46 @@ class SedimentWidget(QWidget):
         self.viewer.window._status_bar._toggle_activity_dock(False)
         return True
 
-    def _on_click_sync_RGB(self, event=None):
-        """Select same channels for imcube as loaded for RGB"""
-        
-        if not self.check_sync_bands_rgb.isChecked():
-            self.qlist_channels.setEnabled(True)
-            self.btn_select_all.setEnabled(True)
-        else:
-            self.qlist_channels.setEnabled(False)
-            self.btn_select_all.setEnabled(False)
-            self.qlist_channels.clearSelection()
-            [self.qlist_channels.item(x).setSelected(True) for x in self.rgb_widget.rgb_ch]
-            self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-            self._update_threshold_limits()
-
-    def _update_range_wavelength(self):
-        """Update range of wavelength slider"""
-        
-        wavelengths = np.array(self.imagechannels.channel_names).astype(float)
-        self.slider_batch_wavelengths.setRange(np.round(wavelengths[0]), np.round(wavelengths[-1]))
-        self.slider_batch_wavelengths.setSliderPosition([np.round(wavelengths[0]), np.round(wavelengths[-1])])
-
-    def _add_roi_layer(self):
-        """Add &ROI layers to napari viewer"""
-
-        edge_width = np.min([10, self.imagechannels.ncols//100])
-        if edge_width < 1:
-            edge_width = 1
-        if 'main-roi' not in self.viewer.layers:
-            roi_layer = self.viewer.add_shapes(
-                ndim = 2,
-                name='main-roi', edge_color='blue', face_color=np.array([0,0,0,0]), edge_width=edge_width)
-            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
-
-            roi_layer.events.data.connect(self._update_roi_spinbox)
-
-        if f'rois_{self.spin_selected_roi.value()}' not in self.viewer.layers:
-            roi_layer = self.viewer.add_shapes(
-                ndim = 2,
-                name=f'rois_{self.spin_selected_roi.value()}', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
-
-            roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
-
-    def _update_roi_spinbox(self, event):
-
-        self.spin_selected_roi.setRange(0, len(self.viewer.layers['main-roi'].data)-1)
-
-    def _on_click_add_main_roi(self, event=None):
-
-        self._add_roi_layer()
-
-        col_min = self.col_bounds[0]
-        col_max = self.col_bounds[1]
-        col_width = self.spin_main_roi_width.value()
-
-        col_middle = (col_max+col_min) // 2
-        col_left = col_middle - col_width // 2
-        col_right = col_middle + col_width - (col_width // 2)
-
-        new_roi = [
-            [self.row_bounds[0],col_left],
-            [self.row_bounds[1],col_left],
-            [self.row_bounds[1],col_right],
-            [self.row_bounds[0],col_right]]
-        #self.viewer.layers['main-roi'].data = []
-        self.viewer.layers['main-roi'].add_rectangles(new_roi, edge_color='b')
-        self.viewer.layers.selection.active = self.viewer.layers['main-roi']
-
+    
+    ### Helper functions used in other helper functions ###
     def _roi_to_int_on_mouse_release(self, layer, event):
-        """Round roi coordinates to integer on mouse release"""
+        """
+        Round roi coordinates to integer on mouse release
+        Helper function used in "_add_roi_layer" (Helper function)
+        """
         
         yield
         while event.type == 'mouse_move':
             yield
         if event.type == 'mouse_release':
             layer.data = [np.around(x) for x in layer.data]
+    
+    def _update_roi_spinbox(self, event):
+        """
+        Helper function used in "_add_roi_layer" (Helper function)
+        """
+        self.spin_selected_roi.setRange(0, len(self.viewer.layers['main-roi'].data)-1)
 
-    def _on_crop_with_main(self, event=None):
-
-        #if self.check_main_crop.isChecked():
-        if 'main-roi' in self.viewer.layers:
-            main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
-            self.row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
-            self.col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
-        else:
-            self.row_bounds = [0, self.imagechannels.nrows]
-            self.col_bounds = [0, self.imagechannels.ncols]
-
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-        self.rgb_widget.row_bounds = self.row_bounds
-        self.rgb_widget.col_bounds = self.col_bounds
-        self.rgb_widget._on_click_RGB()
-        self.remove_masks()
-        self._on_click_load_mask()
-
-    def _on_reset_crop(self, event=None):
-            
-        self.row_bounds = [0, self.imagechannels.nrows]
-        self.col_bounds = [0, self.imagechannels.ncols]
-
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-        self.rgb_widget.row_bounds = self.row_bounds
-        self.rgb_widget.col_bounds = self.col_bounds
-        self.rgb_widget._on_click_RGB()
-
-    def crop_masks(self):
-
-        layers = ['manual-mask', 'clean-mask', 'intensity-mask',
-                  'complete-mask', 'border-mask', 
-                  'ml-mask', 'main-roi', 'rois']
-        for l in layers:
-            if l in self.viewer.layers:
-                if isinstance(self.viewer.layers[l], napari.layers.labels.labels.Labels):
-                    self.viewer.layers[l].data = self.viewer.layers[l].data[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
-                self.translate_layer(l)
+    def _update_range_wavelength(self):
+        """
+        Update range of wavelength slider
+        Helper function used in "open_file" (Helper function)
+        """
+        wavelengths = np.array(self.imagechannels.channel_names).astype(float)
+        self.slider_batch_wavelengths.setRange(np.round(wavelengths[0]), np.round(wavelengths[-1]))
+        self.slider_batch_wavelengths.setSliderPosition([np.round(wavelengths[0]), np.round(wavelengths[-1])])
 
 
+    ### Helper functions used in functions with no obvious implementation ###
+    def translate_layer(self, mask_name):
+        """
+        Translate mask
+        Helper function used in "crop_masks" (Functions with no obvious implementation)
+        """
+        self.viewer.layers[mask_name].translate = (self.row_bounds[0], self.col_bounds[0])
+
+
+    # Viewer callbacks for mouse behaviour
     def _add_analysis_roi(self, viewer=None, event=None, cursor_pos=None):
         """Add roi to layer"""
 
@@ -906,97 +1493,26 @@ class SedimentWidget(QWidget):
             self._add_roi_layer()
         self.viewer.layers[layer_name].add_rectangles(new_roi, edge_color='r')
 
+    def _shift_move_callback(self, viewer, event):
+        """Receiver for napari.viewer.mouse_move_callbacks, checks for 'Shift' event modifier.
+        If event contains 'Shift' and layer attribute contains napari layers the cursor position is written to the
+        cursor_pos attribute and the _draw method is called afterwards.
+        """
 
-    def _add_manual_mask(self):
-        self.mask_layer = self.viewer.add_labels(
-            np.zeros((self.row_bounds[1]-self.row_bounds[0],
-                      self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8),
-            name='manual-mask')
-
-    def _on_click_destripe(self):
-        """Destripe image"""
-        
-        self.viewer.window._status_bar._toggle_activity_dock(True)
-        with progress(total=0) as pbr:
-            pbr.set_description("Destriping image")
-
-        selected_layer = self.combo_layer_destripe.currentText()
-        if (selected_layer == 'None') or (selected_layer == 'imcube'):
-            data_destripe = self.viewer.layers['imcube'].data.copy()
-        elif selected_layer == 'imcube_corrected':
-            data_destripe = self.viewer.layers['imcube_corrected'].data.copy()
-        elif selected_layer == 'RGB':
-            data_destripe = np.stack([self.viewer.layers[x].data for x in ['red', 'green', 'blue']], axis=0)
-        
-        for d in range(data_destripe.shape[0]):
-            #data_destripe[d] = pystripe.filter_streaks(data_destripe[d].T, sigma=[128, 256], level=7, wavelet='db2').T
-            width = self.qspin_destripe_width.value()
-            data_destripe[d] = savgol_destripe(data_destripe[d], width=width, order=2)
-
-        if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
-            for ind, x in enumerate(['red', 'green', 'blue']):
-                self.viewer.layers[x].data = data_destripe[ind]
-        
-        if (selected_layer == 'None') or (selected_layer == 'imcube') | (selected_layer == 'imcube_corrected') | (self.check_sync_bands_rgb.isChecked()):
-            if 'imcube_destripe' in self.viewer.layers:
-                self.viewer.layers['imcube_destripe'].data = data_destripe
-            else:
-                self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
-                self.viewer.layers['imcube_destripe'].visible = False
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        if 'Shift' in event.modifiers and self.viewer.layers:
+            self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+            
+            #self.cursor_pos[1] = np.clip(self.cursor_pos[1], 0, self.row_bounds[1]-self.row_bounds[0]-1)
+            #self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0, self.col_bounds[1]-self.col_bounds[0]-1)
+            self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
+            self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
+            self.spectral_pixel = self.viewer.layers['imcube'].data[
+                :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
+            ]
+            self.update_spectral_plot()
 
 
-    def _on_click_background_correct(self, event=None):
-        """White correct image"""
-        
-        self.viewer.window._status_bar._toggle_activity_dock(True)
-        with progress(total=0) as pbr:
-            pbr.set_description("White correcting image")
-
-            selected_layer = self.combo_layer_background.currentText()
-            if selected_layer == 'imcube':
-                channel_indices = self.qlist_channels.channel_indices
-            elif selected_layer == 'RGB':
-                channel_indices = np.sort(self.rgb_widget.rgb_ch)
-
-            #col_bounds = (self.col_bounds if self.check_main_crop.isChecked() else None)
-            col_bounds = self.col_bounds
-            white_data, dark_data, dark_for_white_data = load_white_dark(
-                white_file_path=self.white_file_path,
-                dark_for_im_file_path=self.dark_for_im_file_path,
-                dark_for_white_file_path=self.dark_for_white_file_path,
-                channel_indices=channel_indices,
-                col_bounds=col_bounds,
-                clean_white=True
-                )
-
-            if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
-                im_corr = white_dark_correct(
-                    self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
-                
-                if 'imcube_corrected' in self.viewer.layers:
-                    self.viewer.layers['imcube_corrected'].data = im_corr
-                else:
-                    self.viewer.add_image(im_corr, name='imcube_corrected', rgb=False)
-                    self.viewer.layers['imcube_corrected'].visible = False
-                    self.viewer.layers['imcube_corrected'].translate = (0, self.row_bounds[0], self.col_bounds[0])
-
-            if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
-                sorted_rgb_indices = np.argsort(self.rgb_widget.rgb_ch)
-                rgb_sorted = np.asarray(['red', 'green', 'blue'])[sorted_rgb_indices]
-                rgb_sorted = [str(x) for x in rgb_sorted]
-
-                im_corr = white_dark_correct(
-                    np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
-                    white_data, dark_data, dark_for_white_data)
-                
-                for ind, c in enumerate(rgb_sorted):
-                    self.viewer.layers[c].data = im_corr[ind]
-                    update_contrast_on_layer(self.viewer.layers[c])
-                    self.viewer.layers[c].refresh()
-
-        self.viewer.window._status_bar._toggle_activity_dock(False)
-
+    # Viewer callbacks for layer behaviour
     def _update_combo_layers_destripe(self):
         
         admit_layers = ['imcube', 'imcube_corrected']
@@ -1025,162 +1541,22 @@ class SedimentWidget(QWidget):
                       'annotations', 'segmentation', 'mask']
         if mask_layer.value.name in mask_names:
             mask_layer.value.translate = (self.row_bounds[0], self.col_bounds[0])
-        
-
-    def _on_change_batch_wavelengths(self, event):
-
-        self.spin_batch_wavelengths_min.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
-        self.spin_batch_wavelengths_max.valueChanged.disconnect(self._on_change_spin_batch_wavelengths)
-        self.spin_batch_wavelengths_max.setMinimum(self.slider_batch_wavelengths.minimum())
-        self.spin_batch_wavelengths_max.setMaximum(self.slider_batch_wavelengths.maximum())
-        self.spin_batch_wavelengths_min.setMinimum(self.slider_batch_wavelengths.minimum())
-        self.spin_batch_wavelengths_min.setMaximum(self.slider_batch_wavelengths.maximum())
-        self.spin_batch_wavelengths_max.setValue(self.slider_batch_wavelengths.value()[1])
-        self.spin_batch_wavelengths_min.setValue(self.slider_batch_wavelengths.value()[0])
-        self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
-        self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
-
-    def _on_change_spin_batch_wavelengths(self, event):
-
-        self.slider_batch_wavelengths.valueChanged.disconnect(self._on_change_batch_wavelengths)
-        self.slider_batch_wavelengths.setSliderPosition([self.spin_batch_wavelengths_min.value(), self.spin_batch_wavelengths_max.value()])
-        self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
-
-    def _on_click_batch_correct(self):
-
-        if self.export_folder is None:
-            self._on_click_select_export_folder()
-
-        min_max_band = [self.slider_batch_wavelengths.value()[0], self.slider_batch_wavelengths.value()[1]]
-        
-        self.viewer.window._status_bar._toggle_activity_dock(True)
-        with progress(total=0) as pbr:
-            pbr.set_description("Preprocessing full image")
-        
-            correct_save_to_zarr(
-                imhdr_path=self.imhdr_path,
-                white_file_path=self.white_file_path,
-                dark_for_im_file_path=self.dark_for_im_file_path,
-                dark_for_white_file_path=self.dark_for_white_file_path,
-                zarr_path=self.export_folder.joinpath('corrected.zarr'),
-                band_indices=None,
-                min_max_bands=min_max_band,
-                background_correction=self.check_batch_white.isChecked(),
-                destripe=self.check_batch_destripe.isChecked(),
-                use_dask=self.check_use_dask.isChecked(),
-                chunk_size=self.spin_chunk_size.value()
-                )
-            self.save_params()
-            
-            # reload corrected image as zarr
-            self.open_file()
-            
-        self.viewer.window._status_bar._toggle_activity_dock(False)
-
-    def get_summary_image_for_mask(self):
-        """Get summary image"""
-
-        selected_layer = self.combo_layer_mask.currentText()
-        im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
-        return im
-    
-    def _on_select_layer_for_mask(self):
-        
-        selected_layer = self.combo_layer_mask.currentText()
-        if selected_layer in self.viewer.layers:
-            im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
-            if 'border-mask' in self.viewer.layers:
-                im = im[self.viewer.layers['border-mask'].data == 0]
-            self.slider_mask_threshold.setRange(im.min(), im.max())
-            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
 
-    def translate_layer(self, mask_name):
-        """Translate mask"""
-
-        self.viewer.layers[mask_name].translate = (self.row_bounds[0], self.col_bounds[0])
-
-
-    def _on_click_remove_borders(self):
-        """Remove borders from image"""
-        
-        im = self.get_summary_image_for_mask()
-
-        first_row, last_row = remove_top_bottom(im)
-        first_col, last_col = remove_left_right(im)
-        if 'border-mask' in self.viewer.layers:
-            self.viewer.layers['border-mask'].data[:] = 0
-        else:
-            mask = np.asarray(np.zeros(im.shape, dtype=np.uint8))
-            self.viewer.add_labels(mask, name='border-mask', opacity=0.5)
-        self.viewer.layers['border-mask'].data[0:first_row,:] = 1
-        self.viewer.layers['border-mask'].data[last_row::,:] = 1
-        self.viewer.layers['border-mask'].data[:, 0:first_col] = 1
-        self.viewer.layers['border-mask'].data[:, last_col::] = 1
-        self.viewer.layers['border-mask'].refresh()
-        # update threshold limits to exclude borders
-        self._update_threshold_limits()
-
-    def _update_threshold_limits(self):
-        
-        im = self.get_summary_image_for_mask()
-        if 'border-mask' in self.viewer.layers:
-            im = im[self.viewer.layers['border-mask'].data == 0]
-        self.slider_mask_threshold.setRange(im.min(), im.max())
-        self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
-
-    def _on_click_automated_threshold(self):
-        """Automatically set threshold for mask based on mean RGB pixel intensity"""
-
-        im = np.asarray(self.get_summary_image_for_mask())
-        if 'border-mask' in self.viewer.layers:
-            pix_selected = im[self.viewer.layers['border-mask'].data == 0]
-        else:
-            pix_selected = np.ravel(im)
-        med_val, std_val = fit_1dgaussian_without_outliers(data=pix_selected[::5])
-        fact = self.spin_automated_mask_width.value()
-        self.slider_mask_threshold.setSliderPosition(
-            [
-                np.max([med_val - fact*std_val, self.slider_mask_threshold.minimum()]),
-                np.min([med_val + fact*std_val, self.slider_mask_threshold.maximum()])
-             ]
-        ),
-        self._on_click_intensity_threshold()
-
-
-    def _on_click_intensity_threshold(self, event=None):
-        """Create mask based on intensity threshold"""
-
-        data = self.get_summary_image_for_mask()
-        min_th = self.slider_mask_threshold.value()[0]
-        max_th = self.slider_mask_threshold.value()[1]
-        mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
-        self.update_mask(mask, 'intensity-mask')
-
-        self.slider_mask_threshold.setSliderPosition([min_th, max_th])
-    
-    def update_mask(self, mask, name='mask'):
-
-        if name in self.viewer.layers:
-            self.viewer.layers[name].data = mask
-        else:
-            self.viewer.add_labels(mask, name=name)
-
-    def remove_masks(self):
-        """Remove all masks"""
-
-        mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
-                        'complete-mask', 'clean-mask', 'manual-mask',
-                      'annotations', 'segmentation', 'mask']
-        for m in mask_names:
-            if m in self.viewer.layers:
-                self.viewer.layers.remove(self.viewer.layers[m])
+    # Functions with no obvious implementation
+    def _get_channel_name_from_index(self, index):
+        """
+        Returns channel name from index
+        """
+        if self.imagechannels is None:
+            return None
+        return self.imagechannels.channel_names[index]
 
     def _on_click_compute_phasor(self):
-        """Compute phasor from image. Opens a new viewer with 2D histogram of 
+        """
+        Compute phasor from image. Opens a new viewer with 2D histogram of 
         g, s values.
         """
-            
         data, _ = read_spectral(
             self.imhdr_path,
             bands=np.arange(0, len(self.imagechannels.channel_names),10),
@@ -1216,246 +1592,15 @@ class SedimentWidget(QWidget):
         else:
             self.viewer.add_labels(in_out_image, name='phasor-mask')
 
-
-    def _on_click_combine_masks(self):
-        """Combine masks from border removel, phasor and thresholding"""
-
-        mask_complete = np.zeros((self.row_bounds[1]-self.row_bounds[0],
-                                  self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8)
-        if 'manual-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
-        if 'intensity-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['intensity-mask'].data
-        if 'phasor-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
-        if 'border-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['border-mask'].data
-        if 'ml-mask' in self.viewer.layers:
-            mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
-        
-        mask_complete = np.asarray((mask_complete > 0), np.uint8)
-
-        if 'complete-mask' in self.viewer.layers:
-            self.viewer.layers['complete-mask'].data = mask_complete
-        else:
-            self.viewer.add_labels(mask_complete, name='complete-mask')
-
-    def _on_click_clean_mask(self):
-        
-        if 'complete-mask' not in self.viewer.layers:
-            self._on_click_combine_masks()
-        mask = self.viewer.layers['complete-mask'].data == 0
-        mask_lab = skimage.morphology.label(mask)
-        mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
-        final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
-        mask_filled = binary_fill_holes(final_mask)
-        mask_filled = (mask_filled == 0).astype(np.uint8)
-        self.viewer.add_labels(mask_filled, name='clean-mask')
-
-    def _on_click_save_mask(self):
-        """Save mask to file"""
-
-        if self.export_folder is None: 
-            self._on_click_select_export_folder()
-
-        if 'clean-mask' in self.viewer.layers:
-            mask = self.viewer.layers['clean-mask'].data
-        elif 'complete-mask' in self.viewer.layers:
-            mask = self.viewer.layers['complete-mask'].data
-        else:
-            self._on_click_combine_masks()
-            mask = self.viewer.layers['complete-mask'].data
-
-        save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
-
-    def _on_click_load_mask(self):
-        """Load mask from file"""
-        
-        if self.export_folder is None:
-            return
-        mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
-        if mask_path.exists():
-            mask = load_mask(mask_path)
-            self.update_mask(mask, 'complete-mask')
-        else:
-            warnings.warn('No mask found')
-
-    def _on_click_snapshot(self):
-        """Save snapshot of viewer"""
-
-        if self.export_folder is None: 
-            self._on_click_select_export_folder()
-
-        self.viewer.screenshot(str(self.export_folder.joinpath('snapshot.png')))
-
-    def _on_click_save_rgb_tiff(self):
-        """Save RGB image to tiff file"""
-
-        rgb = ['red', 'green', 'blue']
-        image_list = [self.viewer.layers[c].data for c in rgb]
-        contrast_list = [self.viewer.layers[c].contrast_limits for c in rgb]
-        save_rgb_tiff_image(image_list, contrast_list, self.export_folder.joinpath(self.lineedit_rgb_tiff.text()))
-
-    def _on_change_select_bands(self, event=None):
-
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-
-    def _on_click_select_all(self):
-        self.qlist_channels.selectAll()
-        self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
-
-
-    def _get_channel_name_from_index(self, index):
-        
-        if self.imagechannels is None:
-            return None
-        return self.imagechannels.channel_names[index]
-    
-    def _shift_move_callback(self, viewer, event):
-        """Receiver for napari.viewer.mouse_move_callbacks, checks for 'Shift' event modifier.
-        If event contains 'Shift' and layer attribute contains napari layers the cursor position is written to the
-        cursor_pos attribute and the _draw method is called afterwards.
+    def crop_masks(self):
         """
-
-        if 'Shift' in event.modifiers and self.viewer.layers:
-            self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
-            
-            #self.cursor_pos[1] = np.clip(self.cursor_pos[1], 0, self.row_bounds[1]-self.row_bounds[0]-1)
-            #self.cursor_pos[2] = np.clip(self.cursor_pos[2], 0, self.col_bounds[1]-self.col_bounds[0]-1)
-            self.cursor_pos[1] = np.clip(self.cursor_pos[1], self.row_bounds[0],self.row_bounds[1]-1)
-            self.cursor_pos[2] = np.clip(self.cursor_pos[2], self.col_bounds[0],self.col_bounds[1]-1)
-            self.spectral_pixel = self.viewer.layers['imcube'].data[
-                :, self.cursor_pos[1]-self.row_bounds[0], self.cursor_pos[2]-self.col_bounds[0]
-            ]
-            self.update_spectral_plot()
-
-    def update_spectral_plot(self, event=None):
-            
-        if self.spectral_pixel is None:
-            return
-
-        self.scan_plot.axes.clear()
-        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
-        self.scan_plot.axes.set_ylabel('Intensity', color='white')
-
-        spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
-        
-        if self.check_remove_continuum.isChecked(): 
-            spectral_pixel = remove_continuum(spectral_pixel, self.qlist_channels.bands)
-
-        filter_window = int(self.slider_spectrum_savgol.value())
-        if filter_window > 3:
-            if filter_window > len(spectral_pixel):
-                warnings.warn(f'No smoothing applied. Filter window size, currently {filter_window},\n'
-                              f'is larger than the number of bands, {len(spectral_pixel)}.\n'
-                              f'Please select a smaller window size or add more bands.')
-            else:
-                spectral_pixel = savgol_filter(spectral_pixel, window_length=filter_window, polyorder=3)
-
-        self.scan_plot.axes.plot(self.qlist_channels.bands, spectral_pixel)
-        
-        self.scan_plot.canvas.figure.canvas.draw()
-
-    def save_params(self):
-        """Save parameters"""
-        
-        if self.export_folder is None:
-            self._on_click_select_export_folder()
-
-        full_roi = [[self.row_bounds[0], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[1],
-                          self.row_bounds[0], self.col_bounds[1]]]
-
-        if 'main-roi' not in self.viewer.layers:
-            mainroi = full_roi
-        else:
-            mainroi = [list(x.flatten()) for x in self.viewer.layers['main-roi'].data]
-            mainroi = [[x.item() for x in y] for y in mainroi]
-
-        rois = []
-        for i in range(len(mainroi)):
-            if f'rois_{i}' in self.viewer.layers:
-                if len(self.viewer.layers[f'rois_{i}'].data) == 0:
-                    rois.append([np.array(mainroi[i])])
-                else:
-                    rois.append(self.viewer.layers[f'rois_{i}'].data)
-            else:
-                rois.append([np.array(mainroi[i])])
-        rois = [[list(y.flatten()) for y in x] for x in rois]
-        rois = [[[z.item() for z in x] for x in y] for y in rois]
-
-        self.params.project_path = self.export_folder
-        self.params.file_path = self.imhdr_path
-        self.params.white_path = self.white_file_path
-        self.params.dark_for_im_path = self.dark_for_im_file_path
-        self.params.dark_for_white_path = self.dark_for_white_file_path
-        self.params.location = self.metadata_location.text()
-        self.params.scale = self.spinbox_metadata_scale.value()
-        self.params.rgb = self.rgb_widget.rgb
-
-        self.params.main_roi = mainroi
-        self.params.rois = rois
-        self.params.save_parameters()
-
-    def export_project(self):
-        """Export data"""
-
-        if self.export_folder is None:
-            self._on_click_select_export_folder()
-
-        self.save_params()
-
-        self._on_click_save_mask()
-
-    def import_project(self):
-        
-        if self.export_folder is None:
-            self._on_click_select_export_folder()
-        #main_roi_folders = self.export_folder.glob('main_roi_*')
-
-        self.params = load_project_params(folder=self.export_folder)#.joinpath(f'main_roi_{self.spin_selected_roi.value()}'))
-
-        # files
-        self.imhdr_path = Path(self.params.file_path)
-
-        # check if background references have already been set
-        if self.params.white_path is not None:
-            self.white_file_path = Path(self.params.white_path)
-            self.dark_for_im_file_path = Path(self.params.dark_for_im_path)
-            self.dark_for_white_file_path = Path(self.params.dark_for_white_path)
-        else:
-            self.set_paths(self.imhdr_path)
-
-        # set defaults
-        self.rgb_widget.set_rgb(self.params.rgb)
-
-        # load data
-        self._on_select_file()
-
-        # metadata
-        self.metadata_location.setText(self.params.location)
-        self.spinbox_metadata_scale.setValue(self.params.scale)
-
-        # rois
-        self._add_roi_layer()
-        mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
-        if mainroi:
-            mainroi[0] = mainroi[0].astype(int)
-            self.viewer.layers['main-roi'].add_rectangles(mainroi, edge_color='b')
-        self.spin_selected_roi.setRange(0, len(mainroi)-1)
-
-        rois = [[np.array(x).reshape(4,2) for x in y] for y in self.params.rois]
-        self.roi_list = {ind: r for ind, r in enumerate(rois)}
-        for ind, roi in enumerate(rois):
-            self.spin_selected_roi.setValue(ind)
-            self._add_roi_layer()
-            self.viewer.layers[f'rois_{ind}'].add_rectangles(roi, edge_color='r')
-
-        self.spin_selected_roi.setValue(0)
-
-        # crop if needed
-        self._on_crop_with_main()
-
-        # load masks
-        self._on_click_load_mask()
+        Crop masks
+        """
+        layers = ['manual-mask', 'clean-mask', 'intensity-mask',
+                  'complete-mask', 'border-mask', 
+                  'ml-mask', 'main-roi', 'rois']
+        for l in layers:
+            if l in self.viewer.layers:
+                if isinstance(self.viewer.layers[l], napari.layers.labels.labels.Labels):
+                    self.viewer.layers[l].data = self.viewer.layers[l].data[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+                self.translate_layer(l)
