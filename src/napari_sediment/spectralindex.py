@@ -261,14 +261,19 @@ def save_tif_cmap(image, image_path, napari_cmap, contrast):
     image_path: str
         path to save image
     napari_cmap: napari Colormap
-        napari colormap
+        napari colormap or str
     contrast: tuple of float
         contrast
 
     """
     
-    current_cmap = cmap.Colormap(napari_cmap.colors).to_matplotlib()
+    if isinstance(napari_cmap, str):
+        current_cmap = cmap.Colormap(napari_cmap).to_matplotlib()
+    else:
+        current_cmap = cmap.Colormap(napari_cmap.colors).to_matplotlib()
 
+    if contrast is None:
+        contrast = (np.nanmin(image), np.nanmax(image))
     norm_image = np.clip(image, a_min=contrast[0], a_max=contrast[1])
     norm_image = (norm_image - np.nanmin(norm_image)) / (np.nanmax(norm_image) - np.nanmin(norm_image))
     
