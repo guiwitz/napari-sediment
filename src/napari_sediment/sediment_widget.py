@@ -522,7 +522,7 @@ class SedimentWidget(QWidget):
         Generates the "Metadata" tab and its elements.
         """
 
-        # Elements "Metadata"
+        # Group "Metadata"
         self.metadata_group = VHGroup('Metadata', orientation='G')
         self.tabs.add_named_tab('Meta&data', self.metadata_group.gbox)
         self.tabs.widget(self.tab_names.index('Meta&data')).layout().setAlignment(Qt.AlignTop)
@@ -548,17 +548,23 @@ class SedimentWidget(QWidget):
         self.metadata_group.glayout.addWidget(QLabel('Unit'), 2, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.metadata_scale_unit, 2, 1, 1, 1)
 
-         # Elements "Interactive scale"
+        # Group "Interactive scale"
         self.interactive_scale_group = VHGroup('Interactive scale', orientation='G')
         self.tabs.add_named_tab('Meta&data', self.interactive_scale_group.gbox)
+        
+        ### Button "Add scale layer" ###
         self.btn_add_scale_layer = QPushButton("Add scale layer")
         self.interactive_scale_group.glayout.addWidget(self.btn_add_scale_layer, 0, 0, 1, 2)
+        
+        ### Spinbox "Scale size in units" ###
         self.spinbox_scale_size_units = QDoubleSpinBox()
         self.spinbox_scale_size_units.setRange(1, 100000)
         self.spinbox_scale_size_units.setValue(100)
         self.spinbox_scale_size_units.setSingleStep(1)
         self.interactive_scale_group.glayout.addWidget(QLabel('Scale size in units'), 1, 0, 1, 1)
         self.interactive_scale_group.glayout.addWidget(self.spinbox_scale_size_units, 1, 1, 1, 1)
+        
+        ### Button "Compute pixel size" ###
         self.btn_compute_pixel_size = QPushButton("Compute pixel size")
         self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size, 2, 0, 1, 2)
         
