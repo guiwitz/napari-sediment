@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
 from superqt import QLabeledDoubleRangeSlider, QDoubleSlider
+from magicgui.widgets import FileEdit
 
 from napari.utils import progress
 import pandas as pd
@@ -284,7 +285,7 @@ class SpectralIndexWidget(QWidget):
         self.file_list = FolderListWidget(napari_viewer)
         self.tabs.add_named_tab('Batch',self.file_list)
         self.file_list.setMaximumHeight(100)
-        from magicgui.widgets import FileEdit
+        
         self.batch_plot_params_file = FileEdit()
         self.tabs.add_named_tab('Batch', QLabel('Plot parameters file'))
         self.tabs.add_named_tab('Batch', self.batch_plot_params_file.native)
@@ -844,6 +845,13 @@ class SpectralIndexWidget(QWidget):
                 fig.savefig(
                         roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
                     dpi=dpi)
+                
+                index_map = indices[k].index_map
+                contrast = indices[k].index_map_range
+                napari_cmap = indices[k].colormap
+                export_path = roi_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
+                save_tif_cmap(image=index_map, image_path=export_path,
+                                napari_cmap=napari_cmap, contrast=contrast)
 
             plot_multi_spectral_profile(
                     rgb_image=rgb_cube, mask=mask,
@@ -854,6 +862,8 @@ class SpectralIndexWidget(QWidget):
             fig.savefig(
                         roi_folder.joinpath('multi_index_plot'),
                     dpi=dpi)
+            plt.close(fig)
+            
 
     def get_roi_bounds(self):
 
@@ -1196,15 +1206,16 @@ class SpectralIndexWidget(QWidget):
         """Export index maps to tiff"""
         
         export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
         
-        for key, index in self.index_collection.items():
-            if key in self.viewer.layers:
-                index_map = self.viewer.layers[key].data
-                contrast = self.viewer.layers[key].contrast_limits
-                napari_cmap = self.viewer.layers[key].colormap
-                export_path = export_folder.joinpath(f'{key}_index_map.tif')
-                save_tif_cmap(image=index_map, image_path=export_path,
-                              napari_cmap=napari_cmap, contrast=contrast)
+        for index_item in index_series:
+            index_map = index_item.index_map#self.viewer.layers[key].data
+            contrast = index_item.index_map_range#self.viewer.layers[key].contrast_limits
+            napari_cmap = index_item.colormap#self.viewer.layers[key].colormap
+            export_path = export_folder.joinpath(f'{index_item.index_name}_index_map.tif')
+            save_tif_cmap(image=index_map, image_path=export_path,
+                            napari_cmap=napari_cmap, contrast=contrast)
 
     def _on_click_export_index_settings(self, event=None, file_path=None):
         """Export index setttings"""
