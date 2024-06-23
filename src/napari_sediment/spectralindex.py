@@ -1,7 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, asdict
 import dataclasses
-from pathlib import Path
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.signal import savgol_filter
 import dask.array as da
 import tifffile
@@ -9,6 +10,9 @@ import cmap
 import yaml
 
 from .sediproc import find_index_of_band
+from .io import load_project_params, load_plots_params, load_mask, get_mask_path
+from .imchannels import ImChannels
+from .spectralplot import plot_spectral_profile, plot_multi_spectral_profile
 
 @dataclass
 class SpectralIndex:
@@ -358,6 +362,102 @@ def load_index_series(index_file):
         index_collection[index_element['index_name']] = SpectralIndex(**index_element)
 
     return index_collection
+
+def batch_create_plots(project_list, index_params_file, plot_params_file):
+    """Create index plots for a list of projects."""
+
+    indices = load_index_series(index_params_file)
+    params_plots = load_plots_params(plot_params_file)
+
+    for ex in project_list:
+
+        roin_ind = 0
+        dpi = 300
+        
+        params = load_project_params(folder=ex)
+        roi_folder = ex.joinpath(f'roi_{roin_ind}')
+        mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
+        row_bounds = [
+                    mainroi[roin_ind][:,0].min(),
+                    mainroi[roin_ind][:,0].max()]
+        col_bounds = [
+                    mainroi[roin_ind][:,1].min(),
+                    mainroi[roin_ind][:,1].max()]
+        
+        measurement_roi = None
+        if len(params.measurement_roi) > 0:
+            measurement_roi = np.array(params.measurement_roi).reshape(4,2).astype(int)
+            colmin = measurement_roi[:,1].min()
+            colmax = measurement_roi[:,1].max()
+        else:
+            colmin = col_bounds[0]
+            colmax = col_bounds[1]
+
+        # get RGB and mask
+        mask = load_mask(get_mask_path(roi_folder))
+        myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
+
+        rgb = params.rgb
+        roi = measurement_roi
+        rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
+        rgb_cube = np.array(myimage.get_image_cube(
+            rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
+
+        proj_pd = None
+        for k in indices.keys():
+            # compute indices
+            computed_index = compute_index(indices[k],
+                                    row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
+            computed_index = clean_index_map(computed_index)
+        
+            indices[k].index_map = computed_index
+
+            proj = compute_index_projection(
+                        computed_index, mask,
+                        colmin=colmin, colmax=colmax,
+                        smooth_window=5)
+            indices[k].index_proj = proj
+
+            # create single index plot
+            fig, ax = plt.subplots()
+            format_dict = asdict(params_plots)
+            
+            fig, ax1, ax2, ax3 = plot_spectral_profile(
+                rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
+                format_dict=format_dict, scale=params.scale,
+                location=params.location, fig=fig, 
+                roi=roi, repeat=True)
+
+            fig.savefig(
+                    roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
+                dpi=dpi)
+            
+            # tif maps
+            index_map = indices[k].index_map
+            contrast = indices[k].index_map_range
+            napari_cmap = indices[k].colormap
+            export_path = roi_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
+            save_tif_cmap(image=index_map, image_path=export_path,
+                            napari_cmap=napari_cmap, contrast=contrast)
+            
+            # export projection to csv
+            if proj_pd is None:
+                proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
+            proj_pd[indices[k].index_name] = indices[k].index_proj
+        
+        proj_pd.to_csv(roi_folder.joinpath('index_projection.csv'), index=False)
+
+        # create multi index plot
+        plot_multi_spectral_profile(
+                rgb_image=rgb_cube, mask=mask,
+                index_objs=[indices[k] for k in indices.keys()], 
+                format_dict=format_dict, scale=params.scale,
+                fig=fig, roi=roi, repeat=True)
+
+        fig.savefig(
+                    roi_folder.joinpath('multi_index_plot'),
+                dpi=dpi)
+        plt.close(fig)
 
 
     

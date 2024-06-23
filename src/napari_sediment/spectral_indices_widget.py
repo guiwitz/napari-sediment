@@ -29,7 +29,7 @@ from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_projection,
                             clean_index_map, save_tif_cmap, create_index, export_index_series,
-                            compute_index, load_index_series)
+                            compute_index, batch_create_plots)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
 from .folder_list_widget import FolderListWidget
@@ -783,86 +783,11 @@ class SpectralIndexWidget(QWidget):
         exported_projects = list(export_folder.iterdir())
         exported_projects = [e for e in exported_projects if e.is_dir()]
 
-        indices = load_index_series(self.batch_index_params_file.value)
-        params_plots = load_plots_params(self.batch_plot_params_file.value)
-
-        for ex in exported_projects:
-
-            roin_ind = 0
-            dpi = 300
-            
-            params = load_project_params(folder=ex)
-            roi_folder = ex.joinpath(f'roi_{roin_ind}')
-            mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
-            row_bounds = [
-                        mainroi[roin_ind][:,0].min(),
-                        mainroi[roin_ind][:,0].max()]
-            col_bounds = [
-                        mainroi[roin_ind][:,1].min(),
-                        mainroi[roin_ind][:,1].max()]
-            
-            measurement_roi = None
-            if len(params.measurement_roi) > 0:
-                measurement_roi = np.array(params.measurement_roi).reshape(4,2).astype(int)
-                colmin = measurement_roi[:,1].min()
-                colmax = measurement_roi[:,1].max()
-            else:
-                colmin = col_bounds[0]
-                colmax = col_bounds[1]
-
-            # get RGB and mask
-            mask = load_mask(get_mask_path(roi_folder))
-            myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
-
-            rgb = params.rgb
-            roi = measurement_roi
-            rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
-            rgb_cube = np.array(myimage.get_image_cube(
-                rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
-
-            for k in indices.keys():
-                computed_index = compute_index(indices[k],
-                                        row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
-                computed_index = clean_index_map(computed_index)
-            
-                indices[k].index_map = computed_index
-
-                proj = compute_index_projection(
-                            computed_index, mask,
-                            colmin=colmin, colmax=colmax,
-                            smooth_window=5)
-                indices[k].index_proj = proj
-
-                fig, ax = plt.subplots()
-                format_dict = asdict(params_plots)
-                
-                fig, ax1, ax2, ax3 = plot_spectral_profile(
-                    rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
-                    format_dict=format_dict, scale=params.scale,
-                    location=params.location, fig=fig, 
-                    roi=roi, repeat=True)
-
-                fig.savefig(
-                        roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
-                    dpi=dpi)
-                
-                index_map = indices[k].index_map
-                contrast = indices[k].index_map_range
-                napari_cmap = indices[k].colormap
-                export_path = roi_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
-                save_tif_cmap(image=index_map, image_path=export_path,
-                                napari_cmap=napari_cmap, contrast=contrast)
-
-            plot_multi_spectral_profile(
-                    rgb_image=rgb_cube, mask=mask,
-                    index_objs=[indices[k] for k in indices.keys()], 
-                    format_dict=format_dict, scale=params.scale,
-                    fig=fig, roi=roi, repeat=True)
-
-            fig.savefig(
-                        roi_folder.joinpath('multi_index_plot'),
-                    dpi=dpi)
-            plt.close(fig)
+        batch_create_plots(
+            project_list=exported_projects,
+            index_params_file=self.batch_index_params_file.value,
+            plot_params_file=self.batch_plot_params_file.value
+            )
             
 
     def get_roi_bounds(self):
@@ -1080,13 +1005,19 @@ class SpectralIndexWidget(QWidget):
         index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         self.compute_selected_indices_map_and_proj(index_names)
                 
-        proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
-        for i in index_names:
-            proj = self.index_collection[i].index_proj   
-            proj_pd[i.index_name] = proj
-
+        proj_pd = self.create_projection_table(index_names)
         proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
+    def create_projection_table(self, index_names):
+        """Create the projection table for the index_name"""
+
+        proj_pd = pd.DataFrame({'depth': np.arange(0,len(self.index_collection[index_names[0]].index_proj))})
+        for i in index_names:
+            proj = self.index_collection[i].index_proj   
+            proj_pd[i] = proj
+
+        return proj_pd
+    
     def _on_click_open_plotline_color_dialog(self, event=None):
         """Show label color dialog"""
         
