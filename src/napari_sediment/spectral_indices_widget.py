@@ -868,6 +868,8 @@ class SpectralIndexWidget(QWidget):
         return colmin, colmax
     
     def compute_and_clean_index(self, index_name):
+        """Compute index map for index_name and clean it (nan) for plotting"""
+
         computed_index = compute_index(
             spectral_index=self.index_collection[index_name],
             row_bounds=self.row_bounds, col_bounds=self.col_bounds,
@@ -875,6 +877,21 @@ class SpectralIndexWidget(QWidget):
         computed_index = clean_index_map(computed_index)
 
         return computed_index
+    
+    def compute_selected_indices_map_and_proj(self, index_names, force_recompute=False):
+        """Compute index map and projection for index_name
+        and complete the index_collection attributes."""
+
+        colmin, colmax = self.get_roi_bounds()
+        for index_name in index_names:
+            if (self.index_collection[index_name].index_map is None) or force_recompute:
+                computed_index = self.compute_and_clean_index(index_name)
+                proj = compute_index_projection(
+                    computed_index, self.viewer.layers['mask'].data,
+                    colmin=colmin, colmax=colmax,
+                    smooth_window=self.get_smoothing_window())
+                self.index_collection[index_name].index_map = computed_index
+                self.index_collection[index_name].index_proj = proj
 
     def create_single_index_plot(self, event=None):
         """Create the index plot."""
@@ -894,19 +911,8 @@ class SpectralIndexWidget(QWidget):
             warnings.warn('Multiple indices selected, only the first one will be plotted')
 
         mask = self.viewer.layers['mask'].data
-        colmin, colmax = self.get_roi_bounds()
 
-        if self.index_collection[index_series[0].index_name].index_map is None:
-            computed_index = self.compute_and_clean_index(index_series[0].index_name)
-            proj = compute_index_projection(
-                computed_index, mask,
-                colmin=colmin, colmax=colmax,
-                smooth_window=self.get_smoothing_window())
-            self.index_collection[index_series[0].index_name].index_map = computed_index
-            self.index_collection[index_series[0].index_name].index_proj = proj
-        else:
-            computed_index = self.index_collection[index_series[0].index_name].index_map
-            proj = self.index_collection[index_series[0].index_name].index_proj   
+        self.compute_selected_indices_map_and_proj([index_series[0].index_name])
 
         roi = None
         if 'rois' in self.viewer.layers:
@@ -948,21 +954,10 @@ class SpectralIndexWidget(QWidget):
             return
         
         mask = self.viewer.layers['mask'].data
-        colmin, colmax = self.get_roi_bounds()
 
         for i_s in index_series:
-            if self.index_collection[i_s.index_name].index_map is None:
-                computed_index = self.compute_and_clean_index(i_s.index_name)
-                proj = compute_index_projection(
-                    computed_index, mask,
-                    colmin=colmin, colmax=colmax,
-                    smooth_window=self.get_smoothing_window())
-                self.index_collection[i_s.index_name].index_map = computed_index
-                self.index_collection[i_s.index_name].index_proj = proj
-            else:
-                computed_index = self.index_collection[i_s.index_name].index_map
-                proj = self.index_collection[i_s.index_name].index_proj   
 
+            self.compute_selected_indices_map_and_proj([i_s.index_name])
             roi = None
             if 'rois' in self.viewer.layers:
                 roi=self.viewer.layers['rois'].data[0]
@@ -976,9 +971,7 @@ class SpectralIndexWidget(QWidget):
 
             self.index_plot_live.figure.savefig(
                 export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
-            dpi=self.spin_final_dpi.value())
-            
-        
+            dpi=self.spin_final_dpi.value())           
 
     def get_rgb_array(self):
 
@@ -996,22 +989,9 @@ class SpectralIndexWidget(QWidget):
         rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
-
-        colmin, colmax = self.get_roi_bounds()
         
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        for i in index_series:
-            if self.index_collection[i.index_name].index_map is None:
-                computed_index = self.compute_and_clean_index(i.index_name)
-                proj = compute_index_projection(
-                    computed_index, self.viewer.layers['mask'].data,
-                    colmin=colmin, colmax=colmax,
-                    smooth_window=self.get_smoothing_window())
-                self.index_collection[i.index_name].index_map = computed_index
-                self.index_collection[i.index_name].index_proj = proj
-            else:
-                computed_index = self.index_collection[i.index_name].index_map
-                proj = self.index_collection[i.index_name].index_proj   
+        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
         
         roi = None
         if 'rois' in self.viewer.layers:
@@ -1086,26 +1066,13 @@ class SpectralIndexWidget(QWidget):
 
     def _on_export_index_projection(self, event=None):
 
-        colmin, colmax = self.get_roi_bounds()
         export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        proj_pd = None
-        for i in index_series:
-            if self.index_collection[i.index_name].index_map is None:
-                computed_index = self.compute_and_clean_index(i.index_name)
-                proj = compute_index_projection(
-                    computed_index,
-                    self.viewer.layers['mask'].data,
-                    colmin=colmin, colmax=colmax,
-                    smooth_window=self.get_smoothing_window())
-                self.index_collection[i.index_name].index_map = computed_index
-                self.index_collection[i.index_name].index_proj = proj
-            else:
-                computed_index = self.index_collection[i.index_name].index_map
-                proj = self.index_collection[i.index_name].index_proj
-            
-            if proj_pd is None:
-                proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
+        index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        self.compute_selected_indices_map_and_proj(index_names)
+                
+        proj_pd = pd.DataFrame({'depth': np.arange(0,len(proj))})
+        for i in index_names:
+            proj = self.index_collection[i].index_proj   
             proj_pd[i.index_name] = proj
 
         proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
@@ -1114,20 +1081,6 @@ class SpectralIndexWidget(QWidget):
         """Show label color dialog"""
         
         self.qcolor_plotline.show()
-
-    def _on_adjust_font_size(self, event=None):
-        ## Not used. If used in future, scaling needs to be fixed
-        im_h = self.viewer.layers['imcube'].data.shape[-2]
-        font_factor = self.spin_title_font.value()
-        for label in (self.ax1.get_yticklabels() + 
-                      self.ax3.get_yticklabels() + 
-                      self.ax3.get_xticklabels()):
-            label.set_fontsize(int(font_factor*im_h))
-
-        self.index_plot_live.figure.suptitle(self.qcom_indices.currentText() + '\n' + self.params.location,
-                     fontsize=int(font_factor*im_h))
-
-        self.index_plot_live.canvas.draw()
 
     def _on_click_new_index(self, event):
         """Add new custom index"""
@@ -1174,17 +1127,8 @@ class SpectralIndexWidget(QWidget):
     def _on_compute_index_maps(self, event):
         """Compute the index and add to napari."""
 
-        colmin, colmax = self.get_roi_bounds()
-        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        for i in index_series:
-            computed_index = self.compute_and_clean_index(i.index_name)
-            proj = compute_index_projection(
-                computed_index,
-                self.viewer.layers['mask'].data,
-                colmin=colmin, colmax=colmax,
-                smooth_window=self.get_smoothing_window())
-            self.index_collection[i.index_name].index_map = computed_index
-            self.index_collection[i.index_name].index_proj = proj
+        index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        self.compute_selected_indices_map_and_proj(index_names, force_recompute=True)
         self._on_add_index_map_to_viewer()
 
     def _on_add_index_map_to_viewer(self, event=None):
@@ -1194,22 +1138,10 @@ class SpectralIndexWidget(QWidget):
         with progress(total=0) as pbr:
             pbr.set_description("Computing index")
 
-            colmin, colmax = self.get_roi_bounds()
             index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+            self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
             for i in index_series:
-                if self.index_collection[i.index_name].index_map is None:
-                    computed_index = self.compute_and_clean_index(i.index_name)
-                    proj = compute_index_projection(
-                        computed_index,
-                        self.viewer.layers['mask'].data,
-                        colmin=colmin, colmax=colmax,
-                        smooth_window=self.get_smoothing_window())
-                    self.index_collection[i.index_name].index_map = computed_index
-                    self.index_collection[i.index_name].index_proj = proj
-                else:
-                    computed_index = self.index_collection[i.index_name].index_map
-                    proj = self.index_collection[i.index_name].index_proj
-                
+                computed_index = self.index_collection[i.index_name].index_map
                 if i.index_name in self.viewer.layers:
                     #self.viewer.layers.remove(i.index_name)
                     self.viewer.layers[i.index_name].data = computed_index
