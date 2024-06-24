@@ -457,10 +457,29 @@ class SpectralIndexWidget(QWidget):
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
         
+        if self.params.measurement_roi == []:
+            for i in range(len(self.mainroi)):
+                row_bounds = [
+                        self.mainroi[i][:,0].min(),
+                        self.mainroi[i][:,0].max()]
+                col_bounds = [
+                        self.mainroi[i][:,1].min(),
+                        self.mainroi[i][:,1].max()]
+                
+                roi_square = [
+                    0, 0,
+                    row_bounds[1] - row_bounds[0], 0,
+                    row_bounds[1] - row_bounds[0], col_bounds[1] - col_bounds[0],
+                    0, col_bounds[1] - col_bounds[0]
+                    ]
+
+                self.params.measurement_roi.append(roi_square)
+
         self.spin_selected_roi.setRange(0, len(self.mainroi)-1)
         self.spin_selected_roi.setValue(0)
         
         self.load_data()
+
         
     def load_data(self, event=None):
 
@@ -470,14 +489,16 @@ class SpectralIndexWidget(QWidget):
 
         self.var_init()
 
-        self.row_bounds = [
-            self.mainroi[self.spin_selected_roi.value()][:,0].min(),
-            self.mainroi[self.spin_selected_roi.value()][:,0].max()]
-        self.col_bounds = [
-            self.mainroi[self.spin_selected_roi.value()][:,1].min(),
-            self.mainroi[self.spin_selected_roi.value()][:,1].max()]
+        roi_ind = self.spin_selected_roi.value()
 
-        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        self.row_bounds = [
+            self.mainroi[roi_ind][:,0].min(),
+            self.mainroi[roi_ind][:,0].max()]
+        self.col_bounds = [
+            self.mainroi[roi_ind][:,1].min(),
+            self.mainroi[roi_ind][:,1].max()]
+
+        export_path_roi = self.export_folder.joinpath(f'roi_{roi_ind}')
 
         self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
         self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
@@ -487,6 +508,9 @@ class SpectralIndexWidget(QWidget):
         self.rgbwidget.load_and_display_rgb_bands(roi=np.concatenate([self.row_bounds, self.col_bounds]))
 
         self._on_click_load_mask()
+
+        self.add_measurement_roi_layer()
+        self.viewer.layers['rois'].data = [np.reshape(self.params.measurement_roi[roi_ind], (4,2))]
 
         if export_path_roi.joinpath('end_members.csv').exists():
             self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
@@ -523,9 +547,6 @@ class SpectralIndexWidget(QWidget):
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
         
-        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
-        if edge_width < 1:
-            edge_width = 1
         min_row = 0
         max_row = self.row_bounds[1] - self.row_bounds[0]
         if roi_xpos is None:
@@ -544,14 +565,22 @@ class SpectralIndexWidget(QWidget):
                 [max_row,roi_xpos+self.spin_roi_width.value()//2],
                 [min_row,roi_xpos+self.spin_roi_width.value()//2]]
 
+        self.add_measurement_roi_layer()
+         
+        self.viewer.layers['rois'].data = [new_roi]
+        self.viewer.layers['rois'].refresh()
+
+    def add_measurement_roi_layer(self):
+        """Add layer for measurement roi used to compute projections"""
+
+        edge_width = np.min([10, self.viewer.layers['imcube'].data.shape[1]//100])
+        if edge_width < 1:
+            edge_width = 1
         
         if 'rois' not in self.viewer.layers:
             self.viewer.add_shapes(
                 ndim = 2,
                 name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
-         
-        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='red', edge_width=edge_width)
-
 
     def get_RGB(self):
         
@@ -1226,19 +1255,12 @@ class SpectralIndexWidget(QWidget):
 
     def _on_click_save_roi(self, event=None):
 
-        full_roi = [[self.row_bounds[0], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[0],
-                          self.row_bounds[1], self.col_bounds[1],
-                          self.row_bounds[0], self.col_bounds[1]]]
-
-        if 'rois' not in self.viewer.layers:
-            measurement_roi = full_roi
-        else:
-            measurement_roi = [list(x.astype(int).flatten()) for x in self.viewer.layers['rois'].data]
-            measurement_roi = [[x.item() for x in y] for y in measurement_roi]
+        if 'rois' in self.viewer.layers:
+            
+            measurement_roi = list(self.viewer.layers['rois'].data[0].astype(int).flatten())
+            measurement_roi = [x.item() for x in measurement_roi]
+            self.params.measurement_roi[self.spin_selected_roi.value()] = measurement_roi
         
-        self.params.measurement_roi = measurement_roi
-
         self.params.save_parameters()
 
     def _on_click_select_main_batch_folder(self, event=None, main_folder=None):
