@@ -869,7 +869,7 @@ class SpectralIndexWidget(QWidget):
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
             rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[index_series[0].index_name],
-            format_dict=format_dict, scale=self.params.scale,
+            format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
             location=self.params.location, fig=self.index_plot_live.figure, 
             roi=roi)
 
@@ -909,7 +909,10 @@ class SpectralIndexWidget(QWidget):
         plot_multi_spectral_profile(
             rgb_image=rgb_image, mask=self.viewer.layers['mask'].data,
             index_objs=index_series, 
-            format_dict=format_dict, scale=self.params.scale,
+            format_dict=format_dict,
+            scale=self.params.scale,
+            scale_unit=self.params.scale_units,
+            location=self.params.location, 
             fig=self.index_plot_live.figure,
             roi=roi)
         
@@ -957,7 +960,7 @@ class SpectralIndexWidget(QWidget):
             format_dict = asdict(self.params_plots)
             _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
                 rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[i_s.index_name],
-                format_dict=format_dict, scale=self.params.scale,
+                format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
                 location=self.params.location, fig=self.index_plot_live.figure, 
                 roi=roi)
 

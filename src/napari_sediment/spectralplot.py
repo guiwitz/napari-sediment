@@ -6,10 +6,10 @@ from napari.utils import colormaps
 from microfilm import colorify
 
 def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
-                          location="", fig=None, roi=None, left_margin=0,
-                            right_margin=0, bottom_margin=0, top_margin=0,
+                          scale_unit='mm', location="", fig=None, roi=None, left_margin=0,
+                          right_margin=0, bottom_margin=0, top_margin=0,
                           repeat=True):
-
+    
     index_name = index_obj.index_name
     index_image = index_obj.index_map
     proj = index_obj.index_proj
@@ -101,8 +101,8 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
         label.set_fontsize(label_font)
     
     ax2.set_ylim(im_h - 0.5, -0.5)
-    ax1.set_ylabel('depth [mm]', fontsize=label_font)
-    ax3.set_ylabel('depth [mm]', fontsize=label_font)
+    ax1.set_ylabel(f'depth [{scale_unit}]', fontsize=label_font)
+    ax3.set_ylabel(f'depth [{scale_unit}]', fontsize=label_font)
     ax3.set_xlabel('Index value', fontsize=label_font)
     ax3.yaxis.set_label_position('right')
     suptitle = fig.suptitle(index_name + '\n' + location,
@@ -140,9 +140,9 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
 
     if repeat:
         plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=scale,
-                          location=location, fig=fig, roi=roi, left_margin=left_margin,
-                          right_margin=right_margin, bottom_margin=bottom_margin,
-                          top_margin=top_margin,
+                          scale_unit=scale_unit, location=location, fig=fig, roi=roi,
+                          left_margin=left_margin, right_margin=right_margin,
+                          bottom_margin=bottom_margin, top_margin=top_margin,
                           repeat=False)
 
 
@@ -162,9 +162,9 @@ def get_text_height(text, renderer, fig):
 
 
 def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=1,
-                                location="", fig=None, roi=None, left_margin=0,
-                                right_margin=0, bottom_margin=0, top_margin=0,
-                                repeat=True):
+                                scale_unit='mm', location="", fig=None, roi=None,
+                                left_margin=0, right_margin=0, bottom_margin=0,
+                                top_margin=0, repeat=True):
 
     title_font = format_dict['title_font']
     label_font = format_dict['label_font']
@@ -276,7 +276,7 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
         axes_to_scale.append(axes[-2])
 
     for ax in axes_to_scale:
-        ax.set_ylabel('depth [mm]', fontsize=label_font)
+        ax.set_ylabel(f'depth [{scale_unit}]', fontsize=label_font)
         tickpos = np.array([x.get_position()[1] for x in  ax.get_yticklabels()])[1:-1]
         newlabels = scale * np.array(tickpos)
         ax.set_yticks(ticks=tickpos, labels = newlabels)
@@ -317,8 +317,9 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
     top_margin = 1 + 2 * title_height * a4_size[0]
 
     if repeat:
-        plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=1,
-                                location=location, fig=fig, roi=roi, left_margin=left_margin,
+        plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=scale,
+                                scale_unit=scale_unit, location=location, fig=fig,
+                                roi=roi, left_margin=left_margin,
                                 right_margin=right_margin, bottom_margin=bottom_margin,
                                 top_margin=top_margin, repeat=False)
 
