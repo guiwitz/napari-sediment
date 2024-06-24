@@ -171,38 +171,44 @@ class SedimentWidget(QWidget):
         self.background_group = VHGroup('Background correction', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
-        # ### Elements "Dark ref" ###
+        # ### Elements "Background Keyword"
+        self.textbox_background_keyword = QLineEdit('_WR_')
+        self.textbox_background_keyword.setToolTip("Keyword to identify background files")
+        self.background_group.glayout.addWidget(QLabel('Background keyword'), 0, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.textbox_background_keyword, 0, 1, 1, 1)
+
+        ### Elements "Dark ref" ###
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
         self.qtext_select_dark_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('Dark ref'), 0, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 0, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_dark_file, 0, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('Dark ref'), 1, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 1, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_file, 1, 2, 1, 1)
 
         ### Elements "White ref" ###
         self.btn_select_white_file = QPushButton("Manual selection")
         self.qtext_select_white_file = QLineEdit()
         self.qtext_select_white_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('White ref'), 1, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('White ref'), 2, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_white_file, 2, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_white_file, 2, 2, 1, 1)
 
         ### Elements "Dark ref for image" ###
         self.btn_select_dark_for_im_file = QPushButton("Manual selection")
         self.qtext_select_dark_for_white_file = QLineEdit()
         self.qtext_select_dark_for_white_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 2, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 2, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 3, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 3, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 3, 2, 1, 1)
 
         ### Combo box "Layer" ###
         self.combo_layer_background = QComboBox()
-        self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
+        self.background_group.glayout.addWidget(QLabel('Layer'), 4, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.combo_layer_background, 4, 1, 1, 2)
 
         ### Button "Correct" ###
         self.btn_background_correct = QPushButton("Correct")
-        self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
+        self.background_group.glayout.addWidget(self.btn_background_correct, 5, 0, 1, 3)
 
         # Group "Destripe"
         self.destripe_group = VHGroup('Destripe', orientation='G')
@@ -271,7 +277,6 @@ class SedimentWidget(QWidget):
         ### Button "Process in batch" ###
         self.btn_show_multiexp_batch = QPushButton("Process in batch")
         self.multiexp_group.glayout.addWidget(self.btn_show_multiexp_batch, 0, 0, 1, 1)
-        self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
 
         # Checkbox "Use dask"
@@ -591,7 +596,8 @@ class SedimentWidget(QWidget):
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
         self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
         self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
-
+        self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
+        
         # Elements of the "ROI" tab
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
         self.btn_main_crop.clicked.connect(self._on_crop_with_main)
@@ -1295,12 +1301,14 @@ class SedimentWidget(QWidget):
         self.imhdr_path = Path(imhdr_path)
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
 
+        keyword = self.textbox_background_keyword.text()
+
         if self.check_use_external_ref.isChecked():
             try:
                 refpath = None
-                wr_files = list(self.imhdr_path.parent.parent.parent.glob('*_WR*'))
+                wr_files = list(self.imhdr_path.parent.parent.parent.glob(f'*{keyword}*'))
                 for wr in wr_files:
-                    wr_first_part = wr.name.split('WR')[0]
+                    wr_first_part = wr.name.split(keyword)[0]
                     if wr_first_part in self.imhdr_path.name:
                         refpath = wr
                 if refpath is None:

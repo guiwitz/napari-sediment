@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout, QLineEdit,
                             QFileDialog, QCheckBox, QSpinBox, QLabel)
 from qtpy.QtCore import Qt
+from magicgui.widgets import FileEdit
 from napari.utils import progress
 from napari_guitils.gui_structures import TabSet
 from napari_guitils.gui_structures import VHGroup
@@ -64,15 +65,15 @@ class BatchPreprocWidget(QWidget):
 
         self.main_layout.addWidget(self.tabs)
 
+        # Pre-processing tab
         self.data_selection_group = VHGroup('Select data', orientation='G')
         self.export_group = VHGroup('Export location', orientation='G')
         self.tabs.add_named_tab('&Preprocessing', self.data_selection_group.gbox)
         self.tabs.add_named_tab('&Preprocessing', self.export_group.gbox)
 
-        self.btn_select_main_folder = QPushButton("Select main folder")
-        self.data_selection_group.glayout.addWidget(self.btn_select_main_folder)
-        self.main_path_display = QLineEdit("No path")
-        self.data_selection_group.glayout.addWidget(self.main_path_display)
+        self.data_selection_group.glayout.addWidget(QLabel('Select main folder'))
+        self.main_path_display = FileEdit('d')
+        self.data_selection_group.glayout.addWidget(self.main_path_display.native)
         self.data_selection_group.glayout.addWidget(QLabel('Available folders'))
         self.file_list = FolderListWidget(napari_viewer)
         self.data_selection_group.glayout.addWidget(self.file_list)
@@ -83,10 +84,9 @@ class BatchPreprocWidget(QWidget):
         self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
         self.data_selection_group.glayout.addWidget(self.qlist_channels)
 
-        self.btn_select_preproc_export_folder = QPushButton("Select export folder")
-        self.preproc_export_path_display = QLineEdit("No path")
-        self.export_group.glayout.addWidget(self.btn_select_preproc_export_folder)
-        self.export_group.glayout.addWidget(self.preproc_export_path_display)
+        self.preproc_export_path_display = FileEdit('d')
+        self.export_group.glayout.addWidget(QLabel('Select export folder'))
+        self.export_group.glayout.addWidget(self.preproc_export_path_display.native)
 
         self.options_group = VHGroup('Options', orientation='G')
         self.tabs.add_named_tab('&Preprocessing', self.options_group.gbox)
@@ -143,24 +143,30 @@ class BatchPreprocWidget(QWidget):
         self.btn_preproc_folder = QPushButton("Preprocess")
         self.tabs.add_named_tab('&Preprocessing', self.btn_preproc_folder)
 
-        self.selected_data_folder = QLineEdit("No path")
-        self.selected_reference_folder = QLineEdit("No path")
-        self.imhdr_path_display = QLineEdit("No file selected")
-        self.white_file_path_display = QLineEdit("No file selected")
-        self.dark_for_white_file_path_display = QLineEdit("No file selected")
-        self.dark_for_im_file_path_display = QLineEdit("No file selected")
+        # Paths tab
+        self.textbox_background_keyword = QLineEdit('_WR_')
+        self.textbox_background_keyword.setToolTip("Keyword to identify background files")
+        self.tabs.add_named_tab('Paths', QLabel('Background keyword'), (0, 0, 1, 1))
+        self.tabs.add_named_tab('Paths', self.textbox_background_keyword, (0, 1, 1, 1))
+
+        self.selected_data_folder = FileEdit('r')
+        self.selected_reference_folder = FileEdit('r')
+        self.imhdr_path_display = FileEdit('r')
+        self.white_file_path_display = FileEdit('r')
+        self.dark_for_white_file_path_display = FileEdit('r')
+        self.dark_for_im_file_path_display = FileEdit('r')
         self.tabs.add_named_tab('Paths', QLabel('Data folder'))
-        self.tabs.add_named_tab('Paths', self.selected_data_folder)
+        self.tabs.add_named_tab('Paths', self.selected_data_folder.native)
         self.tabs.add_named_tab('Paths', QLabel('Reference folder'))
-        self.tabs.add_named_tab('Paths', self.selected_reference_folder)
+        self.tabs.add_named_tab('Paths', self.selected_reference_folder.native)
         self.tabs.add_named_tab('Paths', QLabel('hdr file'))
-        self.tabs.add_named_tab('Paths', self.imhdr_path_display)
+        self.tabs.add_named_tab('Paths', self.imhdr_path_display.native)
         self.tabs.add_named_tab('Paths', QLabel('White ref'))
-        self.tabs.add_named_tab('Paths', self.white_file_path_display)
+        self.tabs.add_named_tab('Paths', self.white_file_path_display.native)
         self.tabs.add_named_tab('Paths', QLabel('Dark for white ref'))
-        self.tabs.add_named_tab('Paths', self.dark_for_white_file_path_display)
+        self.tabs.add_named_tab('Paths', self.dark_for_white_file_path_display.native)
         self.tabs.add_named_tab('Paths', QLabel('Darf for image ref'))
-        self.tabs.add_named_tab('Paths', self.dark_for_im_file_path_display)
+        self.tabs.add_named_tab('Paths', self.dark_for_im_file_path_display.native)
 
         self.add_connections()
 
@@ -168,8 +174,7 @@ class BatchPreprocWidget(QWidget):
     def add_connections(self):
         """Add callbacks"""
 
-        self.btn_select_main_folder.clicked.connect(self._on_click_select_main_folder)
-        self.btn_select_preproc_export_folder.clicked.connect(self._on_click_select_preproc_export_folder)
+        self.main_path_display.changed.connect(self._on_click_select_main_folder)
         self.btn_preproc_folder.clicked.connect(self._on_click_batch_correct)
         self.file_list.currentTextChanged.connect(self._on_change_filelist)
         self.check_do_min_max.stateChanged.connect(self._on_change_min_max)
@@ -193,22 +198,22 @@ class BatchPreprocWidget(QWidget):
             return
         current_folder = main_folder.joinpath(self.file_list.currentItem().text())
 
-        background_text = '_WR_'
+        background_text = self.textbox_background_keyword.text()
         acquistion_folder, wr_folder, white_file_path, dark_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(current_folder, background_text=background_text)
         wr_beginning = wr_folder.name.split(background_text)[0]
 
-        self.selected_data_folder.setText(acquistion_folder.as_posix())
-        self.selected_reference_folder.setText(wr_folder.as_posix())
+        self.selected_data_folder.value = acquistion_folder.as_posix()
+        self.selected_reference_folder.value = wr_folder.as_posix()
 
         self.white_file_path = white_file_path
         self.dark_for_white_file_path = dark_file_path
         self.dark_for_im_file_path = dark_for_im_file_path
         self.imhdr_path = imhdr_path
 
-        self.white_file_path_display.setText(self.white_file_path.as_posix())
-        self.dark_for_white_file_path_display.setText(self.dark_for_white_file_path.as_posix())
-        self.dark_for_im_file_path_display.setText(self.dark_for_im_file_path.as_posix())
-        self.imhdr_path_display.setText(self.imhdr_path.as_posix())
+        self.white_file_path_display.value = self.white_file_path.as_posix()
+        self.dark_for_white_file_path_display.value = self.dark_for_white_file_path.as_posix()
+        self.dark_for_im_file_path_display.value = self.dark_for_im_file_path.as_posix()
+        self.imhdr_path_display.value = self.imhdr_path.as_posix()
 
         # clear existing layers.
         while len(self.viewer.layers) > 0:
@@ -221,27 +226,10 @@ class BatchPreprocWidget(QWidget):
         # open image
         self.imagechannels = ImChannels(self.imhdr_path)
         self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
-        
-
 
     def _on_click_select_main_folder(self, event=None, main_folder=None):
         
-        if main_folder is None:
-            main_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
-        else:
-            main_folder = Path(main_folder)
-        self.main_path_display.setText(main_folder.as_posix())
-        self.file_list.update_from_path(main_folder)
-
-    def _on_click_select_preproc_export_folder(self, event=None, preproc_export_path=None):
-        """Interactively select folder to analyze"""
-
-        if preproc_export_path is None:
-            self.preproc_export_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
-        else:
-            self.preproc_export_path = Path(preproc_export_path)
-        self.preproc_export_path_display.setText(self.preproc_export_path.as_posix())
-
+        self.file_list.update_from_path(self.main_path_display.value)
 
     def _on_click_select_data_folder(self, event=None, data_folder=None):
         """Interactively select folder to analyze"""
@@ -254,7 +242,7 @@ class BatchPreprocWidget(QWidget):
 
     def _on_click_batch_correct(self, event=None):
 
-        background_text = '_WR_'
+        background_text = self.textbox_background_keyword.text()
 
         if self.preproc_export_path is None:
             self._on_click_select_preproc_export_folder()
