@@ -29,7 +29,7 @@ from .widgets.rgb_widget import RGBWidget
 from .parameters.parameters_plots import Paramplot
 from .spectralindex import (SpectralIndex, compute_index_projection,
                             clean_index_map, save_tif_cmap, create_index, export_index_series,
-                            compute_index, batch_create_plots)
+                            compute_index, batch_create_plots, compute_normalized_index_params)
 from .io import load_mask, get_mask_path
 from .utils import wavelength_to_rgb
 from .folder_list_widget import FolderListWidget
@@ -294,6 +294,8 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Batch', self.batch_index_params_file.native)
         self.btn_batch_create_plots = QPushButton("Create plots")
         self.tabs.add_named_tab('Batch', self.btn_batch_create_plots)
+        self.check_normalize = QCheckBox("Normalize")
+        self.tabs.add_named_tab('Batch', self.check_normalize)
         
         self._connect_spin_bounds()
         self.add_connections()
@@ -785,6 +787,19 @@ class SpectralIndexWidget(QWidget):
             index_params_file=self.batch_index_params_file.value,
             plot_params_file=self.batch_plot_params_file.value
             )
+        
+        if self.check_normalize.isChecked():
+            compute_normalized_index_params(
+                project_list=exported_projects,
+                index_params_file=self.batch_index_params_file.value,
+                export_folder=export_folder
+            )
+            batch_create_plots(
+                project_list=exported_projects,
+                index_params_file=export_folder.joinpath('normalized_index_settings.yml'),
+                plot_params_file=self.batch_plot_params_file.value,
+                normalize=True
+            )
             
 
     def get_roi_bounds(self):
@@ -921,7 +936,7 @@ class SpectralIndexWidget(QWidget):
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
 
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = self.plot_folder()
 
         # get rgb image and index image to plot
         rgb_image = self.get_rgb_array()
@@ -953,10 +968,10 @@ class SpectralIndexWidget(QWidget):
     def create_and_save_multi_index_plot(self, event=None):
         """Create and save multi index plot for the selected indices and
         save to file."""
-        
+
         self.create_multi_index_plot(event=None, show_plot=False)
         self.index_plot_live.figure.savefig(
-                self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath(f'multi_index_plot.png'),
+                self.plot_folder().joinpath(f'multi_index_plot.png'),
                 dpi=self.spin_final_dpi.value())
 
     def on_close_callback(self):
@@ -1120,7 +1135,7 @@ class SpectralIndexWidget(QWidget):
     
     def _on_click_save_plot(self, event=None, export_file=None):
         
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = self.plot_folder()
         if export_file is None:
             export_file = export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
         self.index_plot_live.figure.savefig(
@@ -1129,7 +1144,7 @@ class SpectralIndexWidget(QWidget):
 
     def _on_export_index_projection(self, event=None):
 
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = self.plot_folder()
         index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         self.compute_selected_indices_map_and_proj(index_names)
                 
@@ -1139,7 +1154,7 @@ class SpectralIndexWidget(QWidget):
     def _on_click_export_index_tiff(self, event=None):
         """Export index maps to tiff"""
         
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = self.plot_folder()
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
         
@@ -1155,7 +1170,7 @@ class SpectralIndexWidget(QWidget):
         """Export index setttings"""
 
         index_series = {key: x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()}
-        file_path = self.export_folder.joinpath('index_settings.yaml')
+        file_path = self.export_folder.joinpath('index_settings.yml')
         export_index_series(index_series, file_path)
         
 
@@ -1224,6 +1239,15 @@ class SpectralIndexWidget(QWidget):
         if isinstance(rgb_image[0], da.Array):
             rgb_image = [x.compute() for x in rgb_image]
         return rgb_image
+    
+    def plot_folder(self):
+        """If necessary create folder for plots and return path."""
+
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = export_folder.joinpath('index_plots')
+        export_folder.mkdir(exist_ok=True)
+        return export_folder
+
 
 class ScaledPixmapLabel(QLabel):
     def __init__(self):

@@ -317,8 +317,8 @@ def export_index_series(index_series, file_path):
 
     index_series = [x.dict_spectral_index() for key, x in index_series.items()]
     index_series = {'index_definition': index_series}
-    if file_path.suffix !='.yaml':
-        file_path = file_path.with_suffix('.yaml')
+    if file_path.suffix !='.yml':
+        file_path = file_path.with_suffix('.yml')
     with open(file_path, "w") as file:
         yaml.dump(index_series, file)
 
@@ -353,7 +353,7 @@ def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
     return computed_index
 
 def load_index_series(index_file):
-    """Load the index series from a yaml file."""
+    """Load the index series from a yml file."""
     
     index_collection = {}
     with open(index_file) as file:
@@ -363,8 +363,21 @@ def load_index_series(index_file):
 
     return index_collection
 
-def batch_create_plots(project_list, index_params_file, plot_params_file):
-    """Create index plots for a list of projects."""
+def batch_create_plots(project_list, index_params_file, plot_params_file, normalize=False):
+    """Create index plots for a list of projects.
+    
+    Parameters
+    ----------
+    project_list: list of Path
+        list of project folders (containing Parameters.yml)
+    index_params_file: Path
+        path to index parameters file
+    plot_params_file: Path
+        path to plot parameters file
+    normalize: bool
+        whether to save plots in normalized folder
+
+    """
 
     indices = load_index_series(index_params_file)
     params_plots = load_plots_params(plot_params_file)
@@ -376,6 +389,15 @@ def batch_create_plots(project_list, index_params_file, plot_params_file):
         
         params = load_project_params(folder=ex)
         roi_folder = ex.joinpath(f'roi_{roin_ind}')
+        if normalize:
+            roi_plot_folder = roi_folder.joinpath('index_plots_normalized')
+            if not roi_plot_folder.exists():
+                roi_plot_folder.mkdir()
+        else:
+            roi_plot_folder = roi_folder.joinpath('index_plots')
+            if not roi_plot_folder.exists():
+                roi_plot_folder.mkdir()
+
         mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
         row_bounds = [
                     mainroi[roin_ind][:,0].min(),
@@ -429,14 +451,14 @@ def batch_create_plots(project_list, index_params_file, plot_params_file):
                 roi=roi, repeat=True)
 
             fig.savefig(
-                    roi_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
+                    roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
                 dpi=dpi)
             
             # tif maps
             index_map = indices[k].index_map
             contrast = indices[k].index_map_range
             napari_cmap = indices[k].colormap
-            export_path = roi_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
+            export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
             save_tif_cmap(image=index_map, image_path=export_path,
                             napari_cmap=napari_cmap, contrast=contrast)
             
@@ -445,7 +467,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file):
                 proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
             proj_pd[indices[k].index_name] = indices[k].index_proj
         
-        proj_pd.to_csv(roi_folder.joinpath('index_projection.csv'), index=False)
+        proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
 
         # create multi index plot
         plot_multi_spectral_profile(
@@ -455,9 +477,30 @@ def batch_create_plots(project_list, index_params_file, plot_params_file):
                 fig=fig, roi=roi, repeat=True)
 
         fig.savefig(
-                    roi_folder.joinpath('multi_index_plot'),
+                    roi_plot_folder.joinpath('multi_index_plot'),
                 dpi=dpi)
         plt.close(fig)
+
+def compute_normalized_index_params(project_list, index_params_file, export_folder):
+
+    indices = load_index_series(index_params_file)
+
+    # gather all projections
+    all_proj = []
+    roi_ind = 0
+    for ex in project_list:
+        all_proj.append(pd.read_csv(ex.joinpath(f'roi_{roi_ind}').joinpath('index_projection.csv')))
+    all_proj = pd.concat(all_proj, axis=0)
+
+    # compute min max of index projections
+    min_vals = all_proj.min()
+    max_vals = all_proj.max()
+
+    # update indices with new min max
+    for k, ind in indices.items():
+        ind.index_map_range = [min_vals[k].item(), max_vals[k].item()]
+
+    export_index_series(index_series=indices, file_path=export_folder.joinpath('normalized_index_settings.yml'))
 
 
     
