@@ -1173,6 +1173,7 @@ class SpectralIndexWidget(QWidget):
         self.compute_selected_indices_map_and_proj(index_names, force_recompute=force_recompute)
                 
         proj_pd = self.create_projection_table(index_names)
+        proj_pd[f'depth [{self.params.scale_units}]'] = proj_pd['depth'] * self.params.scale
         proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
     def _on_click_export_index_tiff(self, event=None, force_recompute=False):
