@@ -124,7 +124,7 @@ class HyperAnalysisWidget(QWidget):
         self.process_group_mnfr = VHGroup('Spectral reduction', orientation='G')
         self.tabs.add_named_tab('Reduction', self.process_group_mnfr.gbox)
 
-        self.btn_mnfr = QPushButton("Compute MNFR")
+        self.btn_mnfr = QPushButton("Compute MNF")
         self.process_group_mnfr.glayout.addWidget(self.btn_mnfr, 0, 0, 1, 2)
 
         self.reduce_on_eigen_group = VHGroup('Reduce on eigenvalues', orientation='G')
