@@ -6,10 +6,11 @@ from qtpy.QtCore import Qt
 
 class FolderListWidget(QListWidget):
     # be able to pass the Napari viewer name (viewer)
-    def __init__(self, viewer, parent=None):
+    def __init__(self, viewer, parent=None, background_kw='_WR_'):
         super().__init__(parent)
 
         self.viewer = viewer
+        self.background_kw = background_kw
         self.setAcceptDrops(True)
         self.setDragEnabled(True)
         #self.currentItemChanged.connect(self.open_file)
@@ -40,7 +41,7 @@ class FolderListWidget(QListWidget):
                 files = os.listdir(self.folder_path)  
                 for f in files:
                     #if Path(f).suffix == '.oir':
-                    if f[0] != '.':
+                    if (f[0] != '.') and (self.background_kw not in f):
                         self.addItem(f)
 
     def update_from_path(self, path):
@@ -50,7 +51,7 @@ class FolderListWidget(QListWidget):
         files = os.listdir(self.folder_path)  
         for f in files:
             #if Path(f).suffix == '.oir':
-            if f[0] != '.':
+            if (f[0] != '.') and (self.background_kw not in f):
                 self.addItem(f)
 
     def add_elements(self, elements):

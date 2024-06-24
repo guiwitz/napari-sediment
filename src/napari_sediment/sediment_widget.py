@@ -13,7 +13,7 @@ import os
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
-                            QScrollArea, QGridLayout)
+                            QScrollArea, QGridLayout, QVBoxLayout)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider, QLabeledDoubleRangeSlider, QDoubleSlider
 from napari.qt import get_current_stylesheet
@@ -32,16 +32,16 @@ from ._reader import read_spectral
 from .sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
-                       find_index_of_band, savgol_destripe)
+                       savgol_destripe)
 from .imchannels import ImChannels
-from .io import save_mask, load_mask, get_mask_path, load_project_params
+from .io import save_mask, load_mask, load_project_params
 from .parameters.parameters import Param
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .images import save_rgb_tiff_image
 from .widgets.rgb_widget import RGBWidget
 from .utils import update_contrast_on_layer
-from .batch_preproc import BatchPreprocWidget
+from .batch_preproc_widget import BatchPreprocWidget
 
 import napari
 
@@ -67,8 +67,11 @@ class SedimentWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
 
-        self.tab_names = ['&Main', 'Pro&cessing', '&ROI', 'Mas&k', 'I&O', 'P&lotting']#,'&Options']
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None]*(len(self.tab_names)-1) + [QGridLayout()])
+        self.tab_names = ['&Main', 'Pro&cessing', '&ROI',
+                          'Mas&k', 'I&O', 'P&lotting','Meta&data']
+        self.tabs = TabSet(self.tab_names,
+                           tab_layouts=[QVBoxLayout(), QVBoxLayout(), QVBoxLayout(), QVBoxLayout(),
+                                        QVBoxLayout(), QGridLayout(), QGridLayout()])
 
         self.main_layout.addWidget(self.tabs)
 
@@ -79,6 +82,7 @@ class SedimentWidget(QWidget):
         self._create_roi_tab()
         self._create_export_tab()
         self._create_plot_tab()
+        self._create_metadata_tab()
 
         self.add_connections()
 
@@ -127,25 +131,6 @@ class SedimentWidget(QWidget):
             "Export all info necessary for next steps and to reload the project")
         self.files_group.glayout.addWidget(self.btn_export, 3, 0, 1, 1)
 
-        # Elements "Metadata"
-        self.metadata_group = VHGroup('Metadata', orientation='G')
-        self.tabs.add_named_tab('&Main', self.metadata_group.gbox)
-
-        ### Elements "Location" ###
-        self.metadata_location = QLineEdit("No location")
-        self.metadata_location.setToolTip("Indicate the location of data acquisition")
-        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
-        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
-
-        ### Spinbox "Scale" ###
-        self.spinbox_metadata_scale = QDoubleSpinBox()
-        self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
-        self.spinbox_metadata_scale.setRange(1, 1000)
-        self.spinbox_metadata_scale.setSingleStep(0.1)
-        self.spinbox_metadata_scale.setValue(1)
-        self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
-        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
-
         # Elements "Bands"
         self.main_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('&Main', self.main_group.gbox)
@@ -186,38 +171,44 @@ class SedimentWidget(QWidget):
         self.background_group = VHGroup('Background correction', orientation='G')
         self.tabs.add_named_tab('Pro&cessing', self.background_group.gbox)
 
-        # ### Elements "Dark ref" ###
+        # ### Elements "Background Keyword"
+        self.textbox_background_keyword = QLineEdit('_WR_')
+        self.textbox_background_keyword.setToolTip("Keyword to identify background files")
+        self.background_group.glayout.addWidget(QLabel('Background keyword'), 0, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.textbox_background_keyword, 0, 1, 1, 1)
+
+        ### Elements "Dark ref" ###
         self.btn_select_dark_file = QPushButton("Manual selection")
         self.qtext_select_dark_file = QLineEdit()
         self.qtext_select_dark_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('Dark ref'), 0, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 0, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_dark_file, 0, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('Dark ref'), 1, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_file, 1, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_file, 1, 2, 1, 1)
 
         ### Elements "White ref" ###
         self.btn_select_white_file = QPushButton("Manual selection")
         self.qtext_select_white_file = QLineEdit()
         self.qtext_select_white_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('White ref'), 1, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_white_file, 1, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_white_file, 1, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('White ref'), 2, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_white_file, 2, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_white_file, 2, 2, 1, 1)
 
         ### Elements "Dark ref for image" ###
         self.btn_select_dark_for_im_file = QPushButton("Manual selection")
         self.qtext_select_dark_for_white_file = QLineEdit()
         self.qtext_select_dark_for_white_file.setText('No path')
-        self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 2, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 2, 1, 1, 1)
-        self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 2, 2, 1, 1)
+        self.background_group.glayout.addWidget(QLabel('Dark ref for image'), 3, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.qtext_select_dark_for_white_file, 3, 1, 1, 1)
+        self.background_group.glayout.addWidget(self.btn_select_dark_for_im_file, 3, 2, 1, 1)
 
         ### Combo box "Layer" ###
         self.combo_layer_background = QComboBox()
-        self.background_group.glayout.addWidget(QLabel('Layer'), 3, 0, 1, 1)
-        self.background_group.glayout.addWidget(self.combo_layer_background, 3, 1, 1, 2)
+        self.background_group.glayout.addWidget(QLabel('Layer'), 4, 0, 1, 1)
+        self.background_group.glayout.addWidget(self.combo_layer_background, 4, 1, 1, 2)
 
         ### Button "Correct" ###
         self.btn_background_correct = QPushButton("Correct")
-        self.background_group.glayout.addWidget(self.btn_background_correct, 4, 0, 1, 3)
+        self.background_group.glayout.addWidget(self.btn_background_correct, 5, 0, 1, 3)
 
         # Group "Destripe"
         self.destripe_group = VHGroup('Destripe', orientation='G')
@@ -286,7 +277,6 @@ class SedimentWidget(QWidget):
         ### Button "Process in batch" ###
         self.btn_show_multiexp_batch = QPushButton("Process in batch")
         self.multiexp_group.glayout.addWidget(self.btn_show_multiexp_batch, 0, 0, 1, 1)
-        self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
         self.multiexp_batch = None
 
         # Checkbox "Use dask"
@@ -531,6 +521,57 @@ class SedimentWidget(QWidget):
         self.slider_spectrum_savgol.setSliderPosition(5)
         self.tabs.add_named_tab('P&lotting', QLabel('Smoothing window size'), (2,0,1,1))
         self.tabs.add_named_tab('P&lotting', self.slider_spectrum_savgol, (2,1,1,1))
+
+    def _create_metadata_tab(self):
+        """
+        Generates the "Metadata" tab and its elements.
+        """
+
+        # Group "Metadata"
+        self.metadata_group = VHGroup('Metadata', orientation='G')
+        self.tabs.add_named_tab('Meta&data', self.metadata_group.gbox)
+        self.tabs.widget(self.tab_names.index('Meta&data')).layout().setAlignment(Qt.AlignTop)
+
+        ### Elements "Location" ###
+        self.metadata_location = QLineEdit("No location")
+        self.metadata_location.setToolTip("Indicate the location of data acquisition")
+        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 1)
+
+        ### Spinbox "Scale" ###
+        self.spinbox_metadata_scale = QDoubleSpinBox()
+        self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
+        self.spinbox_metadata_scale.setRange(1, 1000)
+        self.spinbox_metadata_scale.setSingleStep(0.1)
+        self.spinbox_metadata_scale.setValue(1)
+        self.metadata_group.glayout.addWidget(QLabel('Pixel Size'), 1, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
+
+        ### Spinbox "Unit" ###
+        self.metadata_scale_unit = QLineEdit("mm")
+        self.metadata_scale_unit.setToolTip("Indicate the unit of the scale")
+        self.metadata_group.glayout.addWidget(QLabel('Unit'), 2, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_scale_unit, 2, 1, 1, 1)
+
+        # Group "Interactive scale"
+        self.interactive_scale_group = VHGroup('Interactive scale', orientation='G')
+        self.tabs.add_named_tab('Meta&data', self.interactive_scale_group.gbox)
+        
+        ### Button "Add scale layer" ###
+        self.btn_add_scale_layer = QPushButton("Add scale layer")
+        self.interactive_scale_group.glayout.addWidget(self.btn_add_scale_layer, 0, 0, 1, 2)
+        
+        ### Spinbox "Scale size in units" ###
+        self.spinbox_scale_size_units = QDoubleSpinBox()
+        self.spinbox_scale_size_units.setRange(1, 100000)
+        self.spinbox_scale_size_units.setValue(100)
+        self.spinbox_scale_size_units.setSingleStep(1)
+        self.interactive_scale_group.glayout.addWidget(QLabel('Scale size in units'), 1, 0, 1, 1)
+        self.interactive_scale_group.glayout.addWidget(self.spinbox_scale_size_units, 1, 1, 1, 1)
+        
+        ### Button "Compute pixel size" ###
+        self.btn_compute_pixel_size = QPushButton("Compute pixel size")
+        self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size, 2, 0, 1, 2)
         
     def add_connections(self):
         """
@@ -555,7 +596,8 @@ class SedimentWidget(QWidget):
         self.slider_batch_wavelengths.valueChanged.connect(self._on_change_batch_wavelengths)
         self.spin_batch_wavelengths_min.valueChanged.connect(self._on_change_spin_batch_wavelengths)
         self.spin_batch_wavelengths_max.valueChanged.connect(self._on_change_spin_batch_wavelengths)
-
+        self.btn_show_multiexp_batch.clicked.connect(self._on_click_multiexp_batch)
+        
         # Elements of the "ROI" tab
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
         self.btn_main_crop.clicked.connect(self._on_crop_with_main)
@@ -581,6 +623,10 @@ class SedimentWidget(QWidget):
         # Elements of the "Plotting" tab
         self.slider_spectrum_savgol.valueChanged.connect(self.update_spectral_plot)
         self.check_remove_continuum.stateChanged.connect(self.update_spectral_plot)
+
+        # Elements of the "Metadata" tab
+        self.btn_add_scale_layer.clicked.connect(self._on_click_add_scale_layer)
+        self.btn_compute_pixel_size.clicked.connect(self._on_click_compute_pixel_size)
         
         # Viewer callbacks for mouse behaviour
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
@@ -652,6 +698,7 @@ class SedimentWidget(QWidget):
         # metadata
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
+        self.metadata_scale_unit.setText(self.params.scale_units)
 
         # rois
         self._add_roi_layer()
@@ -1193,6 +1240,40 @@ class SedimentWidget(QWidget):
         
         self.scan_plot.canvas.figure.canvas.draw()
 
+    # Functions for "Metadata" tab elements
+    def _on_click_add_scale_layer(self):
+        """
+        Add interactive scale layer
+        Called: "Metadata" tab, button "Add scale layer"
+        """
+        if 'scale' not in self.viewer.layers:
+            image_height = self.row_bounds[1] - self.row_bounds[0]
+            line = np.array([[self.row_bounds[0] + image_height//3, self.col_bounds[0]],
+                             [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]]])
+            self.viewer.add_shapes(
+                data=line,
+                shape_type='line',
+                edge_color='g',
+                edge_width=5,
+                name='scale',
+                ndim=2,
+            )
+
+    def _on_click_compute_pixel_size(self):
+        """
+        Compute pixel size with interactive scale
+        Called: "Metadata" tab, button "Compute pixel size"
+        """
+        if 'scale' not in self.viewer.layers:
+            warnings.warn('No scale layer found. Please add scale layer first.')
+            return
+
+        scale = self.viewer.layers['scale'].data[0]
+        scale_size_px = np.sqrt(np.sum((scale[0] - scale[1])**2))
+        scale_size_units = self.spinbox_scale_size_units.value()
+        pixel_size = scale_size_units / scale_size_px
+        self.spinbox_metadata_scale.setValue(pixel_size)
+
 
     # Helper Functions
     ### Helper functions used in tab element functions ###
@@ -1220,12 +1301,14 @@ class SedimentWidget(QWidget):
         self.imhdr_path = Path(imhdr_path)
         self.imhdr_path_display.setText(self.imhdr_path.as_posix())
 
+        keyword = self.textbox_background_keyword.text()
+
         if self.check_use_external_ref.isChecked():
             try:
                 refpath = None
-                wr_files = list(self.imhdr_path.parent.parent.parent.glob('*_WR*'))
+                wr_files = list(self.imhdr_path.parent.parent.parent.glob(f'*{keyword}*'))
                 for wr in wr_files:
-                    wr_first_part = wr.name.split('WR')[0]
+                    wr_first_part = wr.name.split(keyword)[0]
                     if wr_first_part in self.imhdr_path.name:
                         refpath = wr
                 if refpath is None:
@@ -1289,6 +1372,7 @@ class SedimentWidget(QWidget):
         self.params.dark_for_white_path = self.dark_for_white_file_path
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
+        self.params.scale_units = self.metadata_scale_unit.text()
         self.params.rgb = self.rgb_widget.rgb
 
         self.params.main_roi = mainroi

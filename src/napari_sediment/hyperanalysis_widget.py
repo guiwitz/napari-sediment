@@ -18,12 +18,13 @@ from .parameters.parameters import Param
 from .parameters.parameters_endmembers import ParamEndMember
 from .io import load_project_params, load_endmember_params, save_image_to_zarr
 from .imchannels import ImChannels
-from .sediproc import spectral_clustering
 from .spectralplot import SpectralPlotter
 from .widgets.channel_widget import ChannelWidget
 from .io import load_mask, get_mask_path
 from .widgets.rgb_widget import RGBWidget
 from .utils import wavelength_to_rgb
+from .hyperanalysis import (compute_vertical_correlations, compute_end_members,
+                            reduce_with_mnf, export_dim_reduction_data)
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 
@@ -123,7 +124,7 @@ class HyperAnalysisWidget(QWidget):
         self.process_group_mnfr = VHGroup('Spectral reduction', orientation='G')
         self.tabs.add_named_tab('Reduction', self.process_group_mnfr.gbox)
 
-        self.btn_mnfr = QPushButton("Compute MNFR")
+        self.btn_mnfr = QPushButton("Compute MNF")
         self.process_group_mnfr.glayout.addWidget(self.btn_mnfr, 0, 0, 1, 2)
 
         self.reduce_on_eigen_group = VHGroup('Reduce on eigenvalues', orientation='G')
@@ -208,9 +209,6 @@ class HyperAnalysisWidget(QWidget):
 
         self.ppi_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('End Members', self.ppi_plot)
-        self.ppi_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self.ppi_boundaries_range.setValue((0, 0, 0))
-        self.tabs.add_named_tab('End Members', self.ppi_boundaries_range)
 
         self.plot_options_group = VHGroup('Options', orientation='G')
         self.tabs.add_named_tab('End Members', self.plot_options_group.gbox)
@@ -243,7 +241,6 @@ class HyperAnalysisWidget(QWidget):
         #self.btn_load_index_project.clicked.connect(self.import_index_project)
         self.slider_corr_limit.valueChanged.connect(self._on_change_corr_limit)
         self.btn_update_endmembers.clicked.connect(self._on_click_update_endmembers)
-        self.ppi_boundaries_range.valueChanged.connect(self._on_change_ppi_boundaries)
         self.check_remove_continuum.stateChanged.connect(self.update_endmembers)
         self.slider_spectrum_savgol.valueChanged.connect(self.update_endmembers)
 
@@ -370,8 +367,6 @@ class HyperAnalysisWidget(QWidget):
 
         if self.end_members is not None:
             self.plot_endmembers()
-            self.ppi_boundaries_range.setRange(self.qlist_channels.bands[0],self.qlist_channels.bands[-1])
-            self.ppi_boundaries_range.setValue(self.params_endmembers.index_boundaries)
         else:
             if 'pure' in self.viewer.layers:
                 self.compute_end_members()
@@ -391,7 +386,6 @@ class HyperAnalysisWidget(QWidget):
         self.params_endmembers.ppi_iterations = self.ppi_iterations.value()
         self.params_endmembers.ppi_threshold = self.ppi_threshold.value()
         self.params_endmembers.corr_limit = self.slider_corr_limit.value()
-        self.params_endmembers.index_boundaries = list(self.ppi_boundaries_range.value())
 
         self.params_endmembers.save_parameters()
         self.save_stacks()
@@ -427,17 +421,13 @@ class HyperAnalysisWidget(QWidget):
         """Save plots to csv"""
 
         export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
-        if self.eigenvals is not None:
-            df = pd.DataFrame(self.eigenvals, columns=['eigenvalues'])
-            df.to_csv(export_path.joinpath('eigenvalues.csv'), index=False)
-        if self.all_coef is not None:
-            df = pd.DataFrame(self.all_coef, columns=['correlation'])
-            df.to_csv(export_path.joinpath('correlation.csv'), index=False)
-        if self.end_members is not None:
-            df = pd.DataFrame(self.end_members, columns=np.arange(self.end_members.shape[1]))
-            df['bands'] = self.qlist_channels.bands
-            df.to_csv(export_path.joinpath('end_members.csv'), index=False)
 
+        export_dim_reduction_data(export_path,
+                                  eigenvals=self.eigenvals,
+                                  all_coef=self.all_coef,
+                                  end_members=self.end_members,
+                                  bands_used=self.qlist_channels.bands)
+        
     def load_plots(self):
         """Load csv files"""
         
@@ -532,14 +522,7 @@ class HyperAnalysisWidget(QWidget):
     def _compute_vert_correlation(self):
         """Compute correlation between lines within each band."""
 
-        self.all_coef = []
-        for i in range(self.image_mnfr.shape[2]):
-            
-            im = self.image_mnfr[1::,:,i]
-            im_shift = self.image_mnfr[0:-1,:,i]
-            
-            self.all_coef.append(np.corrcoef(im.flatten(), im_shift.flatten())[0,1])
-        self.all_coef = np.array(self.all_coef)
+        self.all_coef = compute_vertical_correlations(self.image_mnfr)
         self.slider_corr_limit.setRange(0, len(self.all_coef))
         self.slider_corr_limit.setValue(len(self.all_coef))
 
@@ -560,19 +543,15 @@ class HyperAnalysisWidget(QWidget):
         if 'mnf' not in self.viewer.layers:
             raise ValueError('Must compute MNF first.')
         
-        acceptable_range = np.arange(self.slider_corr_limit.value())
-        accepted_corr = self.all_coef[acceptable_range]
-        accepted_indices = acceptable_range[accepted_corr > self.spin_correlation_threshold.value()]
-        if len(accepted_indices) > 0:
-            last_index = acceptable_range[accepted_corr > self.spin_correlation_threshold.value()][-1]
-        else:
-            raise ValueError(f'No bands with correlation > {self.spin_correlation_threshold.value()}')
-        selected_bands = self.image_mnfr[:,:, 0:last_index].copy()
-        self.selected_bands = selected_bands
+        self.selected_bands = reduce_with_mnf(im_mnf=self.image_mnfr,
+                                              corr_coefficients=self.all_coef,
+                                              corr_threshold=self.spin_correlation_threshold.value(),
+                                              max_index=self.slider_corr_limit.value())
+
         if 'denoised' in self.viewer.layers:
-            self.viewer.layers['denoised'].data = np.moveaxis(selected_bands, 2, 0)
+            self.viewer.layers['denoised'].data = np.moveaxis(self.selected_bands, 2, 0)
         else:
-            self.viewer.add_image(np.moveaxis(selected_bands, 2, 0), name='denoised', rgb=False)
+            self.viewer.add_image(np.moveaxis(self.selected_bands, 2, 0), name='denoised', rgb=False)
         self.viewer.layers['denoised'].refresh()
 
     def _on_click_ppi(self):
@@ -612,32 +591,22 @@ class HyperAnalysisWidget(QWidget):
 
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
-
+        
         self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
             pbr.set_description("Compute end-members")
         
             pure = np.asarray(self.viewer.layers['pure'].data)
-            # recover pixel vectors from denoised image and actual image
-            vects = self.viewer.layers['denoised'].data[:, pure > self.ppi_threshold.value()]
             imcube_data = np.asarray(self.viewer.layers['imcube'].data)
-            vects_image = imcube_data[:,pure > self.ppi_threshold.value()] 
+            im_cube_denoised = self.viewer.layers['denoised'].data
+
+            self.end_members_raw = compute_end_members(
+                pure=pure, 
+                im_cube=imcube_data,
+                im_cube_denoised=im_cube_denoised, 
+                ppi_threshold=self.ppi_threshold.value(),
+                dbscan_eps=self.qspin_endm_eps.value())
             
-            # compute clustering
-            labels = spectral_clustering(pixel_vectors=vects.T, dbscan_eps=self.qspin_endm_eps.value())
-
-            # compute band location
-            bands = self.qlist_channels.bands
-            self.ppi_boundaries_range.setRange(min=bands[0],max=bands[-1])
-            self.ppi_boundaries_range.setValue((bands[0], (bands[-1]+bands[0])/2, bands[-1]))
-
-            self.end_members = []
-            for ind in range(0, labels.max()+1):
-                
-                endmember = vects_image[:, labels==ind].mean(axis=1)
-                self.end_members.append(endmember)
-
-            self.end_members_raw = np.stack(self.end_members, axis=1)
             self.update_endmembers()
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
@@ -677,26 +646,6 @@ class HyperAnalysisWidget(QWidget):
         self.ppi_plot.figure.patch.set_facecolor('white')
         self.ppi_plot.canvas.figure.canvas.draw()
 
-    def _on_change_ppi_boundaries(self, event):
-        """Update the PPI plot when the PPI boundaries are changed."""
-
-        if self.ppi_boundary_lines is not None:
-                num_lines = len(self.ppi_boundary_lines)
-                for i in range(num_lines):
-                    self.ppi_boundary_lines.pop(0).remove()
-
-        if self.end_members is not None:
-            ymin = self.end_members.min()
-            ymax = self.end_members.max()
-            self.ppi_boundary_lines = self.ppi_plot.axes.plot(
-                [
-                    [self.ppi_boundaries_range.value()[0], self.ppi_boundaries_range.value()[1], self.ppi_boundaries_range.value()[2]], [self.ppi_boundaries_range.value()[0], self.ppi_boundaries_range.value()[1], self.ppi_boundaries_range.value()[2]]
-                ],
-                [
-                    [ymin, ymin, ymin], [ymax, ymax, ymax]
-                ], 'r--'
-            )
-            self.ppi_plot.canvas.figure.canvas.draw()
 
 
     def _shift_move_callback(self, viewer, event):
