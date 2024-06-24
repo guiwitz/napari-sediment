@@ -4,8 +4,6 @@ import numpy as np
 from cmap import Colormap
 from napari.utils import colormaps
 from microfilm import colorify
-from matplotlib_scalebar.scalebar import ScaleBar
-from .spectralindex import compute_index_projection
 
 def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
                           location="", fig=None, roi=None, left_margin=0,
