@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QColorDialog, QScrollArea)
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
-from superqt import QLabeledDoubleRangeSlider, QDoubleSlider
+from superqt import QLabeledDoubleRangeSlider, QLabeledDoubleSlider
 from magicgui.widgets import FileEdit
 
 from napari.utils import progress
@@ -154,8 +154,8 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Index C&ompute', self.index_options_group.gbox)
         self.check_smooth_projection = QCheckBox("Smooth projection")
         self.index_options_group.glayout.addWidget(self.check_smooth_projection, 0, 0, 1, 2)
-        self.slider_index_savgol = QDoubleSlider(Qt.Horizontal)
-        self.slider_index_savgol.setRange(1, 100)
+        self.slider_index_savgol = QLabeledDoubleSlider(Qt.Horizontal)
+        self.slider_index_savgol.setRange(5, 100)
         self.slider_index_savgol.setSingleStep(1)
         self.slider_index_savgol.setSliderPosition(5)
         self.index_options_group.glayout.addWidget(QLabel('Smoothing window size'), 1, 0, 1, 1)
@@ -188,6 +188,11 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.addWidget(self.btn_import_index_settings)
         self.index_file_display = QLineEdit("No file selected")
         self.index_compute_group.glayout.addWidget(self.index_file_display)
+        self.check_force_recompute = QCheckBox("Force recompute")
+        self.index_compute_group.glayout.addWidget(self.check_force_recompute)
+        self.check_force_recompute.setChecked(True)
+        self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
+
 
         # Plots tab
 
@@ -765,7 +770,7 @@ class SpectralIndexWidget(QWidget):
         self.disconnect_plot_formatting()
         self.set_plot_interface(params=self.params_plots)
         self.create_and_save_all_single_index_plot(event=event)
-        self.create_and_save_multi_index_plot(event=event)
+        self.create_and_save_multi_index_plot(event=event, force_recompute=False)
         self.connect_plot_formatting()
     
     def update_single_or_multi_index_plot(self, event=None):
@@ -840,9 +845,12 @@ class SpectralIndexWidget(QWidget):
                 self.index_collection[index_name].index_map = computed_index
                 self.index_collection[index_name].index_proj = proj
 
-    def create_single_index_plot(self, event=None):
+    def create_single_index_plot(self, event=None, force_recompute=None):
         """Create a single index plot. The plot can be displayed live but is not
         saved to file."""
+
+        if force_recompute is None:
+            force_recompute = self.check_force_recompute.isChecked()
 
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
@@ -860,7 +868,8 @@ class SpectralIndexWidget(QWidget):
 
         mask = self.viewer.layers['mask'].data
 
-        self.compute_selected_indices_map_and_proj([index_series[0].index_name])
+        self.compute_selected_indices_map_and_proj([index_series[0].index_name],
+                                                   force_recompute=force_recompute)
 
         roi = None
         if 'rois' in self.viewer.layers:
@@ -886,10 +895,13 @@ class SpectralIndexWidget(QWidget):
         self.pixlabel.setPixmap(self.pixmap)
         self.scrollArea.show()
 
-    def create_multi_index_plot(self, event=None, show_plot=True):
+    def create_multi_index_plot(self, event=None, show_plot=True, force_recompute=None):
         """Create a multi-index plot. The plot can be displayed live but is not
         saved to file."""
         
+        if force_recompute is None:
+            force_recompute = self.check_force_recompute.isChecked()
+
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
@@ -899,7 +911,7 @@ class SpectralIndexWidget(QWidget):
             rgb_image = [x.compute() for x in rgb_image]
         
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
+        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series], force_recompute=force_recompute)
         
         roi = None
         if 'rois' in self.viewer.layers:
@@ -931,9 +943,12 @@ class SpectralIndexWidget(QWidget):
             self.pixlabel.setPixmap(self.pixmap)
             self.scrollArea.show()
 
-    def create_and_save_all_single_index_plot(self, event=None):
+    def create_and_save_all_single_index_plot(self, event=None, force_recompute=None):
         """Create and save all single index plots for the selected indices and
         save to file."""
+
+        if force_recompute is None:
+            force_recompute = self.check_force_recompute.isChecked()
 
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
@@ -952,7 +967,7 @@ class SpectralIndexWidget(QWidget):
 
         for i_s in index_series:
 
-            self.compute_selected_indices_map_and_proj([i_s.index_name])
+            self.compute_selected_indices_map_and_proj([i_s.index_name], force_recompute=force_recompute)
             roi = None
             if 'rois' in self.viewer.layers:
                 roi=self.viewer.layers['rois'].data[0]
@@ -968,11 +983,14 @@ class SpectralIndexWidget(QWidget):
                 export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
             dpi=self.spin_final_dpi.value())
 
-    def create_and_save_multi_index_plot(self, event=None):
+    def create_and_save_multi_index_plot(self, event=None, force_recompute=None):
         """Create and save multi index plot for the selected indices and
         save to file."""
 
-        self.create_multi_index_plot(event=None, show_plot=False)
+        if force_recompute is None:
+            force_recompute = self.check_force_recompute.isChecked()
+
+        self.create_multi_index_plot(event=None, show_plot=False, force_recompute=force_recompute)
         self.index_plot_live.figure.savefig(
                 self.plot_folder().joinpath(f'multi_index_plot.png'),
                 dpi=self.spin_final_dpi.value())
@@ -1073,17 +1091,20 @@ class SpectralIndexWidget(QWidget):
 
         index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         self.compute_selected_indices_map_and_proj(index_names, force_recompute=True)
-        self._on_add_index_map_to_viewer()
+        self._on_add_index_map_to_viewer(force_recompute=False)
 
-    def _on_add_index_map_to_viewer(self, event=None):
+    def _on_add_index_map_to_viewer(self, event=None, force_recompute=None):
         """Compute the index and add to napari."""
+
+        if force_recompute is None:
+            force_recompute = self.check_force_recompute.isChecked()
 
         self.viewer.window._status_bar._toggle_activity_dock(True)
         with progress(total=0) as pbr:
             pbr.set_description("Computing index")
 
             index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-            self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
+            self.compute_selected_indices_map_and_proj([x.index_name for x in index_series], force_recompute=force_recompute)
             for i in index_series:
                 computed_index = self.index_collection[i.index_name].index_map
                 if i.index_name in self.viewer.layers:
@@ -1145,21 +1166,21 @@ class SpectralIndexWidget(QWidget):
             fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
         self._on_export_index_projection()
 
-    def _on_export_index_projection(self, event=None):
+    def _on_export_index_projection(self, event=None, force_recompute=False):
 
         export_folder = self.plot_folder()
         index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        self.compute_selected_indices_map_and_proj(index_names)
+        self.compute_selected_indices_map_and_proj(index_names, force_recompute=force_recompute)
                 
         proj_pd = self.create_projection_table(index_names)
         proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
-    def _on_click_export_index_tiff(self, event=None):
+    def _on_click_export_index_tiff(self, event=None, force_recompute=False):
         """Export index maps to tiff"""
         
         export_folder = self.plot_folder()
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series])
+        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series], force_recompute=force_recompute)
         
         for index_item in index_series:
             index_map = index_item.index_map#self.viewer.layers[key].data
