@@ -52,7 +52,6 @@ class BatchPreprocWidget(QWidget):
         
         self.viewer = napari_viewer
         self.index_file = None
-        self.preproc_export_path = None
 
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -244,8 +243,8 @@ class BatchPreprocWidget(QWidget):
 
         background_text = self.textbox_background_keyword.text()
 
-        if self.preproc_export_path is None:
-            self._on_click_select_preproc_export_folder()
+        if self.preproc_export_path_display.value == Path('.'):
+            self.preproc_export_path_display._on_choose_clicked()
 
         main_folder = Path(self.file_list.folder_path)
 
@@ -264,7 +263,7 @@ class BatchPreprocWidget(QWidget):
 
                 batch_preprocessing(
                     folder_to_analyze=current_folder,
-                    export_folder=self.preproc_export_path,
+                    export_folder=self.preproc_export_path_display.value,
                     background_text=background_text,
                     min_max_band=min_max_band,
                     background_correction=self.check_do_background_correction.isChecked(),
