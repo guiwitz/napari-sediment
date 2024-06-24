@@ -74,13 +74,13 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     ax2.imshow(index_image, aspect='auto', interpolation='none', cmap=mpl_map, vmin=vmin, vmax=vmax) 
 
     if roi is not None:
-        roi = roi.copy()
-        roi[1,0] -=0.5
-        roi[2,0] -=0.5
-        roi[0,0] -=0.4
-        roi[3,0] -=0.4
-        roi = np.concatenate([roi, roi[[0]]])
-        ax2.plot(roi[:,1], roi[:,0], 'r')
+        roi_array = np.array(roi)
+        roi_array[1,0] -=0.5
+        roi_array[2,0] -=0.5
+        roi_array[0,0] -=0.5
+        roi_array[3,0] -=0.5
+        roi_array = np.concatenate([roi_array, roi_array[[0]]])
+        ax2.plot(roi_array[:,1], roi_array[:,0], 'r')
     
     ax3.plot(proj, np.arange(len(proj)), color=np.array(color_plotline), linewidth=plot_thickness)
 
@@ -241,17 +241,19 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
     axes[-1].tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     axes[-1].tick_params(axis='y', which='both', left=False, right=False, labelleft=False)
 
+    # trying and failing to get the rectangle to be the right size
+    '''
     rect_width = 2*im_w  # Image width + extra padding
     rect_height = im_h#im_height_inches  # Image height + extra padding
     rect_x = 0  # Start slightly outside the left edge of the image
     rect_y = 0  # Start slightly outside the bottom edge of the image
 
-    # trying and failing to get the rectangle to be the right size
-    '''# Create the rectangle
+    # Create the rectangle
     import matplotlib.patches as patches
     rect = patches.Rectangle((rect_x, rect_y), rect_width, rect_height, linewidth=2, edgecolor='k', facecolor='none')
     # Add the rectangle to the axes
-    axes[-1].add_patch(rect)'''
+    axes[-1].add_patch(rect)
+    '''
 
     if roi is not None:
         roi = roi.copy()
