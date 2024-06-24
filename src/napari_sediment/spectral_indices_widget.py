@@ -376,8 +376,8 @@ class SpectralIndexWidget(QWidget):
         self.btn_export_index_tiff.clicked.connect(self._on_click_export_index_tiff)
         self.btn_export_index_settings.clicked.connect(self._on_click_export_index_settings)
         self.btn_import_index_settings.clicked.connect(self._on_click_import_index_settings)
-        self.btn_create_index_plot.clicked.connect(self._on_click_create_single_index_plot)
-        self.btn_create_multi_index_plot.clicked.connect(self._on_click_create_multi_index_plot)
+        self.btn_create_index_plot.clicked.connect(self._on_click_create_single_index_liveplot)
+        self.btn_create_multi_index_plot.clicked.connect(self._on_click_create_multi_index_liveplot)
         self.btn_export_indices_csv.clicked.connect(self._on_export_index_projection)
 
         self.connect_plot_formatting()
@@ -388,7 +388,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
         self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
 
-        self.btn_select_main_folder.clicked.connect(self._on_click_select_main_folder)
+        self.btn_select_main_folder.clicked.connect(self._on_click_select_main_batch_folder)
         self.file_list.currentTextChanged.connect(self._on_change_filelist)
         self.btn_batch_create_plots.clicked.connect(self._on_click_batch_create_plots)
 
@@ -693,7 +693,7 @@ class SpectralIndexWidget(QWidget):
         self.set_plot_interface(params=self.params_plots)
         self.rgbwidget._on_click_RGB()
         self.connect_plot_formatting()
-        self.create_index_plot()
+        self.update_single_or_multi_index_plot()
 
     def set_plot_interface(self, params):
         self.spin_plot_thickness.setValue(params.plot_thickness)
@@ -711,18 +711,18 @@ class SpectralIndexWidget(QWidget):
         """Disconnect plot editing widgets while loading parameters to avoid overwriting
         the loaded parameters."""
         
-        self.spin_plot_thickness.valueChanged.disconnect(self.create_index_plot)
-        self.spin_title_font.valueChanged.disconnect(self.create_index_plot)
-        self.spin_label_font.valueChanged.disconnect(self.create_index_plot)
-        self.qcolor_plotline.currentColorChanged.disconnect(self.create_index_plot)
+        self.spin_plot_thickness.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+        self.spin_title_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+        self.spin_label_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+        self.qcolor_plotline.currentColorChanged.disconnect(self.update_single_or_multi_index_plot)
 
     def connect_plot_formatting(self):
         """Reconnect plot editing widgets after loading parameters."""
 
-        self.spin_plot_thickness.valueChanged.connect(self.create_index_plot)
-        self.spin_title_font.valueChanged.connect(self.create_index_plot)
-        self.spin_label_font.valueChanged.connect(self.create_index_plot)
-        self.qcolor_plotline.currentColorChanged.connect(self.create_index_plot)
+        self.spin_plot_thickness.valueChanged.connect(self.update_single_or_multi_index_plot)
+        self.spin_title_font.valueChanged.connect(self.update_single_or_multi_index_plot)
+        self.spin_label_font.valueChanged.connect(self.update_single_or_multi_index_plot)
+        self.qcolor_plotline.currentColorChanged.connect(self.update_single_or_multi_index_plot)
 
     def index_map_and_proj(self, index_name):
         
@@ -744,32 +744,29 @@ class SpectralIndexWidget(QWidget):
         else:
             return None
     
-    def _on_click_create_single_index_plot(self, event=None):
+    def _on_click_create_single_index_liveplot(self, event=None):
         self.current_plot_type = 'single'
         self.disconnect_plot_formatting()
         self.set_plot_interface(params=self.params_plots)
         self.create_single_index_plot(event=event)
         self.connect_plot_formatting()
 
-    def _on_click_create_and_save_all_plots(self, event=None):
-        self.current_plot_type = 'single'
-        self.disconnect_plot_formatting()
-        self.set_plot_interface(params=self.params_plots)
-        self.create_all_single_index_plot(event=event)
-        self.create_multi_index_plot(event=event, show_plot=False)
-        self.index_plot_live.figure.savefig(
-                self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath(f'multi_index_plot.png'),
-            dpi=self.spin_final_dpi.value())
-        self.connect_plot_formatting()
-
-    def _on_click_create_multi_index_plot(self, event=None):
+    def _on_click_create_multi_index_liveplot(self, event=None):
         self.current_plot_type = 'multi'
         self.disconnect_plot_formatting()
         self.set_plot_interface(params=self.params_multiplots)
         self.create_multi_index_plot(event=event)
         self.connect_plot_formatting()
+
+    def _on_click_create_and_save_all_plots(self, event=None):
+        self.current_plot_type = 'single'
+        self.disconnect_plot_formatting()
+        self.set_plot_interface(params=self.params_plots)
+        self.create_and_save_all_single_index_plot(event=event)
+        self.create_and_save_multi_index_plot(event=event)
+        self.connect_plot_formatting()
     
-    def create_index_plot(self, event=None):
+    def update_single_or_multi_index_plot(self, event=None):
         if self.current_plot_type == 'single':
             self.create_single_index_plot(event=event)
         else:
@@ -829,7 +826,8 @@ class SpectralIndexWidget(QWidget):
                 self.index_collection[index_name].index_proj = proj
 
     def create_single_index_plot(self, event=None):
-        """Create the index plot."""
+        """Create a single index plot. The plot can be displayed live but is not
+        saved to file."""
 
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
@@ -873,49 +871,9 @@ class SpectralIndexWidget(QWidget):
         self.pixlabel.setPixmap(self.pixmap)
         self.scrollArea.show()
 
-    def create_all_single_index_plot(self, event=None):
-
-        self._update_save_plot_parameters()
-        self.params.location = self.metadata_location.text()
-        self.params.scale = self.spinbox_metadata_scale.value()
-
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-
-        # get rgb image and index image to plot
-        rgb_image = self.get_rgb_array()
-        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        if len(index_series) == 0:
-            warnings.warn('No index selected') 
-            return
-        
-        mask = self.viewer.layers['mask'].data
-
-        for i_s in index_series:
-
-            self.compute_selected_indices_map_and_proj([i_s.index_name])
-            roi = None
-            if 'rois' in self.viewer.layers:
-                roi=self.viewer.layers['rois'].data[0]
-
-            format_dict = asdict(self.params_plots)
-            _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-                rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[i_s.index_name],
-                format_dict=format_dict, scale=self.params.scale,
-                location=self.params.location, fig=self.index_plot_live.figure, 
-                roi=roi)
-
-            self.index_plot_live.figure.savefig(
-                export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
-            dpi=self.spin_final_dpi.value())           
-
-    def get_rgb_array(self):
-
-        rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
-        if isinstance(rgb_image[0], da.Array):
-            rgb_image = [x.compute() for x in rgb_image]
-        return rgb_image
-        
     def create_multi_index_plot(self, event=None, show_plot=True):
+        """Create a multi-index plot. The plot can be displayed live but is not
+        saved to file."""
         
         self._update_save_plot_parameters()
         self.params.location = self.metadata_location.text()
@@ -955,6 +913,51 @@ class SpectralIndexWidget(QWidget):
             self.pixlabel.setPixmap(self.pixmap)
             self.scrollArea.show()
 
+    def create_and_save_all_single_index_plot(self, event=None):
+        """Create and save all single index plots for the selected indices and
+        save to file."""
+
+        self._update_save_plot_parameters()
+        self.params.location = self.metadata_location.text()
+        self.params.scale = self.spinbox_metadata_scale.value()
+
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+
+        # get rgb image and index image to plot
+        rgb_image = self.get_rgb_array()
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        if len(index_series) == 0:
+            warnings.warn('No index selected') 
+            return
+        
+        mask = self.viewer.layers['mask'].data
+
+        for i_s in index_series:
+
+            self.compute_selected_indices_map_and_proj([i_s.index_name])
+            roi = None
+            if 'rois' in self.viewer.layers:
+                roi=self.viewer.layers['rois'].data[0]
+
+            format_dict = asdict(self.params_plots)
+            _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
+                rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[i_s.index_name],
+                format_dict=format_dict, scale=self.params.scale,
+                location=self.params.location, fig=self.index_plot_live.figure, 
+                roi=roi)
+
+            self.index_plot_live.figure.savefig(
+                export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
+            dpi=self.spin_final_dpi.value())
+
+    def create_and_save_multi_index_plot(self, event=None):
+        """Create and save multi index plot for the selected indices and
+        save to file."""
+        
+        self.create_multi_index_plot(event=None, show_plot=False)
+        self.index_plot_live.figure.savefig(
+                self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath(f'multi_index_plot.png'),
+                dpi=self.spin_final_dpi.value())
 
     def on_close_callback(self):
         print('Viewer closed')
@@ -989,24 +992,6 @@ class SpectralIndexWidget(QWidget):
         scaled_pixmap = self.pixmap.scaled(self.scale * size)
 
         self.pixlabel.setPixmap(scaled_pixmap)
-
-    def _on_click_save_plot(self, event=None, export_file=None):
-        
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        if export_file is None:
-            export_file = export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
-        self.index_plot_live.figure.savefig(
-            fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
-        self._on_export_index_projection()
-
-    def _on_export_index_projection(self, event=None):
-
-        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        self.compute_selected_indices_map_and_proj(index_names)
-                
-        proj_pd = self.create_projection_table(index_names)
-        proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
     def create_projection_table(self, index_names):
         """Create the projection table for the index_name"""
@@ -1132,6 +1117,24 @@ class SpectralIndexWidget(QWidget):
             newbox = QCheckBox()
             self.index_pick_boxes[key_val[0]] = newbox
             self.index_pick_group.glayout.addWidget(newbox, ind, 1, 1, 1)
+    
+    def _on_click_save_plot(self, event=None, export_file=None):
+        
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        if export_file is None:
+            export_file = export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
+        self.index_plot_live.figure.savefig(
+            fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
+        self._on_export_index_projection()
+
+    def _on_export_index_projection(self, event=None):
+
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        self.compute_selected_indices_map_and_proj(index_names)
+                
+        proj_pd = self.create_projection_table(index_names)
+        proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
 
     def _on_click_export_index_tiff(self, event=None):
         """Export index maps to tiff"""
@@ -1198,7 +1201,7 @@ class SpectralIndexWidget(QWidget):
 
         self.params.save_parameters()
 
-    def _on_click_select_main_folder(self, event=None, main_folder=None):
+    def _on_click_select_main_batch_folder(self, event=None, main_folder=None):
         
         if main_folder is None:
             main_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
@@ -1213,6 +1216,14 @@ class SpectralIndexWidget(QWidget):
         if self.file_list.currentItem() is None:
             return
         current_folder = main_folder.joinpath(self.file_list.currentItem().text())
+
+    ### Helper functions
+    def get_rgb_array(self):
+
+        rgb_image = [self.viewer.layers[c].data for c in ['red', 'green', 'blue']]
+        if isinstance(rgb_image[0], da.Array):
+            rgb_image = [x.compute() for x in rgb_image]
+        return rgb_image
 
 class ScaledPixmapLabel(QLabel):
     def __init__(self):
