@@ -31,6 +31,9 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     newmap = Colormap(colormaps.ALL_COLORMAPS[index_colormap].colors)
     mpl_map = newmap.to_matplotlib()
 
+    if color_plotline == []:
+        color_plotline = colormaps.ALL_COLORMAPS[index_colormap].colors[-1,:]
+
     rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
     rgb_to_plot[mask == 1, :] = 0
 
@@ -217,11 +220,18 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
             shift = 1
         proj = index_objs[i].index_proj
         index_name = index_objs[i].index_name
+
+        # get line color from colormap
+        if color_plotline == []:
+            current_color = colormaps.ALL_COLORMAPS[index_objs[i].colormap].colors[-1,:]
+        else:
+            current_color = np.array(color_plotline)
+
         axes.append(fig.add_axes(rect=(
             (left_margin + (i * plot_width_inches + shift * im_with_for_plot)) / a4_size[1],
             bottom_margin / a4_size[0], plot_width_inches / a4_size[1],
             im_height_inches / a4_size[0])))
-        axes[-1].plot(proj, np.arange(len(proj)), color=np.array(color_plotline), linewidth=plot_thickness)
+        axes[-1].plot(proj, np.arange(len(proj)), color=current_color, linewidth=plot_thickness)
         axes[-1].set_ylim(0, len(proj))
         if (i!=0) and (i!=len(proj)-1):
             axes[-1].yaxis.set_visible(False)

@@ -700,7 +700,6 @@ class SpectralIndexWidget(QWidget):
         else:
             current_param = self.params_multiplots
 
-        current_param.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
         current_param.plot_thickness = self.spin_plot_thickness.value()
         current_param.title_font = self.spin_title_font.value()
         current_param.label_font = self.spin_label_font.value()
@@ -750,7 +749,7 @@ class SpectralIndexWidget(QWidget):
         self.spin_plot_thickness.valueChanged.disconnect(self.update_single_or_multi_index_plot)
         self.spin_title_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
         self.spin_label_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
-        self.qcolor_plotline.currentColorChanged.disconnect(self.update_single_or_multi_index_plot)
+        self.qcolor_plotline.currentColorChanged.disconnect(self.update_line_color)
 
     def connect_plot_formatting(self):
         """Reconnect plot editing widgets after loading parameters."""
@@ -758,7 +757,7 @@ class SpectralIndexWidget(QWidget):
         self.spin_plot_thickness.valueChanged.connect(self.update_single_or_multi_index_plot)
         self.spin_title_font.valueChanged.connect(self.update_single_or_multi_index_plot)
         self.spin_label_font.valueChanged.connect(self.update_single_or_multi_index_plot)
-        self.qcolor_plotline.currentColorChanged.connect(self.update_single_or_multi_index_plot)
+        self.qcolor_plotline.currentColorChanged.connect(self.update_line_color)
 
     def index_map_and_proj(self, index_name):
         
@@ -808,6 +807,17 @@ class SpectralIndexWidget(QWidget):
             self.create_single_index_plot(event=event)
         else:
             self.create_multi_index_plot(event=event)
+
+    def update_line_color(self, event=None):
+        """Override the line color for the plot."""
+
+        if self.current_plot_type == 'single':
+            current_param = self.params_plots
+        else:
+            current_param = self.params_multiplots
+
+        current_param.color_plotline = [self.qcolor_plotline.currentColor().getRgb()[x]/255 for x in range(3)]
+        
 
     def _on_click_batch_create_plots(self, event=None):
         """Create all plots for all projects in the main folder, given
