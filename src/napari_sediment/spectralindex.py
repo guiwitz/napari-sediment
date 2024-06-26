@@ -446,7 +446,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
             
             fig, ax1, ax2, ax3 = plot_spectral_profile(
                 rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
-                format_dict=format_dict, scale=params.scale,
+                format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
                 location=params.location, fig=fig, 
                 roi=roi, repeat=True)
 
@@ -474,7 +474,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
         plot_multi_spectral_profile(
                 rgb_image=rgb_cube, mask=mask,
                 index_objs=[indices[k] for k in indices.keys()], 
-                format_dict=format_dict, scale=params.scale,
+                format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
                 fig=fig, roi=roi, repeat=True)
 
         fig.savefig(
