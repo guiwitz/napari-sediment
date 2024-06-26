@@ -467,6 +467,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
             proj_pd[indices[k].index_name] = indices[k].index_proj
         
+        proj_pd[f'depth [{params.scale_units}]'] = proj_pd['depth'] * params.scale
         proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
 
         # create multi index plot
