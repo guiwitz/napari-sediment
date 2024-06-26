@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QScrollArea, QGridLayout, QVBoxLayout)
 from qtpy.QtCore import Qt
 from superqt import QDoubleRangeSlider, QLabeledDoubleRangeSlider, QDoubleSlider
+from magicgui.widgets import FileEdit
 from napari.qt import get_current_stylesheet
 from napari.utils import progress
 
@@ -292,8 +293,8 @@ class SedimentWidget(QWidget):
 
         self.tabs.widget(self.tab_names.index('&ROI')).layout().setAlignment(Qt.AlignTop)
 
-        # Group "Main ROI"
-        self.roi_group = VHGroup('Main ROI', orientation='G')
+        # Group "Add Main ROI manually"
+        self.roi_group = VHGroup('Add Main ROI manually', orientation='G')
         self.tabs.add_named_tab('&ROI', self.roi_group.gbox)
 
         ### Button "Add main ROI" ###
@@ -307,6 +308,10 @@ class SedimentWidget(QWidget):
         self.spin_main_roi_width.setValue(20)
         self.roi_group.glayout.addWidget(QLabel('Main ROI width'), 1, 0, 1, 1)
         self.roi_group.glayout.addWidget(self.spin_main_roi_width, 1, 1, 1, 1)
+        
+        # Group "Crop and select"
+        self.roicrop_group = VHGroup('Crop and select', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.roicrop_group.gbox)
 
         ### Button "Crop with main" ###
         self.btn_main_crop = QPushButton("Crop with main")
@@ -315,15 +320,27 @@ class SedimentWidget(QWidget):
         ### Button "Reset crop" ###
         self.btn_main_crop_reset = QPushButton("Reset crop")
         self.btn_main_crop_reset.setToolTip("Reset crop to full image")
-        self.roi_group.glayout.addWidget(self.btn_main_crop, 2, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.btn_main_crop_reset, 2, 1, 1, 1)
+        self.roicrop_group.glayout.addWidget(self.btn_main_crop, 0, 0, 1, 1)
+        self.roicrop_group.glayout.addWidget(self.btn_main_crop_reset, 0, 1, 1, 1)
 
         ### Spinbox "Selected ROI" ###
         self.spin_selected_roi = QSpinBox()
         self.spin_selected_roi.setRange(0, 0)
         self.spin_selected_roi.setValue(0)
-        self.roi_group.glayout.addWidget(QLabel('Selected ROI'), 3, 0, 1, 1)
-        self.roi_group.glayout.addWidget(self.spin_selected_roi, 3, 1, 1, 1)
+        self.roicrop_group.glayout.addWidget(QLabel('Selected main ROI'), 1, 0, 1, 1)
+        self.roicrop_group.glayout.addWidget(self.spin_selected_roi, 1, 1, 1, 1)
+
+        # Group "Import Main ROI"
+        self.roiimport_group = VHGroup('Import Main ROI', orientation='G')
+        self.tabs.add_named_tab('&ROI', self.roiimport_group.gbox)
+
+        ### File select "Import ROI" ###
+        self.file_import_roi = FileEdit()
+        self.file_import_roi.native.setToolTip("Choose Parameters.yml file")
+        self.roiimport_group.glayout.addWidget(QLabel('Choose Parameter.yml file'), 0, 0, 1, 1)
+        self.roiimport_group.glayout.addWidget(self.file_import_roi.native, 0, 1, 1, 1)
+        self.btn_import_roi = QPushButton("Import main ROI from file")
+        self.roiimport_group.glayout.addWidget(self.btn_import_roi, 1, 0, 1, 2)
 
         # Group "Sub-ROI"
         self.subroi_group = VHGroup('Sub-ROI', orientation='G')
@@ -602,6 +619,7 @@ class SedimentWidget(QWidget):
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
         self.btn_main_crop.clicked.connect(self._on_crop_with_main)
         self.btn_main_crop_reset.clicked.connect(self._on_reset_crop)
+        self.btn_import_roi.clicked.connect(self._on_click_import_roi)
         
         # Elements of the "Mask" tab
         self.btn_add_draw_mask.clicked.connect(self._add_manual_mask)
@@ -1035,6 +1053,16 @@ class SedimentWidget(QWidget):
         self.rgb_widget.row_bounds = self.row_bounds
         self.rgb_widget.col_bounds = self.col_bounds
         self.rgb_widget._on_click_RGB()
+
+    def _on_click_import_roi(self, event=None):
+        """
+        Import ROI
+        Called: "ROI" tab, button "Import ROI"
+        """
+        
+        roi_param = load_project_params(self.file_import_roi.value.parent)
+        roi = [np.array(x).reshape(4,2) for x in roi_param.main_roi]
+        self.viewer.layers['main-roi'].data = roi
 
 
     # Functions for "Mask" tab elements
