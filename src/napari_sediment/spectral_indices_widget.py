@@ -456,21 +456,22 @@ class SpectralIndexWidget(QWidget):
         self.imhdr_path = Path(self.params.file_path)
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
-        
+        rois = [[np.array(x).reshape(4,2) for x in y] for y in self.params.rois]
+
         if self.params.measurement_roi == []:
             for i in range(len(self.mainroi)):
                 row_bounds = [
-                        self.mainroi[i][:,0].min(),
-                        self.mainroi[i][:,0].max()]
+                        rois[i][0][:,0].min() - self.mainroi[i][:,0].min(),
+                        rois[i][0][:,0].max() - self.mainroi[i][:,0].min()]
                 col_bounds = [
-                        self.mainroi[i][:,1].min(),
-                        self.mainroi[i][:,1].max()]
+                        rois[i][0][:,1].min() - self.mainroi[i][:,1].min(),
+                        rois[i][0][:,1].max() - self.mainroi[i][:,1].min()]
                 
                 roi_square = [
-                    0, 0,
-                    row_bounds[1] - row_bounds[0], 0,
-                    row_bounds[1] - row_bounds[0], col_bounds[1] - col_bounds[0],
-                    0, col_bounds[1] - col_bounds[0]
+                    row_bounds[0], col_bounds[0],
+                    row_bounds[1], col_bounds[0],
+                    row_bounds[1], col_bounds[1],
+                    row_bounds[0], col_bounds[1]
                     ]
 
                 self.params.measurement_roi.append(roi_square)
