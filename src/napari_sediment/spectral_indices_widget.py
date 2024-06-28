@@ -747,10 +747,13 @@ class SpectralIndexWidget(QWidget):
         """Disconnect plot editing widgets while loading parameters to avoid overwriting
         the loaded parameters."""
         
-        self.spin_plot_thickness.valueChanged.disconnect(self.update_single_or_multi_index_plot)
-        self.spin_title_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
-        self.spin_label_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
-        self.qcolor_plotline.currentColorChanged.disconnect(self.update_line_color)
+        try:
+            self.spin_plot_thickness.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+            self.spin_title_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+            self.spin_label_font.valueChanged.disconnect(self.update_single_or_multi_index_plot)
+            self.qcolor_plotline.currentColorChanged.disconnect(self.update_line_color)
+        except:
+            pass
 
     def connect_plot_formatting(self):
         """Reconnect plot editing widgets after loading parameters."""
