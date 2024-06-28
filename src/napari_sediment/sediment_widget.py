@@ -558,8 +558,8 @@ class SedimentWidget(QWidget):
         ### Spinbox "Scale" ###
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
-        self.spinbox_metadata_scale.setRange(1, 1000)
-        self.spinbox_metadata_scale.setSingleStep(0.1)
+        self.spinbox_metadata_scale.setRange(0.001, 1000)
+        self.spinbox_metadata_scale.setSingleStep(0.001)
         self.spinbox_metadata_scale.setValue(1)
         self.metadata_group.glayout.addWidget(QLabel('Pixel Size'), 1, 0, 1, 1)
         self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
@@ -1287,7 +1287,7 @@ class SedimentWidget(QWidget):
                 ndim=2,
             )
 
-    def _on_click_compute_pixel_size(self):
+    def _on_click_compute_pixel_size(self, event=None):
         """
         Compute pixel size with interactive scale
         Called: "Metadata" tab, button "Compute pixel size"
