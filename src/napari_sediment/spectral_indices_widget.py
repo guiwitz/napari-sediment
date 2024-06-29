@@ -77,6 +77,8 @@ class SpectralIndexWidget(QWidget):
 
         self.create_index_list()
 
+        self.export_folder = None
+
         self.params = Param()
         self.params_plots = Paramplot()
         self.params_multiplots = Paramplot()
@@ -305,6 +307,8 @@ class SpectralIndexWidget(QWidget):
         self._connect_spin_bounds()
         self.add_connections()
 
+        self.var_init()
+
     def _create_indices_tab(self):
 
         self.current_index_type = 'RABD'
@@ -483,7 +487,7 @@ class SpectralIndexWidget(QWidget):
 
         
     def load_data(self, event=None):
-
+        
         to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
         for r in to_remove:
             self.viewer.layers.remove(r)
@@ -534,7 +538,7 @@ class SpectralIndexWidget(QWidget):
         self.current_plot_type = 'single'
 
     def var_init(self):
-
+        
         self.end_members = None
         self.endmember_bands = None
         self.index_file = None
