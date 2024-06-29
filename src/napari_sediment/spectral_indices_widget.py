@@ -731,16 +731,17 @@ class SpectralIndexWidget(QWidget):
             file_path = Path(str(QFileDialog.getOpenFileName(self, "Select plot parameters file")[0]))
         self.params_plots = load_plots_params(file_path=file_path)
         self.set_plot_interface(params=self.params_plots)
-        self.rgbwidget._on_click_RGB()
+        self.rgbwidget.load_and_display_rgb_bands(roi=np.concatenate([self.row_bounds, self.col_bounds]))
+        self.set_plot_interface(params=self.params_plots)
         self.connect_plot_formatting()
         self.update_single_or_multi_index_plot()
+        
 
     def set_plot_interface(self, params):
         self.spin_plot_thickness.setValue(params.plot_thickness)
         self.spin_title_font.setValue(params.title_font)
         self.spin_label_font.setValue(params.label_font)
         self.qcolor_plotline.setCurrentColor(QColor(*[int(x*255) for x in params.color_plotline]))
-        
         self.viewer.layers['red'].contrast_limits = params.red_contrast_limits
         self.viewer.layers['green'].contrast_limits = params.green_contrast_limits
         self.viewer.layers['blue'].contrast_limits = params.blue_contrast_limits
