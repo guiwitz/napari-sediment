@@ -34,7 +34,7 @@ def compute_end_members(pure, im_cube, im_cube_denoised, ppi_threshold, dbscan_e
 
     end_members_raw = np.stack(end_members, axis=1)
 
-    return end_members_raw
+    return end_members_raw, labels
 
 def reduce_with_mnf(im_mnf, corr_coefficients, corr_threshold, max_index=None):
     """Reduce the number of bands of an image by keeping only mnf transformed bands

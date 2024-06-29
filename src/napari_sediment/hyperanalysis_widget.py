@@ -115,6 +115,7 @@ class HyperAnalysisWidget(QWidget):
         self.eigenvals = None
         self.mnfr = None
         self.spectral_pixel = None
+        self.pure_members = None
         self.all_coef = []
 
     def _add_processing_tab(self):
@@ -367,10 +368,12 @@ class HyperAnalysisWidget(QWidget):
 
         if self.end_members is not None:
             self.plot_endmembers()
+            self.map_colors_endmembers_ppi()
         else:
             if 'pure' in self.viewer.layers:
                 self.compute_end_members()
                 self.plot_endmembers()
+                self.map_colors_endmembers_ppi()
 
 
     def save_index_project(self):
@@ -396,7 +399,7 @@ class HyperAnalysisWidget(QWidget):
 
         export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}')
 
-        layer_names = ['mnf', 'denoised', 'pure']
+        layer_names = ['mnf', 'denoised', 'pure', 'pure_members']
         for lname in layer_names:
             if lname in self.viewer.layers:
                 save_image_to_zarr(
@@ -416,6 +419,10 @@ class HyperAnalysisWidget(QWidget):
         if export_path.joinpath('pure.zarr').is_dir():
             im = np.array(zarr.open_array(export_path.joinpath('pure.zarr')))
             self.viewer.add_labels(im, name='pure')
+
+        if export_path.joinpath('pure_members.zarr').is_dir():
+            im = np.array(zarr.open_array(export_path.joinpath('pure_members.zarr')))
+            self.viewer.add_labels(im, name='pure_members')
     
     def save_plots(self):
         """Save plots to csv"""
@@ -588,6 +595,7 @@ class HyperAnalysisWidget(QWidget):
 
         self.compute_end_members()
         self.plot_endmembers()
+        self.map_colors_endmembers_ppi()
 
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
@@ -600,7 +608,7 @@ class HyperAnalysisWidget(QWidget):
             imcube_data = np.asarray(self.viewer.layers['imcube'].data)
             im_cube_denoised = self.viewer.layers['denoised'].data
 
-            self.end_members_raw = compute_end_members(
+            self.end_members_raw, self.end_members_labels = compute_end_members(
                 pure=pure, 
                 im_cube=imcube_data,
                 im_cube_denoised=im_cube_denoised, 
@@ -608,7 +616,21 @@ class HyperAnalysisWidget(QWidget):
                 dbscan_eps=self.qspin_endm_eps.value())
             
             self.update_endmembers()
+            self.pure_members = np.zeros_like(pure)
+            self.pure_members[pure > self.ppi_threshold.value()] = self.end_members_labels+1
+            if 'pure_members' in self.viewer.layers:
+                self.viewer.layers['pure_members'].data = self.pure_members
+            else:
+                self.viewer.add_labels(self.pure_members, name='pure_members')
+            self.viewer.layers['pure_members'].refresh()
+            
         self.viewer.window._status_bar._toggle_activity_dock(False)
+
+    def map_colors_endmembers_ppi(self):
+
+        lines = self.ppi_plot.axes.get_lines()
+        line_colors = [[0,0,0]] + [line.get_color() for line in lines]
+        self.viewer.layers['pure_members'].color = {ind: line_colors[ind] for ind in range(0, self.viewer.layers['pure_members'].data.max()+1)}
 
     def update_endmembers(self, event=None):
 
