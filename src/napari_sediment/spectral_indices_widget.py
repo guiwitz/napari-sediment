@@ -1269,14 +1269,11 @@ class SpectralIndexWidget(QWidget):
             index_series = yaml.full_load(file)
         for index_element in index_series['index_definition']:
             self.index_collection[index_element['index_name']] = SpectralIndex(**index_element)
-            print(f"left band: {self.index_collection[index_element['index_name']]}")
             self.qcom_indices.addItem(index_element['index_name'])
-            print(f"left band: {self.index_collection[index_element['index_name']]}")
             self.index_pick_boxes[index_element['index_name']] = QCheckBox()
             self.index_pick_group.glayout.addWidget(QLabel(index_element['index_name']), self.qcom_indices.count(), 0, 1, 1)
             self.index_pick_group.glayout.addWidget(self.index_pick_boxes[index_element['index_name']], self.qcom_indices.count(), 1, 1, 1)
         self.qcom_indices.setCurrentText(index_element['index_name'])
-        print(f"left band: {self.index_collection[index_element['index_name']]}")
     
         self._on_change_index_index()
 
