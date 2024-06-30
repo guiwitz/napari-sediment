@@ -137,8 +137,11 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
         self.btn_create_index = QPushButton("New index")
         self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
+        self.combobox_index_type = QComboBox()
+        self.combobox_index_type.addItems(['RABD', 'RABA', 'Ratio'])
+        self.tabs.add_named_tab('&Index Definition', self.combobox_index_type, grid_pos=(tab_rows+3, 1, 1, 1))
         self.qtext_new_index_name = QLineEdit()
-        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 1, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 2, 1, 2))
         self.btn_update_index = QPushButton("Update current index")
         self.tabs.add_named_tab('&Index Definition', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
 
@@ -1097,13 +1100,14 @@ class SpectralIndexWidget(QWidget):
         """Add new custom index"""
 
         name = self.qtext_new_index_name.text()
+        self.current_index_type = self.combobox_index_type.currentText()
 
-        if self.current_index_type == 'RABD':
+        if self.combobox_index_type.currentText() == 'RABD':
             current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
         else:
             current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
         self.index_collection[name] = create_index(
-            index_name=name, index_type=self.current_index_type, 
+            index_name=name, index_type=self.combobox_index_type.currentText(), 
             boundaries=current_bands)
         
         if name not in [self.qcom_indices.itemText(i) for i in range(self.qcom_indices.count())]:
@@ -1265,11 +1269,14 @@ class SpectralIndexWidget(QWidget):
             index_series = yaml.full_load(file)
         for index_element in index_series['index_definition']:
             self.index_collection[index_element['index_name']] = SpectralIndex(**index_element)
+            print(f"left band: {self.index_collection[index_element['index_name']]}")
             self.qcom_indices.addItem(index_element['index_name'])
+            print(f"left band: {self.index_collection[index_element['index_name']]}")
             self.index_pick_boxes[index_element['index_name']] = QCheckBox()
             self.index_pick_group.glayout.addWidget(QLabel(index_element['index_name']), self.qcom_indices.count(), 0, 1, 1)
             self.index_pick_group.glayout.addWidget(self.index_pick_boxes[index_element['index_name']], self.qcom_indices.count(), 1, 1, 1)
         self.qcom_indices.setCurrentText(index_element['index_name'])
+        print(f"left band: {self.index_collection[index_element['index_name']]}")
     
         self._on_change_index_index()
 
