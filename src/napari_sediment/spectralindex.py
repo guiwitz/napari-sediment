@@ -72,9 +72,12 @@ class SpectralIndex:
     def __post_init__(self):
         """Use defaults for bands."""
 
-        self.left_band = self.left_band_default
-        self.right_band = self.right_band_default
-        self.middle_band = self.middle_band_default
+        if self.left_band is None:
+            self.left_band = self.left_band_default
+        if self.right_band is None:
+            self.right_band = self.right_band_default
+        if self.middle_band is None:
+            self.middle_band = self.middle_band_default
 
     def dict_spectral_index(self):
         """Return dataclass as dict and exclude large numpy arrays."""
@@ -302,9 +305,9 @@ def create_index(index_name, index_type, boundaries):
                             left_band_default=boundaries[0],
                             right_band_default=boundaries[1],
                             )
-    elif index_type == 'ratio':
+    elif index_type == 'Ratio':
         new_index = SpectralIndex(index_name=index_name,
-                            index_type='ratio',
+                            index_type='Ratio',
                             left_band_default=boundaries[0],
                             right_band_default=boundaries[1],
                             )
