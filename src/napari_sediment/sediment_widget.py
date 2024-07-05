@@ -754,6 +754,12 @@ class SedimentWidget(QWidget):
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
+        # create roi folders
+        for i in range(len(self.viewer.layers['main-roi'].data)):
+            roi_folder = self.export_folder.joinpath(f'roi_{i}')
+            if not roi_folder.is_dir():
+                roi_folder.mkdir(exist_ok=True)
+
         self.save_params()
 
         self._on_click_save_mask()
@@ -1196,19 +1202,26 @@ class SedimentWidget(QWidget):
         Save mask to file
         Called: "IO" tab, button "Save mask" 
         """
+
+        mask_list = ['manual-mask','intensity-mask','border-mask','ml-mask']
+        mask_present = any([m in self.viewer.layers for m in mask_list])
+
         if self.export_folder is None: 
             self._on_click_select_export_folder()
 
+        mask = None
         if 'clean-mask' in self.viewer.layers:
             mask = self.viewer.layers['clean-mask'].data
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
-        else:
+        elif mask_present:
             self._on_click_combine_masks()
             mask = self.viewer.layers['complete-mask'].data
+        
+        if mask is not None:
+            save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
 
-        save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
-
+        
     def _on_click_load_mask(self):
         """
         Load mask from file

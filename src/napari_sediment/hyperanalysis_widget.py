@@ -456,9 +456,16 @@ class HyperAnalysisWidget(QWidget):
         
         main_roi_row_min = self.mainroi[self.spin_selected_roi.value()][:,0].min()
         main_roi_col_min = self.mainroi[self.spin_selected_roi.value()][:,1].min()
-        mask = load_mask(get_mask_path(self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')))
-        mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
-                    self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
+
+        mask_path = get_mask_path(self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}'))
+        if mask_path.is_file():
+            mask = load_mask(mask_path)
+            mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
+                        self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
+        else:
+            mask = np.zeros(
+                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
+                dtype=np.uint8)
 
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask

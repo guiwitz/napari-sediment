@@ -423,103 +423,111 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
 
     for ex in project_list:
 
-        roin_ind = 0
-        dpi = 300
-        
-        params = load_project_params(folder=ex)
-        roi_folder = ex.joinpath(f'roi_{roin_ind}')
-        if normalize:
-            roi_plot_folder = roi_folder.joinpath('index_plots_normalized')
-            if not roi_plot_folder.exists():
-                roi_plot_folder.mkdir()
-        else:
-            roi_plot_folder = roi_folder.joinpath('index_plots')
-            if not roi_plot_folder.exists():
-                roi_plot_folder.mkdir()
+        roi_folders = list(ex.glob('roi*'))
+        roi_folders = [x.name for x in roi_folders if x.is_dir()]
 
-        mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
-        row_bounds = [
-                    mainroi[roin_ind][:,0].min(),
-                    mainroi[roin_ind][:,0].max()]
-        col_bounds = [
-                    mainroi[roin_ind][:,1].min(),
-                    mainroi[roin_ind][:,1].max()]
-        
-        measurement_roi = None
-        if len(params.measurement_roi) > 0:
-            measurement_roi = np.array(params.measurement_roi).reshape(4,2).astype(int)
-            colmin = measurement_roi[:,1].min()
-            colmax = measurement_roi[:,1].max()
-        else:
-            colmin = 0
-            colmax = col_bounds[1] - col_bounds[0]
+        for roi_ind in range(len(roi_folders)):
 
-        # get RGB and mask
-        mask = load_mask(get_mask_path(roi_folder))
-        myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
-
-        rgb = params.rgb
-        roi = measurement_roi
-        rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
-        rgb_cube = np.array(myimage.get_image_cube(
-            rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
-
-        proj_pd = None
-        for k in indices.keys():
-            # compute indices
-            computed_index = compute_index(indices[k],
-                                    row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
-            computed_index = clean_index_map(computed_index)
-        
-            indices[k].index_map = computed_index
-
-            proj = compute_index_projection(
-                        computed_index, mask,
-                        colmin=colmin, colmax=colmax,
-                        smooth_window=5)
-            indices[k].index_proj = proj
-
-            # create single index plot
-            fig, ax = plt.subplots()
-            format_dict = asdict(params_plots)
+            dpi = 300
             
-            fig, ax1, ax2, ax3 = plot_spectral_profile(
-                rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
-                format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
-                location=params.location, fig=fig, 
-                roi=roi, repeat=True)
+            params = load_project_params(folder=ex)
+            roi_folder = ex.joinpath(f'roi_{roi_ind}')
+            if normalize:
+                roi_plot_folder = roi_folder.joinpath('index_plots_normalized')
+                if not roi_plot_folder.exists():
+                    roi_plot_folder.mkdir()
+            else:
+                roi_plot_folder = roi_folder.joinpath('index_plots')
+                if not roi_plot_folder.exists():
+                    roi_plot_folder.mkdir()
+
+            mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
+            row_bounds = [
+                        mainroi[roi_ind][:,0].min(),
+                        mainroi[roi_ind][:,0].max()]
+            col_bounds = [
+                        mainroi[roi_ind][:,1].min(),
+                        mainroi[roi_ind][:,1].max()]
+            
+            measurement_roi = None
+            if len(params.measurement_roi) > 0:
+                measurement_roi = np.array(params.measurement_roi).reshape(4,2).astype(int)
+                colmin = measurement_roi[:,1].min()
+                colmax = measurement_roi[:,1].max()
+            else:
+                colmin = 0
+                colmax = col_bounds[1] - col_bounds[0]
+
+            # get RGB and mask
+            mask_path = get_mask_path(roi_folder)
+            if mask_path.is_file():
+                mask = load_mask(get_mask_path(roi_folder))
+            else:
+                mask = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]), dtype=np.uint8)
+            myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
+
+            rgb = params.rgb
+            roi = measurement_roi
+            rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
+            rgb_cube = np.array(myimage.get_image_cube(
+                rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
+
+            proj_pd = None
+            for k in indices.keys():
+                # compute indices
+                computed_index = compute_index(indices[k],
+                                        row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
+                computed_index = clean_index_map(computed_index)
+            
+                indices[k].index_map = computed_index
+
+                proj = compute_index_projection(
+                            computed_index, mask,
+                            colmin=colmin, colmax=colmax,
+                            smooth_window=5)
+                indices[k].index_proj = proj
+
+                # create single index plot
+                fig, ax = plt.subplots()
+                format_dict = asdict(params_plots)
+                
+                fig, ax1, ax2, ax3 = plot_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
+                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+                    location=params.location, fig=fig, 
+                    roi=roi, repeat=True)
+
+                fig.savefig(
+                        roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
+                    dpi=dpi)
+                
+                # tif maps
+                index_map = indices[k].index_map
+                contrast = indices[k].index_map_range
+                napari_cmap = indices[k].colormap
+                export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
+                save_tif_cmap(image=index_map, image_path=export_path,
+                                napari_cmap=napari_cmap, contrast=contrast)
+                
+                # export projection to csv
+                if proj_pd is None:
+                    proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
+                proj_pd[indices[k].index_name] = indices[k].index_proj
+            
+            proj_pd[f'depth [{params.scale_units}]'] = proj_pd['depth'] * params.scale
+            proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
+
+            # create multi index plot
+            plot_multi_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask,
+                    index_objs=[indices[k] for k in indices.keys()], 
+                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+                    fig=fig, roi=roi, repeat=True)
 
             fig.savefig(
-                    roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
-                dpi=dpi)
-            
-            # tif maps
-            index_map = indices[k].index_map
-            contrast = indices[k].index_map_range
-            napari_cmap = indices[k].colormap
-            export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
-            save_tif_cmap(image=index_map, image_path=export_path,
-                            napari_cmap=napari_cmap, contrast=contrast)
-            
-            # export projection to csv
-            if proj_pd is None:
-                proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
-            proj_pd[indices[k].index_name] = indices[k].index_proj
-        
-        proj_pd[f'depth [{params.scale_units}]'] = proj_pd['depth'] * params.scale
-        proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
-
-        # create multi index plot
-        plot_multi_spectral_profile(
-                rgb_image=rgb_cube, mask=mask,
-                index_objs=[indices[k] for k in indices.keys()], 
-                format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
-                fig=fig, roi=roi, repeat=True)
-
-        fig.savefig(
-                    roi_plot_folder.joinpath('multi_index_plot'),
-                dpi=dpi)
-        plt.close(fig)
+                        roi_plot_folder.joinpath('multi_index_plot'),
+                    dpi=dpi)
+            plt.close(fig)
 
 def compute_normalized_index_params(project_list, index_params_file, export_folder):
 
@@ -527,10 +535,13 @@ def compute_normalized_index_params(project_list, index_params_file, export_fold
 
     # gather all projections
     all_proj = []
-    roi_ind = 0
     for ex in project_list:
-        proj_path = ex.joinpath(f'roi_{roi_ind}').joinpath('index_plots').joinpath('index_projection.csv')
-        all_proj.append(pd.read_csv(proj_path))
+        roi_folders = list(ex.glob('roi*'))
+        roi_folders = [x.name for x in roi_folders if x.is_dir()]
+            
+        for roi_ind in range(len(roi_folders)):
+            proj_path = ex.joinpath(f'roi_{roi_ind}').joinpath('index_plots').joinpath('index_projection.csv')
+            all_proj.append(pd.read_csv(proj_path))
     all_proj = pd.concat(all_proj, axis=0)
 
     # compute min max of index projections

@@ -629,7 +629,15 @@ class SpectralIndexWidget(QWidget):
         """Load mask from file"""
         
         export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        mask = load_mask(get_mask_path(export_path_roi))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        mask_path = get_mask_path(export_path_roi)
+
+        if mask_path.is_file():
+            mask = load_mask(mask_path)
+        else:
+            mask = np.zeros(
+                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
+                dtype=np.uint8)
+
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
