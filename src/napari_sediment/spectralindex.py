@@ -24,7 +24,7 @@ class SpectralIndex:
     index_name: str
         name of index
     index_type: str
-        one of 'Ratio', 'RABD', 'RABA'
+        one of 'Ratio', 'RABD', 'RABA', 'RMean', 'RABDnorm'
     left_band: int
         left band to compute index
     right_band: int
@@ -215,6 +215,49 @@ def compute_index_ratio(left, right, row_bounds, col_bounds, imagechannels):
     ratio = np.asarray(ratio, np.float32)
     return ratio
 
+def compute_index_RMean(left, right, row_bounds, col_bounds, imagechannels):
+    """Compute the index RMean.
+    
+    Parameters
+    ----------
+    left: float
+        left band
+    right: float
+        right band
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
+
+    Returns
+    -------
+    RMean: float
+        RMean index
+    """
+    if left is None:
+        ltr = [imagechannels.centers[0], imagechannels.centers[-1]]
+    else:
+        ltr = [left, right]
+    # find band indices in the complete dataset
+    ltr_stack_indices = [find_index_of_band(imagechannels.centers, x) for x in ltr]
+    # main roi
+    roi = np.concatenate([row_bounds, col_bounds])
+    # number of bands between edges and trough
+    R0_RN_cube = imagechannels.get_image_cube(channels=np.arange(ltr_stack_indices[0], ltr_stack_indices[1]+1), roi=roi)
+    R0_RN_cube = R0_RN_cube.astype(np.float32)
+    RMean = np.mean(R0_RN_cube, axis=0)
+    RMean = np.asarray(RMean, np.float32)
+    return RMean
+
+def compute_index_RABDnorm(left, trough, right, row_bounds, col_bounds, imagechannels):
+
+    rabd = compute_index_RABD(left, trough, right, row_bounds, col_bounds, imagechannels)
+    rmean = compute_index_RMean(None, None, row_bounds, col_bounds, imagechannels)
+    rabd_norm = rabd / rmean
+    return rabd_norm
+
 def clean_index_map(index_map):
 
     index_map = index_map.copy()
@@ -291,23 +334,17 @@ def save_tif_cmap(image, image_path, napari_cmap, contrast):
 
 def create_index(index_name, index_type, boundaries):
     
-    if index_type == 'RABD':
+    if index_type in ['RABD', 'RABDnorm']:
         new_index = SpectralIndex(index_name=index_name,
-                            index_type='RABD',
+                            index_type=index_type,
                             left_band_default=boundaries[0],
                             middle_band_default=boundaries[1],
                             right_band_default=boundaries[2],
                             )
         
-    elif index_type == 'RABA':
+    elif index_type in ['RABA', 'Ratio', 'RMean']:
         new_index = SpectralIndex(index_name=index_name,
-                            index_type='RABA',
-                            left_band_default=boundaries[0],
-                            right_band_default=boundaries[1],
-                            )
-    elif index_type == 'Ratio':
-        new_index = SpectralIndex(index_name=index_name,
-                            index_type='Ratio',
+                            index_type=index_type,
                             left_band_default=boundaries[0],
                             right_band_default=boundaries[1],
                             )
@@ -328,23 +365,21 @@ def export_index_series(index_series, file_path):
 def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
     """Compute the index and add to napari."""
 
-    if spectral_index.index_type == 'RABD':
-        computed_index = compute_index_RABD(
+    funs3 = {'RABDnorm': compute_index_RABDnorm, 'RABD': compute_index_RABD}
+    
+    funs2 = {'RABA': compute_index_RABA,
+            'Ratio': compute_index_ratio, 'RMean': compute_index_RMean}
+    
+    if spectral_index.index_type in ['RABD', 'RABDnorm']:
+        computed_index = funs3[spectral_index.index_type](
             left=spectral_index.left_band,
             trough=spectral_index.middle_band,
             right=spectral_index.right_band,
             row_bounds=row_bounds,
             col_bounds=col_bounds,
             imagechannels=imagechannels)
-    elif spectral_index.index_type == 'RABA':
-        computed_index = compute_index_RABA(
-            left=spectral_index.left_band,
-            right=spectral_index.right_band,
-            row_bounds=row_bounds,
-            col_bounds=col_bounds,
-            imagechannels=imagechannels)
-    elif spectral_index.index_type == 'Ratio':
-        computed_index = compute_index_ratio(
+    elif spectral_index.index_type in ['RABA', 'RMean', 'Ratio']:
+        computed_index = funs2[spectral_index.index_type](
             left=spectral_index.left_band,
             right=spectral_index.right_band,
             row_bounds=row_bounds,
@@ -353,6 +388,7 @@ def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
     else:
         print(f'unknown index type: {spectral_index.index_type}')
         return None
+    
     return computed_index
 
 def load_index_series(index_file):

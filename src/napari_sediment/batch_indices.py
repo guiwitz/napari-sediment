@@ -11,7 +11,7 @@ from napari_guitils.gui_structures import TabSet
 from microfilm.microplot import microshow
 
 from .spectralindex import (SpectralIndex, compute_index_RABD, compute_index_RABA,
-                            compute_index_ratio)
+                            compute_index_ratio, compute_index_RMean, compute_index_RABDnorm)
 from .spectralplot import plot_spectral_profile  
 from .imchannels import ImChannels
 from .io import load_project_params, load_plots_params, load_endmember_params
@@ -179,6 +179,11 @@ class BatchIndexWidget(QWidget):
 
 
     def batch_process(self):
+
+        funs3 = {'RABDnorm': compute_index_RABDnorm, 'RABD': compute_index_RABD}
+    
+        funs2 = {'RABA': compute_index_RABA,
+                'Ratio': compute_index_ratio, 'RMean': compute_index_RMean}
         
         fig, ax = plt.subplots()
 
@@ -199,35 +204,27 @@ class BatchIndexWidget(QWidget):
                     self.row_bounds = [self.mainroi[0][:,0].min(), self.mainroi[0][:,0].max()]
                     self.col_bounds = [self.mainroi[0][:,1].min(), self.mainroi[0][:,1].max()]
 
-                    #for spectral_name, spectral_index in self.index_collection.items():
                     with progress(range(len(self.index_collection.items()))) as pbr2:
                         for ind in pbr2:
                             spectral_name, spectral_index = list(self.index_collection.items())[ind]
                             pbr2.set_description(f"Processing {spectral_name}")
-            
-                            if spectral_index.index_type == 'RABD':
-                                index_data = compute_index_RABD(
+
+                            if spectral_index.index_type in ['RABD', 'RABDnorm']:
+                                index_data = funs3[spectral_index.index_type](
                                     left=spectral_index.left_band,
                                     trough=spectral_index.middle_band,
                                     right=spectral_index.right_band,
                                     row_bounds=self.row_bounds,
                                     col_bounds=self.col_bounds,
                                     imagechannels=imagechannels)
-                                self.viewer.add_image(index_data, name=f'{f}_{spectral_name}', colormap='viridis')
-                            elif spectral_index.index_type == 'RABA':
-                                index_data = compute_index_RABA(
+                            elif spectral_index.index_type in ['RABA', 'Ratio', 'RMean']:
+                                index_data = funs2[spectral_index.index_type](
                                     left=spectral_index.left_band,
                                     right=spectral_index.right_band,
                                     row_bounds=self.row_bounds,
                                     col_bounds=self.col_bounds,
                                     imagechannels=imagechannels)
-                            elif spectral_index.index_type == 'Ratio':
-                                index_data = compute_index_ratio(
-                                    left=spectral_index.left_band,
-                                    right=spectral_index.right_band,
-                                    row_bounds=self.row_bounds,
-                                    col_bounds=self.col_bounds,
-                                    imagechannels=imagechannels)
+                                #self.viewer.add_image(index_data, name=f'{f}_{spectral_name}', colormap='viridis')
                         
                             self.rgb_ch, self.rgb_names = imagechannels.get_indices_of_bands(self.params_plots.rgb_bands)
                             self.rgb_cube = np.asarray(imagechannels.get_image_cube(self.rgb_ch))

@@ -131,14 +131,14 @@ class SpectralIndexWidget(QWidget):
         self.em_boundaries_range.setValue((0, 0, 0))
         self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range2.setValue((0, 0))
-        self.tabs.add_named_tab('&Index Definition', QLabel('RABD'), grid_pos=(tab_rows+1, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABD/RABDnorm'), grid_pos=(tab_rows+1, 0, 1, 1))
         self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
-        self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio'), grid_pos=(tab_rows+2, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio/RMean'), grid_pos=(tab_rows+2, 0, 1, 1))
         self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
         self.btn_create_index = QPushButton("New index")
         self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
         self.combobox_index_type = QComboBox()
-        self.combobox_index_type.addItems(['RABD', 'RABA', 'Ratio'])
+        self.combobox_index_type.addItems(['RABD', 'RABDnorm', 'RABA', 'Ratio', 'RMean'])
         self.tabs.add_named_tab('&Index Definition', self.combobox_index_type, grid_pos=(tab_rows+3, 1, 1, 1))
         self.qtext_new_index_name = QLineEdit()
         self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 2, 1, 2))
@@ -353,6 +353,18 @@ class SpectralIndexWidget(QWidget):
                               )
             
         index_def = {
+            'RABD510norm': [470, 510, 530],
+            'RABD660670norm': [590, 665, 730],
+        }
+        for key, value in index_def.items():
+            self.index_collection[key] = SpectralIndex(index_name=key,
+                              index_type='RABDnorm',
+                              left_band_default=value[0],
+                              middle_band_default=value[1],
+                              right_band_default=value[2]
+                              )
+            
+        index_def = {
             'RABA410560': [410, 560],
         }
         for key, value in index_def.items():
@@ -371,8 +383,15 @@ class SpectralIndexWidget(QWidget):
                               index_type='Ratio',
                               left_band_default=value[0],
                               right_band_default=value[1]
-            )
-
+                              )
+            
+        self.index_collection['RMean'] = SpectralIndex(index_name='RMean',
+                              index_type='RMean',
+                              left_band_default=300,
+                              right_band_default=900
+                              )
+        
+        
     def add_connections(self):
         """Add callbacks"""
 
@@ -424,7 +443,7 @@ class SpectralIndexWidget(QWidget):
 
     def _on_change_spin_bounds(self, event=None):
 
-        if self.current_index_type == 'RABD':
+        if self.current_index_type in ['RABD', 'RABDnorm']:
             self.em_boundaries_range.setValue(
                 (self.spin_index_left.value(), self.spin_index_middle.value(),
                 self.spin_index_right.value()))
