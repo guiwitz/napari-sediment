@@ -588,9 +588,12 @@ class SedimentWidget(QWidget):
         self.interactive_scale_group.glayout.addWidget(self.spinbox_scale_size_units, 1, 1, 1, 1)
         
         ### Button "Compute pixel size" ###
-        self.btn_compute_pixel_size = QPushButton("Compute pixel size")
+        self.btn_compute_pixel_size = QPushButton("Compute pixel size with scale")
+        self.btn_compute_pixel_size.setEnabled(False)
         self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size, 2, 0, 1, 2)
-        
+        self.btn_compute_pixel_size_roi = QPushButton("Compute pixel size with main-roi")
+        self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size_roi, 3, 0, 1, 2)
+
     def add_connections(self):
         """
         Connects GUI elements to functions to be executed when GUI elements are activated 
@@ -646,6 +649,7 @@ class SedimentWidget(QWidget):
         # Elements of the "Metadata" tab
         self.btn_add_scale_layer.clicked.connect(self._on_click_add_scale_layer)
         self.btn_compute_pixel_size.clicked.connect(self._on_click_compute_pixel_size)
+        self.btn_compute_pixel_size_roi.clicked.connect(self._on_click_compute_pixel_size_roi)
         
         # Viewer callbacks for mouse behaviour
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
@@ -1289,11 +1293,12 @@ class SedimentWidget(QWidget):
                 name='scale',
                 ndim=2,
             )
+        self.btn_compute_pixel_size.setEnabled(True)
 
     def _on_click_compute_pixel_size(self, event=None):
         """
         Compute pixel size with interactive scale
-        Called: "Metadata" tab, button "Compute pixel size"
+        Called: "Metadata" tab, button "Compute pixel size from scale"
         """
         if 'scale' not in self.viewer.layers:
             warnings.warn('No scale layer found. Please add scale layer first.')
@@ -1301,6 +1306,25 @@ class SedimentWidget(QWidget):
 
         scale = self.viewer.layers['scale'].data[0]
         scale_size_px = np.sqrt(np.sum((scale[0] - scale[1])**2))
+        scale_size_units = self.spinbox_scale_size_units.value()
+        pixel_size = scale_size_units / scale_size_px
+        self.spinbox_metadata_scale.setValue(pixel_size)
+
+    def _on_click_compute_pixel_size_roi(self, event=None):
+        """
+        Compute pixel size using the main roi
+        Called: "Metadata" tab, button "Compute pixel size from ROI"
+        """
+        if 'main-roi' not in self.viewer.layers:
+            warnings.warn('No main roi found. Please add main roi first.')
+            return
+        elif len(self.viewer.layers['main-roi'].data) == 0:
+            warnings.warn('Main roi is empty. Please draw a roi first.')
+            return
+
+        current_main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
+        current_main_roi_height = np.abs(current_main_roi[0,0] - current_main_roi[1,0])
+        scale_size_px = current_main_roi_height
         scale_size_units = self.spinbox_scale_size_units.value()
         pixel_size = scale_size_units / scale_size_px
         self.spinbox_metadata_scale.setValue(pixel_size)
