@@ -1277,6 +1277,7 @@ class SedimentWidget(QWidget):
         Called: "Metadata" tab, button "Add scale layer"
         """
         if 'scale' not in self.viewer.layers:
+            image_widht = self.col_bounds[1] - self.col_bounds[0]
             image_height = self.row_bounds[1] - self.row_bounds[0]
             line = np.array([[self.row_bounds[0] + image_height//3, self.col_bounds[0]],
                              [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]]])
@@ -1284,7 +1285,7 @@ class SedimentWidget(QWidget):
                 data=line,
                 shape_type='line',
                 edge_color='g',
-                edge_width=5,
+                edge_width=int(image_widht/10),
                 name='scale',
                 ndim=2,
             )
