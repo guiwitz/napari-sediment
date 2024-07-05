@@ -1121,6 +1121,7 @@ class SedimentWidget(QWidget):
         min_th = self.slider_mask_threshold.value()[0]
         max_th = self.slider_mask_threshold.value()[1]
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
+        mask = np.asarray(mask)
         self.update_mask(mask, 'intensity-mask')
 
         self.slider_mask_threshold.setSliderPosition([min_th, max_th])
