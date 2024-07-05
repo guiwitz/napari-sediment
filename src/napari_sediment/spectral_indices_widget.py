@@ -97,9 +97,11 @@ class SpectralIndexWidget(QWidget):
 
         self.main_layout.addWidget(self.tabs)
 
+
+        # "Main" Tab Elements
+        ### Elements "Files and folders" ###
         self.files_group = VHGroup('Files and Folders', orientation='G')
         self.tabs.add_named_tab('&Main', self.files_group.gbox)
-
         self.btn_select_export_folder = QPushButton("Set Project folder")
         self.export_path_display = QLineEdit("No path")
         self.files_group.glayout.addWidget(self.btn_select_export_folder, 0, 0, 1, 1)
@@ -112,6 +114,7 @@ class SpectralIndexWidget(QWidget):
         self.files_group.glayout.addWidget(QLabel('Selected ROI'), 2, 0, 1, 1)
         self.files_group.glayout.addWidget(self.spin_selected_roi, 2, 1, 1, 1)
         
+        ### Elements "Bands" ###
         self.band_group = VHGroup('Bands', orientation='G')
         self.tabs.add_named_tab('&Main', self.band_group.gbox)
         self.band_group.glayout.addWidget(QLabel('Bands to load'), 0, 0, 1, 2)
@@ -119,14 +122,21 @@ class SpectralIndexWidget(QWidget):
         self.band_group.glayout.addWidget(self.qlist_channels, 1,0,1,2)
         self.qlist_channels.itemClicked.connect(self._on_change_select_bands)
 
+        ### RGB Widget ###
         self.rgbwidget = RGBWidget(viewer=self.viewer, translate=False)
         self.tabs.add_named_tab('&Main', self.rgbwidget.rgbmain_group.gbox)
 
-        # indices tab
+
+        # "Index Definition" Tab 
+        ### Elements "Index Definition" ###
         self._create_indices_tab()
         tab_rows = self.tabs.widget(1).layout().rowCount()
+
+        ### SpectralPlotter ###
         self.em_plot = SpectralPlotter(napari_viewer=self.viewer)
         self.tabs.add_named_tab('&Index Definition', self.em_plot, grid_pos=(tab_rows, 0, 1, 3))
+
+        ### Index Definition Elements for SpectralPlotter ###
         self.em_boundaries_range = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range.setValue((0, 0, 0))
         self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
@@ -144,16 +154,18 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 2, 1, 2))
         self.btn_update_index = QPushButton("Update current index")
         self.tabs.add_named_tab('&Index Definition', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
-
         self.btn_save_endmembers_plot = QPushButton("Save endmembers plot")
         self.tabs.add_named_tab('&Index Definition', self.btn_save_endmembers_plot, grid_pos=(tab_rows+5, 0, 1, 3))
 
-        # Index C&ompute tab
+
+        # "Index Compute" Tab
+        ### Elements "Index Selection" ###
         self.index_pick_group = VHGroup('Index Selection', orientation='G')
         self.index_pick_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_pick_group.gbox)
         self._create_index_io_pick()
 
+        ### Elements "Projection" ###
         self.index_options_group = VHGroup('Projection', orientation='G')
         self.index_options_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_options_group.gbox)
@@ -173,6 +185,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_save_roi = QPushButton("Save Projection ROI")
         self.index_options_group.glayout.addWidget(self.btn_save_roi, 3, 0, 1, 2)
 
+        ### Elements "Compute and export" ###
         self.index_compute_group = VHGroup('Compute and export', orientation='G')
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
@@ -180,7 +193,6 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps)
         self.btn_add_index_maps_to_viewer = QPushButton("Add index map(s) to Viewer")
         self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer)
-
         self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
@@ -198,9 +210,7 @@ class SpectralIndexWidget(QWidget):
         self.check_force_recompute.setChecked(True)
         self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
 
-
-        # Plots tab
-
+        # "Plots" Tab
         self.pixlabel = QLabel()
 
         self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
@@ -286,7 +296,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_load_plot_params = QPushButton("Load plot parameters")
         self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
 
-        # Batch tab
+        # "Batch" Tab
         self.btn_select_main_folder = QPushButton("Select main folder")
         self.tabs.add_named_tab('Batch', self.btn_select_main_folder)
         self.main_path_display = QLineEdit("No path")
@@ -313,6 +323,7 @@ class SpectralIndexWidget(QWidget):
         self.var_init()
 
     def _create_indices_tab(self):
+        """ Generates the elements of the 'Index Definition' subelement. """
 
         self.current_index_type = 'RABD'
 
