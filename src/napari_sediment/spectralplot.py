@@ -86,6 +86,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
         ax2.plot(roi_array[:,1], roi_array[:,0], 'r')
     
     ax3.plot(proj, np.arange(len(proj)), color=np.array(color_plotline), linewidth=plot_thickness)
+    ax3.plot(np.ones_like(proj) * np.nanmean(proj), np.arange(len(proj)), color='black', linestyle='--')
 
     ax3.set_ylim(0, len(proj))
     ax3.yaxis.tick_right()
@@ -232,6 +233,7 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
             bottom_margin / a4_size[0], plot_width_inches / a4_size[1],
             im_height_inches / a4_size[0])))
         axes[-1].plot(proj, np.arange(len(proj)), color=current_color, linewidth=plot_thickness)
+        axes[-1].plot(np.ones_like(proj) * np.nanmean(proj), np.arange(len(proj)), color='black', linestyle='--')
         axes[-1].set_ylim(0, len(proj))
         if (i!=0) and (i!=len(proj)-1):
             axes[-1].yaxis.set_visible(False)
