@@ -407,6 +407,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_batch_create_plots.clicked.connect(self._on_click_batch_create_plots)
 
         self.viewer.mouse_double_click_callbacks.append(self._add_analysis_roi)
+        self.viewer.mouse_double_click_callbacks.append(self.pick_pixel)
 
     def _connect_spin_bounds(self):
 
@@ -505,6 +506,9 @@ class SpectralIndexWidget(QWidget):
         self.col_bounds = [
             self.mainroi[roi_ind][:,1].min(),
             self.mainroi[roi_ind][:,1].max()]
+        
+        self.cursor_pos = np.array([np.mean(self.row_bounds), np.mean(self.col_bounds)])
+        self.cursor_pos = self.cursor_pos.astype(int)
 
         export_path_roi = self.export_folder.joinpath(f'roi_{roi_ind}')
 
@@ -520,18 +524,9 @@ class SpectralIndexWidget(QWidget):
         self.add_measurement_roi_layer()
         self.viewer.layers['rois'].data = [np.reshape(self.params.measurement_roi[roi_ind], (4,2))]
 
-        if export_path_roi.joinpath('end_members.csv').exists():
-            self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
-            self.endmember_bands = self.end_members[:,-1]
-            self.end_members = self.end_members[:,:-1]
-
-            self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
-            self.em_boundaries_range.setValue(
-                (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
-            self.em_boundaries_range2.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
-            self.em_boundaries_range2.setValue(
-                (self.endmember_bands[0], self.endmember_bands[-1]))
-            self.plot_endmembers()
+        self.update_emplot_data()
+        
+        self.plot_endmembers()
 
         self._on_change_index_index()
 
@@ -555,28 +550,29 @@ class SpectralIndexWidget(QWidget):
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
         
-        min_row = 0
-        max_row = self.row_bounds[1] - self.row_bounds[0]
-        if roi_xpos is None:
-            cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+        if 'Shift' not in event.modifiers:
+            min_row = 0
+            max_row = self.row_bounds[1] - self.row_bounds[0]
+            if roi_xpos is None:
+                cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
+                
+                new_roi = [
+                    [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
+                    [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
+                    [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
+                    [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
             
-            new_roi = [
-                [min_row, cursor_pos[2]-self.spin_roi_width.value()//2],
-                [max_row,cursor_pos[2]-self.spin_roi_width.value()//2],
-                [max_row,cursor_pos[2]+self.spin_roi_width.value()//2],
-                [min_row,cursor_pos[2]+self.spin_roi_width.value()//2]]
-        
-        else:
-            new_roi = [
-                [min_row, roi_xpos-self.spin_roi_width.value()//2],
-                [max_row,roi_xpos-self.spin_roi_width.value()//2],
-                [max_row,roi_xpos+self.spin_roi_width.value()//2],
-                [min_row,roi_xpos+self.spin_roi_width.value()//2]]
+            else:
+                new_roi = [
+                    [min_row, roi_xpos-self.spin_roi_width.value()//2],
+                    [max_row,roi_xpos-self.spin_roi_width.value()//2],
+                    [max_row,roi_xpos+self.spin_roi_width.value()//2],
+                    [min_row,roi_xpos+self.spin_roi_width.value()//2]]
 
-        self.add_measurement_roi_layer()
-         
-        self.viewer.layers['rois'].data = [new_roi]
-        self.viewer.layers['rois'].refresh()
+            self.add_measurement_roi_layer()
+            
+            self.viewer.layers['rois'].data = [new_roi]
+            self.viewer.layers['rois'].refresh()
 
     def add_measurement_roi_layer(self):
         """Add layer for measurement roi used to compute projections"""
@@ -589,6 +585,15 @@ class SpectralIndexWidget(QWidget):
             self.viewer.add_shapes(
                 ndim = 2,
                 name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=edge_width)
+
+    def pick_pixel(self, viewer, event, cursor_pos=None):
+        """Pick pixel and plot spectral profile"""
+
+        if 'Shift' in event.modifiers:
+            if cursor_pos is None:
+                self.cursor_pos = np.rint(viewer.cursor.position).astype(int)[-2::]
+                self.update_emplot_data()
+                self.plot_endmembers()
 
     def get_RGB(self):
         
@@ -609,6 +614,30 @@ class SpectralIndexWidget(QWidget):
             self.viewer.layers['mask'].data = mask
         else:
             self.viewer.add_labels(mask, name='mask')
+
+    def update_emplot_data(self):
+        """Import endmembers or compute them and update the em plot boundaries."""
+
+        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        if export_path_roi.joinpath('end_members.csv').exists():
+            self.end_members = pd.read_csv(export_path_roi.joinpath('end_members.csv')).values
+            self.endmember_bands = self.end_members[:,-1]
+            self.end_members = self.end_members[:,:-1]
+        else:
+            self.endmember_bands = self.imagechannels.centers
+            self.end_members = self.imagechannels.get_image_cube(
+                channels=np.arange(len(self.endmember_bands)),
+                roi=[
+                    self.cursor_pos[0]+self.row_bounds[0], self.cursor_pos[0]+self.row_bounds[0]+1,
+                    self.cursor_pos[1]+self.col_bounds[0], self.cursor_pos[1]+self.col_bounds[0]+1]
+                    ).compute().ravel()
+        
+        self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
+        self.em_boundaries_range.setValue(
+            (self.endmember_bands[0], (self.endmember_bands[-1]+self.endmember_bands[0])/2, self.endmember_bands[-1]))
+        self.em_boundaries_range2.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
+        self.em_boundaries_range2.setValue(
+            (self.endmember_bands[0], self.endmember_bands[-1]))
 
     def plot_endmembers(self, event=None):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
