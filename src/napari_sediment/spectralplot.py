@@ -96,10 +96,11 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     for ax in [ax1]:
         tickpos = np.array([x.get_position()[1] for x in  ax.get_yticklabels()])[1:-1]
         new_labels = scale * np.array(tickpos)
-        tickdist = np.floor((new_labels[-1] - new_labels[0]) / 10)
+        tickdist = (new_labels[-1] - new_labels[0]) / 10
         order_of_mag = 10 ** int(np.floor(np.log10(tickdist)))
         tickdist = order_of_mag * (tickdist // order_of_mag)
-        new_labels = np.arange(0, new_labels[-1]+tickdist+1, tickdist)
+        new_labels = np.arange(0, new_labels[-1] + 5 * tickdist, tickdist)
+        new_labels = new_labels[new_labels <= im_h * scale]
         new_tickpos = new_labels / scale
         ax.set_yticks(ticks=new_tickpos, labels=new_labels)
     ax3.set_yticks(ticks=new_tickpos, labels=new_labels)
