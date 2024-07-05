@@ -228,7 +228,11 @@ class BatchPreprocWidget(QWidget):
 
     def _on_click_select_main_folder(self, event=None, main_folder=None):
         
-        self.file_list.update_from_path(self.main_path_display.value)
+        if main_folder is not None:
+            self.file_list.update_from_path(Path(main_folder))
+            self.main_path_display.value = main_folder
+        else:
+            self.file_list.update_from_path(self.main_path_display.value)
 
     def _on_click_select_data_folder(self, event=None, data_folder=None):
         """Interactively select folder to analyze"""
