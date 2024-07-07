@@ -177,24 +177,28 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
         self.btn_compute_index_maps = QPushButton("(Re-)Compute index map(s)")
-        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps)
+        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps, 0, 0, 1, 2)
         self.btn_add_index_maps_to_viewer = QPushButton("Add index map(s) to Viewer")
-        self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer)
+        self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer, 1, 0, 1, 2)
 
         self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff, 2, 0, 1, 2)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
-        self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv)
+        self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv, 3, 0, 1, 2)
         self.btn_save_all_plot = QPushButton("Create and Save all index plots")
-        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot)
+        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot, 4, 0, 1, 1)
+        self.check_normalize_single_export = QCheckBox("Normalize index plots")
+        self.check_normalize_single_export.setChecked(True)
+        self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
+        self.index_compute_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
         self.btn_export_index_settings = QPushButton("Export index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings, 5, 0, 1, 2)
         self.btn_import_index_settings = QPushButton("Import index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings)
+        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings, 6, 0, 1, 2)
         self.index_file_display = QLineEdit("No file selected")
-        self.index_compute_group.glayout.addWidget(self.index_file_display)
+        self.index_compute_group.glayout.addWidget(self.index_file_display, 7, 0, 1, 2)
         self.check_force_recompute = QCheckBox("Force recompute")
-        self.index_compute_group.glayout.addWidget(self.check_force_recompute)
+        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 8, 0, 1, 2)
         self.check_force_recompute.setChecked(True)
         self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
 
@@ -1054,7 +1058,8 @@ class SpectralIndexWidget(QWidget):
 
     def create_and_save_all_single_index_plot(self, event=None, force_recompute=None):
         """Create and save all single index plots for the selected indices and
-        save to file."""
+        save to file. If normalize is checked, also create and save normalized
+        index plots."""
 
         if force_recompute is None:
             force_recompute = self.check_force_recompute.isChecked()
@@ -1091,6 +1096,24 @@ class SpectralIndexWidget(QWidget):
             self.index_plot_live.figure.savefig(
                 export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
             dpi=self.spin_final_dpi.value())
+
+        if self.check_normalize_single_export.isChecked():
+            self._on_click_export_index_settings()
+            self._on_click_save_plot_parameters()
+            self._on_export_index_projection()
+
+            compute_normalized_index_params(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('index_settings.yml'),
+                export_folder=self.export_folder)
+            
+            batch_create_plots(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
+                plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
+                normalize=True
+            )
+            
 
     def create_and_save_multi_index_plot(self, event=None, force_recompute=None):
         """Create and save multi index plot for the selected indices and
@@ -1142,6 +1165,7 @@ class SpectralIndexWidget(QWidget):
         """Create the projection table for the index_name"""
 
         proj_pd = pd.DataFrame({'depth': np.arange(0,len(self.index_collection[index_names[0]].index_proj))})
+
         for i in index_names:
             proj = self.index_collection[i].index_proj   
             proj_pd[i] = proj
