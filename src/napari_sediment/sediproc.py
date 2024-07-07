@@ -430,17 +430,18 @@ def correct_single_channel(
     """
     
     im_reg = open_image(im_path)
-    white = open_image(white_path)
-    dark = open_image(dark_for_im_path)
-    dark_white = open_image(dark_for_white_path)
-
     img_load = im_reg.read_band(band)
-    img_white_load = white.read_band(band)
-    img_dark_load = dark.read_band(band)
-    img_dark_white_load = dark_white.read_band(band)
-    
+
     corrected = img_load.copy()
     if background_correction:
+
+        white = open_image(white_path)
+        dark = open_image(dark_for_im_path)
+        dark_white = open_image(dark_for_white_path)
+        img_white_load = white.read_band(band)
+        img_dark_load = dark.read_band(band)
+        img_dark_white_load = dark_white.read_band(band)
+
         corrected = white_dark_correct(
             data=img_load[np.newaxis,:,:],
             white_data=img_white_load[:,:,np.newaxis], 
