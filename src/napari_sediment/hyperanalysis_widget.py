@@ -270,9 +270,9 @@ class HyperAnalysisWidget(QWidget):
         self.params = load_project_params(folder=self.export_folder)
 
         self.imhdr_path = Path(self.params.file_path)
-        self.white_file_path = Path(self.params.white_path)
-        self.dark_for_im_path = Path(self.params.dark_for_im_path)
-        self.dark_for_white_path = Path(self.params.dark_for_white_path)
+        #self.white_file_path = Path(self.params.white_path)
+        #self.dark_for_im_path = Path(self.params.dark_for_im_path)
+        #self.dark_for_white_path = Path(self.params.dark_for_white_path)
 
         self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
         self.rois = [np.array([np.array(x).reshape(4,2) for x in roi]).astype(int) for roi in self.params.rois]
