@@ -1099,7 +1099,7 @@ class SpectralIndexWidget(QWidget):
 
         if self.check_normalize_single_export.isChecked():
             self._on_click_export_index_settings()
-            self._on_click_save_plot_parameters()
+            self._on_click_save_plot_parameters(file_path=self.export_folder.joinpath('plot_settings.yml'))
             self._on_export_index_projection()
 
             compute_normalized_index_params(
