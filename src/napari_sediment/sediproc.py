@@ -126,7 +126,8 @@ def load_white_dark(white_file_path, dark_for_im_file_path,
     return im_white, im_dark, im_dark_for_white
 
 
-def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=None):
+def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=None,
+                       use_float=False):
     """White and dark reference correction.
 
     Parameters
@@ -139,6 +140,8 @@ def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=N
         Dark reference data for image. Dims are (rows, cols, bands)
     dark_for_white_data: array
         Dark reference data for white ref. Dims are (rows, cols, bands)
+    use_float : bool, optional
+        Whether to use float data type. Default is False.
     
     Returns
     -------
@@ -161,7 +164,9 @@ def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=N
     
     im_corr = np.moveaxis(im_corr, 1,0)
     im_corr[im_corr < 0] = 0
-    im_corr = (im_corr * 2**12).astype(np.uint16)
+    
+    if not use_float:
+        im_corr = (im_corr * 2**12).astype(np.uint16)
 
     return im_corr
 
@@ -398,7 +403,7 @@ def savgol_destripe(image, width=100, order=2):
 
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
-        zarr_ind, band, background_correction=True, destripe=False,
+        zarr_ind, band, background_correction=True, destripe=False, use_float=False
         ):
     """White dark correction and save to zarr
     
@@ -422,6 +427,8 @@ def correct_single_channel(
         Whether to perform white correction. Default is True.
     destripe : bool, optional
         Whether to perform destriping. Default is True.
+    use_float : bool, optional
+        Whether to use float data type. Default is False.
     
     Returns
     -------
@@ -447,6 +454,7 @@ def correct_single_channel(
             white_data=img_white_load[:,:,np.newaxis], 
             dark_for_im_data=img_dark_load[:,:,np.newaxis],
             dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
+            use_float=use_float
         )[0]
     if destripe:
     #    import pystripe
@@ -460,7 +468,7 @@ def correct_single_channel(
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
                          min_max_bands=None, background_correction=True, destripe=True,
-                         use_dask=False, chunk_size=500):
+                         use_dask=False, chunk_size=500, use_float=False):
 
     img = open_image(imhdr_path)
 
@@ -480,10 +488,14 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
     else:
         bands = img.nbands
         band_indices = np.arange(bands)
-        
+    
+    if use_float:
+        dtype = 'f4'
+    else:
+        dtype = 'u2'
     z1 = zarr.open(zarr_path, mode='w', shape=(bands, lines,samples),
                #chunks=(1, lines, samples), dtype='u2')
-                   chunks=(1, chunk_size, chunk_size), dtype='u2')
+                   chunks=(1, chunk_size, chunk_size), dtype=dtype)
 
     if use_dask:
         client = Client()
@@ -493,7 +505,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                 correct_single_channel,
                 imhdr_path, white_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
-                z1, ind, c, background_correction, destripe))
+                z1, ind, c, background_correction, destripe, use_float))
         
         #for k in tqdm(range(len(process)), "correcting and saving to zarr"):
         with progress(range(len(process))) as pbr2:
@@ -508,7 +520,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
             correct_single_channel(
                 imhdr_path, white_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
-                z1, ind, c, background_correction, destripe)
+                z1, ind, c, background_correction, destripe, use_float)
 
     z1.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])[band_indices]),

@@ -266,10 +266,16 @@ class SedimentWidget(QWidget):
         self.spin_chunk_size.setValue(500)
         self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
+
+        ### Checkbox "Convert to integer" ###
+        self.check_save_as_float = QCheckBox("Save as floats")
+        self.check_save_as_float.setChecked(True)
+        self.check_save_as_float.setToolTip("Save data as floats. Otherwise convert to integers after multiplication by 4096.")
+        self.batch_group.glayout.addWidget(self.check_save_as_float, 4, 0, 1, 4)
         
         ### Button "Correct and save data" ###
         self.btn_batch_correct = QPushButton("Correct and save data")
-        self.batch_group.glayout.addWidget(self.btn_batch_correct, 4, 0, 1, 4)
+        self.batch_group.glayout.addWidget(self.btn_batch_correct, 5, 0, 1, 4)
 
         # Group "Correct multiple data sets"
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
@@ -977,7 +983,8 @@ class SedimentWidget(QWidget):
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
                 use_dask=self.check_use_dask.isChecked(),
-                chunk_size=self.spin_chunk_size.value()
+                chunk_size=self.spin_chunk_size.value(),
+                use_float=self.check_save_as_float.isChecked(),
                 )
             self.save_params()
             
