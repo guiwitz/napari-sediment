@@ -266,10 +266,16 @@ class SedimentWidget(QWidget):
         self.spin_chunk_size.setValue(500)
         self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
         self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
+
+        ### Checkbox "Convert to integer" ###
+        self.check_save_as_float = QCheckBox("Save as floats")
+        self.check_save_as_float.setChecked(True)
+        self.check_save_as_float.setToolTip("Save data as floats. Otherwise convert to integers after multiplication by 4096.")
+        self.batch_group.glayout.addWidget(self.check_save_as_float, 4, 0, 1, 4)
         
         ### Button "Correct and save data" ###
         self.btn_batch_correct = QPushButton("Correct and save data")
-        self.batch_group.glayout.addWidget(self.btn_batch_correct, 4, 0, 1, 4)
+        self.batch_group.glayout.addWidget(self.btn_batch_correct, 5, 0, 1, 4)
 
         # Group "Correct multiple data sets"
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
@@ -588,9 +594,12 @@ class SedimentWidget(QWidget):
         self.interactive_scale_group.glayout.addWidget(self.spinbox_scale_size_units, 1, 1, 1, 1)
         
         ### Button "Compute pixel size" ###
-        self.btn_compute_pixel_size = QPushButton("Compute pixel size")
+        self.btn_compute_pixel_size = QPushButton("Compute pixel size with scale")
+        self.btn_compute_pixel_size.setEnabled(False)
         self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size, 2, 0, 1, 2)
-        
+        self.btn_compute_pixel_size_roi = QPushButton("Compute pixel size with main-roi")
+        self.interactive_scale_group.glayout.addWidget(self.btn_compute_pixel_size_roi, 3, 0, 1, 2)
+
     def add_connections(self):
         """
         Connects GUI elements to functions to be executed when GUI elements are activated 
@@ -646,6 +655,7 @@ class SedimentWidget(QWidget):
         # Elements of the "Metadata" tab
         self.btn_add_scale_layer.clicked.connect(self._on_click_add_scale_layer)
         self.btn_compute_pixel_size.clicked.connect(self._on_click_compute_pixel_size)
+        self.btn_compute_pixel_size_roi.clicked.connect(self._on_click_compute_pixel_size_roi)
         
         # Viewer callbacks for mouse behaviour
         self.viewer.mouse_move_callbacks.append(self._shift_move_callback)
@@ -749,6 +759,12 @@ class SedimentWidget(QWidget):
         """
         if self.export_folder is None:
             self._on_click_select_export_folder()
+
+        # create roi folders
+        for i in range(len(self.viewer.layers['main-roi'].data)):
+            roi_folder = self.export_folder.joinpath(f'roi_{i}')
+            if not roi_folder.is_dir():
+                roi_folder.mkdir(exist_ok=True)
 
         self.save_params()
 
@@ -967,7 +983,8 @@ class SedimentWidget(QWidget):
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
                 use_dask=self.check_use_dask.isChecked(),
-                chunk_size=self.spin_chunk_size.value()
+                chunk_size=self.spin_chunk_size.value(),
+                use_float=self.check_save_as_float.isChecked(),
                 )
             self.save_params()
             
@@ -1192,19 +1209,26 @@ class SedimentWidget(QWidget):
         Save mask to file
         Called: "IO" tab, button "Save mask" 
         """
+
+        mask_list = ['manual-mask','intensity-mask','border-mask','ml-mask']
+        mask_present = any([m in self.viewer.layers for m in mask_list])
+
         if self.export_folder is None: 
             self._on_click_select_export_folder()
 
+        mask = None
         if 'clean-mask' in self.viewer.layers:
             mask = self.viewer.layers['clean-mask'].data
         elif 'complete-mask' in self.viewer.layers:
             mask = self.viewer.layers['complete-mask'].data
-        else:
+        elif mask_present:
             self._on_click_combine_masks()
             mask = self.viewer.layers['complete-mask'].data
+        
+        if mask is not None:
+            save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
 
-        save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
-
+        
     def _on_click_load_mask(self):
         """
         Load mask from file
@@ -1277,6 +1301,7 @@ class SedimentWidget(QWidget):
         Called: "Metadata" tab, button "Add scale layer"
         """
         if 'scale' not in self.viewer.layers:
+            image_widht = self.col_bounds[1] - self.col_bounds[0]
             image_height = self.row_bounds[1] - self.row_bounds[0]
             line = np.array([[self.row_bounds[0] + image_height//3, self.col_bounds[0]],
                              [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]]])
@@ -1284,15 +1309,16 @@ class SedimentWidget(QWidget):
                 data=line,
                 shape_type='line',
                 edge_color='g',
-                edge_width=5,
+                edge_width=int(image_widht/10),
                 name='scale',
                 ndim=2,
             )
+        self.btn_compute_pixel_size.setEnabled(True)
 
     def _on_click_compute_pixel_size(self, event=None):
         """
         Compute pixel size with interactive scale
-        Called: "Metadata" tab, button "Compute pixel size"
+        Called: "Metadata" tab, button "Compute pixel size from scale"
         """
         if 'scale' not in self.viewer.layers:
             warnings.warn('No scale layer found. Please add scale layer first.')
@@ -1300,6 +1326,25 @@ class SedimentWidget(QWidget):
 
         scale = self.viewer.layers['scale'].data[0]
         scale_size_px = np.sqrt(np.sum((scale[0] - scale[1])**2))
+        scale_size_units = self.spinbox_scale_size_units.value()
+        pixel_size = scale_size_units / scale_size_px
+        self.spinbox_metadata_scale.setValue(pixel_size)
+
+    def _on_click_compute_pixel_size_roi(self, event=None):
+        """
+        Compute pixel size using the main roi
+        Called: "Metadata" tab, button "Compute pixel size from ROI"
+        """
+        if 'main-roi' not in self.viewer.layers:
+            warnings.warn('No main roi found. Please add main roi first.')
+            return
+        elif len(self.viewer.layers['main-roi'].data) == 0:
+            warnings.warn('Main roi is empty. Please draw a roi first.')
+            return
+
+        current_main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
+        current_main_roi_height = np.abs(current_main_roi[0,0] - current_main_roi[1,0])
+        scale_size_px = current_main_roi_height
         scale_size_units = self.spinbox_scale_size_units.value()
         pixel_size = scale_size_units / scale_size_px
         self.spinbox_metadata_scale.setValue(pixel_size)

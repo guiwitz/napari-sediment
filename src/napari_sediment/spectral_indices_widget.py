@@ -141,14 +141,14 @@ class SpectralIndexWidget(QWidget):
         self.em_boundaries_range.setValue((0, 0, 0))
         self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range2.setValue((0, 0))
-        self.tabs.add_named_tab('&Index Definition', QLabel('RABD'), grid_pos=(tab_rows+1, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABD/RABDnorm'), grid_pos=(tab_rows+1, 0, 1, 1))
         self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
-        self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio'), grid_pos=(tab_rows+2, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio/RMean'), grid_pos=(tab_rows+2, 0, 1, 1))
         self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
         self.btn_create_index = QPushButton("New index")
         self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
         self.combobox_index_type = QComboBox()
-        self.combobox_index_type.addItems(['RABD', 'RABA', 'Ratio'])
+        self.combobox_index_type.addItems(['RABD', 'RABDnorm', 'RABA', 'Ratio', 'RMean'])
         self.tabs.add_named_tab('&Index Definition', self.combobox_index_type, grid_pos=(tab_rows+3, 1, 1, 1))
         self.qtext_new_index_name = QLineEdit()
         self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 2, 1, 2))
@@ -190,23 +190,28 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
         self.btn_compute_index_maps = QPushButton("(Re-)Compute index map(s)")
-        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps)
+        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps, 0, 0, 1, 2)
         self.btn_add_index_maps_to_viewer = QPushButton("Add index map(s) to Viewer")
-        self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer)
+        self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer, 1, 0, 1, 2)
+
         self.btn_export_index_tiff = QPushButton("Export index map(s) to tiff")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff)
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff, 2, 0, 1, 2)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
-        self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv)
+        self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv, 3, 0, 1, 2)
         self.btn_save_all_plot = QPushButton("Create and Save all index plots")
-        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot)
+        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot, 4, 0, 1, 1)
+        self.check_normalize_single_export = QCheckBox("Normalize index plots")
+        self.check_normalize_single_export.setChecked(True)
+        self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
+        self.index_compute_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
         self.btn_export_index_settings = QPushButton("Export index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings)
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings, 5, 0, 1, 2)
         self.btn_import_index_settings = QPushButton("Import index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings)
+        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings, 6, 0, 1, 2)
         self.index_file_display = QLineEdit("No file selected")
-        self.index_compute_group.glayout.addWidget(self.index_file_display)
+        self.index_compute_group.glayout.addWidget(self.index_file_display, 7, 0, 1, 2)
         self.check_force_recompute = QCheckBox("Force recompute")
-        self.index_compute_group.glayout.addWidget(self.check_force_recompute)
+        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 8, 0, 1, 2)
         self.check_force_recompute.setChecked(True)
         self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
 
@@ -283,8 +288,9 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('P&lots', self.metadata_location, grid_pos=(4, 1, 1, 3))
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
+        self.spinbox_metadata_scale.setDecimals(4)
         self.spinbox_metadata_scale.setRange(0, 1000)
-        self.spinbox_metadata_scale.setSingleStep(0.001)
+        self.spinbox_metadata_scale.setSingleStep(0.0001)
         self.spinbox_metadata_scale.setValue(1)
         self.scale_name = QLineEdit("No location")
         self.tabs.add_named_tab('P&lots', QLabel('Scale'), grid_pos=(5, 0, 1, 1))
@@ -399,6 +405,18 @@ class SpectralIndexWidget(QWidget):
                               )
             
         index_def = {
+            'RABD510norm': [470, 510, 530],
+            'RABD660670norm': [590, 665, 730],
+        }
+        for key, value in index_def.items():
+            self.index_collection[key] = SpectralIndex(index_name=key,
+                              index_type='RABDnorm',
+                              left_band_default=value[0],
+                              middle_band_default=value[1],
+                              right_band_default=value[2]
+                              )
+            
+        index_def = {
             'RABA410560': [410, 560],
         }
         for key, value in index_def.items():
@@ -417,8 +435,15 @@ class SpectralIndexWidget(QWidget):
                               index_type='Ratio',
                               left_band_default=value[0],
                               right_band_default=value[1]
-            )
-
+                              )
+            
+        self.index_collection['RMean'] = SpectralIndex(index_name='RMean',
+                              index_type='RMean',
+                              left_band_default=300,
+                              right_band_default=900
+                              )
+        
+        
     def add_connections(self):
         """Add callbacks"""
 
@@ -473,7 +498,7 @@ class SpectralIndexWidget(QWidget):
         Called: "Index Definition" tab, index spinboxes left, middle and right
         """
 
-        if self.current_index_type == 'RABD':
+        if self.current_index_type in ['RABD', 'RABDnorm']:
             self.em_boundaries_range.setValue(
                 (self.spin_index_left.value(), self.spin_index_middle.value(),
                 self.spin_index_right.value()))
@@ -671,7 +696,15 @@ class SpectralIndexWidget(QWidget):
         """Load mask from file"""
         
         export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        mask = load_mask(get_mask_path(export_path_roi))#[self.row_bounds[0]:self.row_bounds[1], self.col_bounds[0]:self.col_bounds[1]]
+        mask_path = get_mask_path(export_path_roi)
+
+        if mask_path.is_file():
+            mask = load_mask(mask_path)
+        else:
+            mask = np.zeros(
+                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
+                dtype=np.uint8)
+
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
         else:
@@ -1112,7 +1145,8 @@ class SpectralIndexWidget(QWidget):
 
     def create_and_save_all_single_index_plot(self, event=None, force_recompute=None):
         """Create and save all single index plots for the selected indices and
-        save to file."""
+        save to file. If normalize is checked, also create and save normalized
+        index plots."""
 
         if force_recompute is None:
             force_recompute = self.check_force_recompute.isChecked()
@@ -1149,6 +1183,24 @@ class SpectralIndexWidget(QWidget):
             self.index_plot_live.figure.savefig(
                 export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
             dpi=self.spin_final_dpi.value())
+
+        if self.check_normalize_single_export.isChecked():
+            self._on_click_export_index_settings()
+            self._on_click_save_plot_parameters(file_path=self.export_folder.joinpath('plot_settings.yml'))
+            self._on_export_index_projection()
+
+            compute_normalized_index_params(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('index_settings.yml'),
+                export_folder=self.export_folder)
+            
+            batch_create_plots(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
+                plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
+                normalize=True
+            )
+            
 
     def create_and_save_multi_index_plot(self, event=None, force_recompute=None):
         """Create and save multi index plot for the selected indices and
@@ -1206,6 +1258,7 @@ class SpectralIndexWidget(QWidget):
         """Create the projection table for the index_name"""
 
         proj_pd = pd.DataFrame({'depth': np.arange(0,len(self.index_collection[index_names[0]].index_proj))})
+
         for i in index_names:
             proj = self.index_collection[i].index_proj   
             proj_pd[i] = proj
