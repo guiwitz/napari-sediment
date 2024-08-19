@@ -541,6 +541,8 @@ def compute_normalized_index_params(project_list, index_params_file, export_fold
             
         for roi_ind in range(len(roi_folders)):
             proj_path = ex.joinpath(f'roi_{roi_ind}').joinpath('index_plots').joinpath('index_projection.csv')
+            if not proj_path.is_file():
+                continue
             all_proj.append(pd.read_csv(proj_path))
     all_proj = pd.concat(all_proj, axis=0)
 
