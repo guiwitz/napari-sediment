@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, asdict
 import dataclasses
 import numpy as np
@@ -421,11 +422,15 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
     indices = load_index_series(index_params_file)
     params_plots = load_plots_params(plot_params_file)
     fig, ax = plt.subplots()
-    
+
     for ex in project_list:
 
         roi_folders = list(ex.glob('roi*'))
         roi_folders = [x.name for x in roi_folders if x.is_dir()]
+
+        if len(roi_folders) == 0:
+            os.makedirs(ex.joinpath('roi_0'))
+            roi_folders = ['roi_0']
 
         for roi_ind in range(len(roi_folders)):
 
