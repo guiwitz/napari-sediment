@@ -420,7 +420,8 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
 
     indices = load_index_series(index_params_file)
     params_plots = load_plots_params(plot_params_file)
-
+    fig, ax = plt.subplots()
+    
     for ex in project_list:
 
         roi_folders = list(ex.glob('roi*'))
@@ -488,7 +489,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 indices[k].index_proj = proj
 
                 # create single index plot
-                fig, ax = plt.subplots()
+                #fig, ax = plt.subplots()
                 format_dict = asdict(params_plots)
                 
                 fig, ax1, ax2, ax3 = plot_spectral_profile(
