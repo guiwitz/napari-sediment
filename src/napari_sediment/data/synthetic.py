@@ -1,3 +1,5 @@
+from pathlib import Path
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -55,7 +57,8 @@ def generate_image(min_val, max_val, height, width, channels, pattern_weight,
 
 def generate_synthetic_dataset(image_mean, image_std, min_val, max_val, height, width, 
                                ref_height, channels, white_ref_added_signal, pattern_weight, 
-                               pattern_width=10, random_seed=42):
+                               pattern_width=10, random_seed=42, data_name='Synthetic',
+                               save_path=None):
     """
     Generate a synthetic dataset for testing purposes.
 
@@ -85,6 +88,10 @@ def generate_synthetic_dataset(image_mean, image_std, min_val, max_val, height, 
         width (sigma) of the pattern values
     random_seed : int
         random seed for reproducibility
+    main_path : str or Path
+        path where the images are saved, by default images are not saved
+    data_name : str
+        name of the dataset, by default 'Synthetic'
     
     Returns
     -------
@@ -121,7 +128,56 @@ def generate_synthetic_dataset(image_mean, image_std, min_val, max_val, height, 
     
     im_test = im_test + np.random.normal(image_mean, image_std, im_test.shape).astype(np.uint16)
 
+    
+
     return im_test, dark_ref, dark_for_white_ref, white_ref
+
+def save_test_dataset(data_name, save_path, **kwargs):
+    """
+    Save a synthetic dataset for testing purposes.
+
+    Parameters
+    ----------
+    data_name : str
+        name of the dataset
+    save_path : str or Path
+        path where the images are saved
+    **kwargs : dict
+        parameters for generate_synthetic_dataset
+    
+    Returns
+    -------
+    
+    """
+
+    im_test, dark_ref, dark_for_white_ref, white_ref = generate_synthetic_dataset(**kwargs)
+    
+    im_test = add_signal_to_image(im_test=im_test, widths=[15, 30], ch_positions = [40, 40],
+                                        row_boundaries=[[10,20], [60,70]], col_boundaries=[[10,110],[10,110]], amplitudes=[-400, -400], channels=80)
+
+    im_test = add_ellipse_to_image(im_test, 100, 37, 10, 20, -600)
+
+    main_path = Path(save_path)
+    
+    os.makedirs(main_path.joinpath(f'{data_name}/capture').as_posix(), exist_ok=True)
+    os.makedirs(main_path.joinpath(f'{data_name}_WR_/capture').as_posix(), exist_ok=True)
+
+    metadata = {'wavelength': [str(x) for x in np.linspace(300, 900, kwargs['channels'])], 'interleave': 'bil'}
+    save_image(
+        hdr_file=main_path.joinpath(f'{data_name}/capture/{data_name}.hdr'),
+        image=im_test, ext='raw', force=True, metadata=metadata, interleave='bil')
+    
+    save_image(
+        hdr_file=main_path.joinpath(f'{data_name}/capture/DARKREF_{data_name}.hdr'),
+        image=dark_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
+    
+    save_image(
+        hdr_file=main_path.joinpath(f'{data_name}_WR_/capture/DARKREF_{data_name}.hdr'),
+        image=dark_for_white_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
+    save_image(
+        hdr_file=main_path.joinpath(f'{data_name}_WR_/capture/WHITEREF_{data_name}.hdr'),
+        image=white_ref, ext='raw', force=True, metadata=metadata, interleave='bil')
+    
 
 def mat1(pos, mu=10, A=10, im_ch=100):
     """Create a 1D gaussian pattern with a given position within a signal of
@@ -196,5 +252,6 @@ def add_ellipse_to_image(im_test, r, c, r_radius, c_radius, amplitude):
     im_test[rr, cc, :] = im_test[rr, cc, :] + amplitude
     
     return im_test
+
             
     

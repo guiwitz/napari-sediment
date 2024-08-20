@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, asdict
 import dataclasses
 import numpy as np
@@ -420,11 +421,16 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
 
     indices = load_index_series(index_params_file)
     params_plots = load_plots_params(plot_params_file)
+    fig, ax = plt.subplots()
 
     for ex in project_list:
 
         roi_folders = list(ex.glob('roi*'))
         roi_folders = [x.name for x in roi_folders if x.is_dir()]
+
+        if len(roi_folders) == 0:
+            os.makedirs(ex.joinpath('roi_0'))
+            roi_folders = ['roi_0']
 
         for roi_ind in range(len(roi_folders)):
 
@@ -488,7 +494,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 indices[k].index_proj = proj
 
                 # create single index plot
-                fig, ax = plt.subplots()
+                #fig, ax = plt.subplots()
                 format_dict = asdict(params_plots)
                 
                 fig, ax1, ax2, ax3 = plot_spectral_profile(
@@ -541,6 +547,8 @@ def compute_normalized_index_params(project_list, index_params_file, export_fold
             
         for roi_ind in range(len(roi_folders)):
             proj_path = ex.joinpath(f'roi_{roi_ind}').joinpath('index_plots').joinpath('index_projection.csv')
+            if not proj_path.is_file():
+                continue
             all_proj.append(pd.read_csv(proj_path))
     all_proj = pd.concat(all_proj, axis=0)
 

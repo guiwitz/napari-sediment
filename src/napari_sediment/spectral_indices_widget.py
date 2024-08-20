@@ -1366,7 +1366,10 @@ class SpectralIndexWidget(QWidget):
     def _on_change_index_map_rendering(self, event=None):
         """Update the contrast limits of the index layers."""
 
-        layer = self.viewer.layers.selection.active
+        if event is None:
+            self.viewer.layers.selection.active
+        else:
+            layer = self.viewer.layers[event.index]
         if layer.name in self.index_collection:
             self.index_collection[layer.name].index_map_range = layer.contrast_limits
             self.index_collection[layer.name].colormap = layer.colormap.name
