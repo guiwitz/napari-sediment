@@ -2,6 +2,9 @@ _build/
 unused/
 src/napari_sediment/data/export/
 book_duplicates/
+book/Synth*
+src/napari_sediment/data/export*
+src/napari_sediment/data/synth*
 notebooks/
 # Byte-compiled / optimized / DLL files
 __pycache__/
