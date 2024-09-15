@@ -3,25 +3,25 @@ display_name: napari Sediment
 contributions:
   commands:
     - id: napari-sediment.get_reader
-      python_name: napari_sediment._reader:napari_get_reader
+      python_name: napari_sediment.utilities._reader:napari_get_reader
       title: Open data with napari Sediment
     - id: napari-sediment.make_qwidget
-      python_name: napari_sediment.sediment_widget:SedimentWidget
+      python_name: napari_sediment.widgets.sediment_widget:SedimentWidget
       title: Make Sediment QWidget
     - id: napari-sediment.make_hyperwidget
-      python_name: napari_sediment.hyperanalysis_widget:HyperAnalysisWidget
+      python_name: napari_sediment.widgets.hyperanalysis_widget:HyperAnalysisWidget
       title: Make Hyperanalysis QWidget
     - id: napari-sediment.make_spectralindexwidget
-      python_name: napari_sediment.spectral_indices_widget:SpectralIndexWidget
+      python_name: napari_sediment.widgets.spectral_indices_widget:SpectralIndexWidget
       title: Make Spectral Indices QWidget
     - id: napari-sediment.make_batchwidget
-      python_name: napari_sediment.batch_indices:BatchIndexWidget
+      python_name: napari_sediment.widgets.batch_indices:BatchIndexWidget
       title: Make Batch Index QWidget
     - id: napari-sediment.make_preproc_batchwidget
-      python_name: napari_sediment.batch_preproc_widget:BatchPreprocWidget
+      python_name: napari_sediment.widgets.batch_preproc_widget:BatchPreprocWidget
       title: Make Batch Preprocess QWidget
     - id: napari-sediment.make_convertwidget
-      python_name: napari_sediment.convert_widget:ConvertWidget
+      python_name: napari_sediment.widgets.convert_widget:ConvertWidget
       title: Make Convert QWidget
   readers:
     - command: napari-sediment.get_reader

@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from napari_sediment.sediment_widget import SedimentWidget
+from ..widgets.sediment_widget import SedimentWidget
 from napari_sediment.data import synthetic
 import os
 from pathlib import Path

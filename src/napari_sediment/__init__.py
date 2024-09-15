@@ -4,8 +4,8 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-from ._reader import napari_get_reader
-from .sediment_widget import SedimentWidget
+from .utilities._reader import napari_get_reader
+from .widgets.sediment_widget import SedimentWidget
 
 __all__ = (
     "napari_get_reader",
