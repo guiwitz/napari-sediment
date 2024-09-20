@@ -17,7 +17,7 @@ from magicgui.widgets import FileEdit
 
 from napari.utils import progress
 import pandas as pd
-from napari_matplotlib.base import NapariMPLWidget
+#from napari_matplotlib.base import NapariMPLWidget
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 from ..data_structures.parameters import Param
@@ -245,8 +245,8 @@ class SpectralIndexWidget(QWidget):
         self.scrollArea = QScrollArea()
         self.scrollArea.setWidget(self.pixlabel)
 
-        self.index_plot_live = NapariMPLWidget(napari_viewer=self.viewer)
-        self.index_plot_live.figure.set_layout_engine('none')
+        self.index_plot_live = SpectralPlotter(napari_viewer=self.viewer)
+        self.index_plot_live.canvas.figure.set_layout_engine('none')
 
         self.scrollArea.setWidgetResizable(True)
 
@@ -747,13 +747,13 @@ class SpectralIndexWidget(QWidget):
         ax_histx.imshow(out, extent=(self.endmember_bands.min(),self.endmember_bands.max(), 0,10))
         ax_histx.set_axis_off()
 
-        self.em_plot.axes.set_xlabel('Wavelength', color='white')
-        self.em_plot.axes.set_ylabel('Continuum removed', color='white')
+        self.em_plot.axes.set_xlabel('Wavelength', color='black')
+        self.em_plot.axes.set_ylabel('Continuum removed', color='black')
         self.em_plot.axes.xaxis.label.set_color('black')
         self.em_plot.axes.yaxis.label.set_color('black')
         self.em_plot.axes.tick_params(axis='both', colors='black')
-        self.em_plot.figure.patch.set_facecolor('white')
-        self.em_plot.figure.canvas.draw()
+        self.em_plot.canvas.figure.patch.set_facecolor('white')
+        self.em_plot.canvas.figure.canvas.draw()
 
     def save_endmembers_plot(self):
         """
@@ -767,12 +767,12 @@ class SpectralIndexWidget(QWidget):
             num_lines = len(self.em_boundary_lines)
             for i in range(num_lines):
                 self.em_boundary_lines[i].set_color([0,0,0,0])
-        self.em_plot.figure.canvas.draw()
-        self.em_plot.figure.savefig(export_folder.joinpath('endmembers.png'), dpi=300)
+        self.em_plot.canvas.figure.canvas.draw()
+        self.em_plot.canvas.figure.savefig(export_folder.joinpath('endmembers.png'), dpi=300)
         if self.em_boundary_lines is not None:
             for i in range(num_lines):
                 self.em_boundary_lines[i].set_color([1,0,0])
-        self.em_plot.figure.canvas.draw()
+        self.em_plot.canvas.figure.canvas.draw()
 
     def _on_change_em_boundaries(self, event=None):
         """
@@ -829,7 +829,7 @@ class SpectralIndexWidget(QWidget):
             )
             except:
                 pass
-            self.em_plot.figure.canvas.draw()
+            self.em_plot.canvas.figure.canvas.draw()
         
         #self._connect_spin_bounds()
 
@@ -1081,11 +1081,11 @@ class SpectralIndexWidget(QWidget):
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
             rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[index_series[0].index_name],
             format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
-            location=self.params.location, fig=self.index_plot_live.figure, 
+            location=self.params.location, fig=self.index_plot_live.canvas.figure, 
             roi=roi)
 
         # save temporary low-res figure for display in napari
-        self.index_plot_live.figure.savefig(
+        self.index_plot_live.canvas.figure.savefig(
             self.export_folder.joinpath('temp.png'),
             dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
 
@@ -1127,12 +1127,12 @@ class SpectralIndexWidget(QWidget):
             scale=self.params.scale,
             scale_unit=self.params.scale_units,
             location=self.params.location, 
-            fig=self.index_plot_live.figure,
+            fig=self.index_plot_live.canvas.figure,
             roi=roi)
         
         if show_plot:
             # save temporary low-res figure for display in napari
-            self.index_plot_live.figure.savefig(
+            self.index_plot_live.canvas.figure.savefig(
                 self.export_folder.joinpath('temp.png'),
                 dpi=self.spin_preview_dpi.value())#, bbox_inches="tight")
             
@@ -1179,10 +1179,10 @@ class SpectralIndexWidget(QWidget):
             _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
                 rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[i_s.index_name],
                 format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
-                location=self.params.location, fig=self.index_plot_live.figure, 
+                location=self.params.location, fig=self.index_plot_live.canvas.figure, 
                 roi=roi)
 
-            self.index_plot_live.figure.savefig(
+            self.index_plot_live.canvas.figure.savefig(
                 export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
             dpi=self.spin_final_dpi.value())
 
@@ -1212,7 +1212,7 @@ class SpectralIndexWidget(QWidget):
             force_recompute = self.check_force_recompute.isChecked()
 
         self.create_multi_index_plot(event=None, show_plot=False, force_recompute=force_recompute)
-        self.index_plot_live.figure.savefig(
+        self.index_plot_live.canvas.figure.savefig(
                 self.plot_folder().joinpath(f'multi_index_plot.png'),
                 dpi=self.spin_final_dpi.value())
 
@@ -1227,9 +1227,9 @@ class SpectralIndexWidget(QWidget):
     def _on_click_reset_figure_size(self, event=None):
         """Reset figure size to default"""
 
-        self.index_plot_live.figure.set_size_inches(self.fig_size)
-        self.index_plot_live.figure.canvas.draw()
-        self.index_plot_live.figure.canvas.flush_events()
+        self.index_plot_live.canvas.set_size_inches(self.fig_size)
+        self.index_plot_live.canvas.figure.canvas.draw()
+        self.index_plot_live.canvas.figure.canvas.flush_events()
 
         vsize = self.viewer.window.geometry()
         self.viewer.window.resize(vsize[2]-10,vsize[3]-10)
@@ -1418,7 +1418,7 @@ class SpectralIndexWidget(QWidget):
         export_folder = self.plot_folder()
         if export_file is None:
             export_file = export_folder.joinpath(self.qcom_indices.currentText()+'_index_plot.png')
-        self.index_plot_live.figure.savefig(
+        self.index_plot_live.canvas.figure.savefig(
             fname=export_file, dpi=self.spin_final_dpi.value())#, bbox_inches="tight")
         self._on_export_index_projection()
 
