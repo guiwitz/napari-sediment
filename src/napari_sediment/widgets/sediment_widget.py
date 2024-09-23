@@ -528,8 +528,8 @@ class SedimentWidget(QWidget):
 
         # SpectralPlotter
         self.scan_plot = SpectralPlotter(napari_viewer=self.viewer)
-        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
-        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='black')
+        self.scan_plot.axes.set_ylabel('Intensity', color='black')
         self.tabs.add_named_tab('P&lotting', self.scan_plot, (0,0,1,2))
 
         # Checkbox "Remove continuum"
@@ -1273,8 +1273,8 @@ class SedimentWidget(QWidget):
             return
 
         self.scan_plot.axes.clear()
-        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
-        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='black')
+        self.scan_plot.axes.set_ylabel('Intensity', color='black')
 
         spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
         

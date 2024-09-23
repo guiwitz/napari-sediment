@@ -415,6 +415,7 @@ class HyperAnalysisWidget(QWidget):
         for name in ['mnf', 'denoised']:
             if export_path.joinpath(f'{name}.zarr').is_dir():
                 im = np.array(zarr.open_array(export_path.joinpath(f'{name}.zarr')))
+                self.image_mnfr = np.moveaxis(im, 0, 2)
                 self.viewer.add_image(im, name=name)
         
         if export_path.joinpath('pure.zarr').is_dir():
@@ -441,10 +442,10 @@ class HyperAnalysisWidget(QWidget):
         
         export_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}') 
         if export_path.joinpath('eigenvalues.csv').is_file():
-            self.eigenvals = pd.read_csv(export_path.joinpath('eigenvalues.csv')).values
+            self.eigenvals = pd.read_csv(export_path.joinpath('eigenvalues.csv')).eigenvalues.values
             self.plot_eigenvals()
         if export_path.joinpath('correlation.csv').is_file():
-            self.all_coef = pd.read_csv(export_path.joinpath('correlation.csv')).values
+            self.all_coef = pd.read_csv(export_path.joinpath('correlation.csv')).correlation.values
             self.plot_correlation()
         if export_path.joinpath('end_members.csv').is_file():
             self.end_members = pd.read_csv(export_path.joinpath('end_members.csv')).values
@@ -506,7 +507,7 @@ class HyperAnalysisWidget(QWidget):
 
         self.eigen_plot.axes.clear()
         self.eigen_plot.axes.plot(self.eigenvals)
-        self.eigen_plot.axes.set_title('Eigenvalues', fontdict={'color':'w'})
+        self.eigen_plot.axes.set_title('Eigenvalues', fontdict={'color':'black'})
             
         self.eigen_plot.canvas.figure.canvas.draw()
 
@@ -548,8 +549,9 @@ class HyperAnalysisWidget(QWidget):
 
         self.corr_plot.axes.clear()
         self.corr_plot.axes.plot(self.all_coef)#, linewidth=0.1, markersize=0.5)
-        self.corr_plot.axes.set_title('Line correlation', fontdict={'color':'w'})
+        self.corr_plot.axes.set_title('Line correlation', fontdict={'color':'black'})
         self.corr_plot.canvas.figure.canvas.draw()
+        
 
     def _on_click_reduce_mnfr_on_correlation(self):
         """Select bands based on correlation between lines. As a general rule, keep
@@ -673,7 +675,7 @@ class HyperAnalysisWidget(QWidget):
         self.ppi_plot.axes.set_xlabel('Wavelength', color='black')
         self.ppi_plot.axes.set_ylabel('Continuum removed', color='black')
         self.ppi_plot.axes.tick_params(axis='both', colors='black')
-        self.ppi_plot.figure.patch.set_facecolor('white')
+        self.ppi_plot.canvas.figure.patch.set_facecolor('white')
         self.ppi_plot.canvas.figure.canvas.draw()
 
 
@@ -707,8 +709,8 @@ class HyperAnalysisWidget(QWidget):
             return
 
         self.scan_plot.axes.clear()
-        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='white')
-        self.scan_plot.axes.set_ylabel('Intensity', color='white')
+        self.scan_plot.axes.set_xlabel('Wavelength (nm)', color='black')
+        self.scan_plot.axes.set_ylabel('Intensity', color='black')
 
         spectral_pixel = np.array(self.spectral_pixel, dtype=np.float64)
         
