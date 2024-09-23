@@ -7,7 +7,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt
 from superqt import QDoubleSlider
 
-from napari.utils import progress
+from napari.utils import progress, DirectLabelColormap
 from superqt import QLabeledDoubleRangeSlider
 from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
 from scipy.signal import savgol_filter
@@ -640,7 +640,9 @@ class HyperAnalysisWidget(QWidget):
 
         lines = self.ppi_plot.axes.get_lines()
         line_colors = [[0,0,0]] + [line.get_color() for line in lines]
-        self.viewer.layers['pure_members'].color = {ind: line_colors[ind] for ind in range(0, self.viewer.layers['pure_members'].data.max()+1)}
+        color_dict = {ind: line_colors[ind] for ind in range(0, self.viewer.layers['pure_members'].data.max()+1)}
+        color_dict[None] = [1,0,0]
+        self.viewer.layers['pure_members'].colormap = DirectLabelColormap(color_dict=color_dict)
 
     def update_endmembers(self, event=None):
 
