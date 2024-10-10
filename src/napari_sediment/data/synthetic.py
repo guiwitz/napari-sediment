@@ -249,7 +249,9 @@ def add_ellipse_to_image(im_test, r, c, r_radius, c_radius, amplitude):
         test image with the added ellipse
     """
     rr, cc = ellipse(r=r, c=c, r_radius=r_radius, c_radius=c_radius, shape=im_test.shape)
-    im_test[rr, cc, :] = im_test[rr, cc, :] + amplitude
+    im_test[rr, cc, :] = im_test[rr, cc, :] + np.asarray(amplitude)
+    im_test[im_test<0] = 0
+    im_test = im_test.astype(np.uint16)
     
     return im_test
 
