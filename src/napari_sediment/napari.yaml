@@ -23,6 +23,10 @@ contributions:
     - id: napari-sediment.make_convertwidget
       python_name: napari_sediment.widgets.convert_widget:ConvertWidget
       title: Make Convert QWidget
+    - id: napari-sediment.create_demo_data
+      title: Create demo data
+      python_name: napari_sediment.data.data_contribution:demo_data
+      
   readers:
     - command: napari-sediment.get_reader
       accepts_directories: true
@@ -40,3 +44,5 @@ contributions:
       display_name: BatchPreproc
     - command: napari-sediment.make_convertwidget
       display_name: Convert
+    - command: napari-sediment.create_demo_data
+      display_name: Demo Data
