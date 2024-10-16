@@ -925,6 +925,8 @@ class SedimentWidget(QWidget):
         if (selected_layer == 'RGB') | (self.check_sync_bands_rgb.isChecked()):
             for ind, x in enumerate(['red', 'green', 'blue']):
                 self.viewer.layers[x].data = data_destripe[ind]
+                update_contrast_on_layer(self.viewer.layers[x])
+                self.viewer.layers[x].refresh()
         
         if (selected_layer == 'None') or (selected_layer == 'imcube') | (selected_layer == 'imcube_corrected') | (self.check_sync_bands_rgb.isChecked()):
             if 'imcube_destripe' in self.viewer.layers:
