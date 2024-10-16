@@ -125,6 +125,7 @@ def test_dim_reduc_workflow(make_napari_viewer):
 
 
     self.ppi_iterations.setValue(15000)
+    self.ppi_threshold.setValue(1)
     self._on_click_ppi()
 
 
