@@ -393,7 +393,7 @@ def savgol_destripe(image, width=100, order=2):
 
     image=image.astype(np.float16)+diff.astype(np.float16)
     image[image<0]=0
-    image = image.astype(np.uint16)
+    #image = image.astype(np.uint16)
 
     if single_channel:
         image = image[:,:,0]
@@ -460,6 +460,8 @@ def correct_single_channel(
     #    import pystripe
     #    corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
         corrected = savgol_destripe(corrected, width=100, order=2)
+        if not use_float:
+            corrected = corrected.astype(np.uint16)
 
     im_zarr[zarr_ind, :,:] = corrected
 
