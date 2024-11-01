@@ -5,7 +5,8 @@ from ..data_structures.imchannels import ImChannels
 from ..data_structures.parameters import Param
 
 def batch_preprocessing(folder_to_analyze, export_folder, background_text='_WR_',
-                        min_max_band=None, background_correction=True, destripe=True, use_dask=True, chunk_size=1000):
+                        min_max_band=None, background_correction=True, destripe=True,
+                        use_dask=True, chunk_size=1000, use_float=True):
 
     export_folder = Path(export_folder)
     _, _, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path = get_data_background_path(folder_to_analyze, background_text=background_text)
@@ -35,7 +36,8 @@ def batch_preprocessing(folder_to_analyze, export_folder, background_text='_WR_'
         background_correction=background_correction,
         destripe=destripe,
         use_dask=use_dask,
-        chunk_size=chunk_size
+        chunk_size=chunk_size,
+        use_float=use_float
         )
     imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
     param.main_roi = [[

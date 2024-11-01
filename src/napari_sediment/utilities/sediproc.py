@@ -470,7 +470,7 @@ def correct_single_channel(
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
                          min_max_bands=None, background_correction=True, destripe=True,
-                         use_dask=False, chunk_size=500, use_float=False):
+                         use_dask=False, chunk_size=500, use_float=True):
 
     img = open_image(imhdr_path)
 

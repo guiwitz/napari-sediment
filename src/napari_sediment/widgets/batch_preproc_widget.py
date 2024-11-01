@@ -139,6 +139,11 @@ class BatchPreprocWidget(QWidget):
         self.check_use_dask.setToolTip("Use dask to parallelize computation")
         self.tabs.add_named_tab('&Preprocessing', self.check_use_dask)
 
+        self.check_save_as_float = QCheckBox("Save as floats")
+        self.check_save_as_float.setChecked(True)
+        self.check_save_as_float.setToolTip("Save data as floats. Otherwise convert to integers after multiplication by 4096.")
+        self.tabs.add_named_tab('&Preprocessing', self.check_save_as_float)
+
         self.btn_preproc_folder = QPushButton("Preprocess")
         self.tabs.add_named_tab('&Preprocessing', self.btn_preproc_folder)
 
@@ -273,6 +278,7 @@ class BatchPreprocWidget(QWidget):
                     background_correction=self.check_do_background_correction.isChecked(),
                     destripe=self.check_do_destripe.isChecked(),
                     use_dask=self.check_use_dask.isChecked(),
-                    chunk_size=self.spin_chunksize.value()
+                    chunk_size=self.spin_chunksize.value(),
+                    use_float=self.check_save_as_float.isChecked()
                 )
         self.viewer.window._status_bar._toggle_activity_dock(False)
