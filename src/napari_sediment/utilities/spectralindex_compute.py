@@ -171,9 +171,13 @@ def compute_index_RMean(left, right, row_bounds, col_bounds, imagechannels):
     roi = np.concatenate([row_bounds, col_bounds])
     # number of bands between edges and trough
     R0_RN_cube = imagechannels.get_image_cube(channels=np.arange(ltr_stack_indices[0], ltr_stack_indices[1]+1), roi=roi)
+    if R0_RN_cube.dtype == np.uint16:
+        # if data saved as integer, normalize here
+        R0_RN_cube = R0_RN_cube / 4096
     R0_RN_cube = R0_RN_cube.astype(np.float32)
     RMean = np.mean(R0_RN_cube, axis=0)
     RMean = np.asarray(RMean, np.float32)
+
     return RMean
 
 def compute_index_RABDnorm(left, trough, right, row_bounds, col_bounds, imagechannels):
