@@ -288,7 +288,7 @@ class SedimentWidget(QWidget):
 
         # Checkbox "Use dask"
         self.check_use_dask = QCheckBox("Use dask")
-        self.check_use_dask.setChecked(True)
+        self.check_use_dask.setChecked(False)
         self.check_use_dask.setToolTip("Use dask to parallelize computation")
         self.tabs.add_named_tab('Pro&cessing', self.check_use_dask)
   
