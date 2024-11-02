@@ -967,6 +967,8 @@ class SpectralIndexWidget(QWidget):
         self.create_and_save_all_single_index_plot(event=event)
         self.create_and_save_multi_index_plot(event=event, force_recompute=False)
         self._on_click_export_index_tiff()
+        self._on_click_save_plot_parameters(file_path=self.export_folder.joinpath('plot_settings.yml'))
+
         self.connect_plot_formatting()
         self._on_click_export_index_settings()
     
