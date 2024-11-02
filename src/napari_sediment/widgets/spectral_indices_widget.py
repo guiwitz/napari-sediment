@@ -722,12 +722,17 @@ class SpectralIndexWidget(QWidget):
             self.end_members = self.end_members[:,:-1]
         else:
             self.endmember_bands = self.imagechannels.centers
-            self.end_members = self.imagechannels.get_image_cube(
+            # this loads an image into self.end_members, instead of actual
+            # end-members. Leads to errors in other places e.g when changing 
+            # to ROI without end-members. Maybe leftover from
+            # previous implementation? Commenting out for the moment.
+            '''self.end_members = self.imagechannels.get_image_cube(
                 channels=np.arange(len(self.endmember_bands)),
                 roi=[
                     self.cursor_pos[0]+self.row_bounds[0], self.cursor_pos[0]+self.row_bounds[0]+1,
                     self.cursor_pos[1]+self.col_bounds[0], self.cursor_pos[1]+self.col_bounds[0]+1]
                     ).compute().ravel()
+            '''
         
         self.em_boundaries_range.setRange(min=self.endmember_bands[0],max=self.endmember_bands[-1])
         self.em_boundaries_range.setValue(
@@ -740,20 +745,23 @@ class SpectralIndexWidget(QWidget):
         """Cluster the pure pixels and plot the endmembers as average of clusters."""
 
         self.em_plot.axes.clear()
-        self.em_plot.axes.plot(self.endmember_bands, self.end_members)
+        # only plot if endmembers are available
+        if self.end_members is not None:
+            
+            self.em_plot.axes.plot(self.endmember_bands, self.end_members)
 
-        out = wavelength_to_rgb(self.endmember_bands.min(), self.endmember_bands.max(), 100)
-        ax_histx = self.em_plot.axes.inset_axes([0.0,-0.5, 1.0, 1], sharex=self.em_plot.axes)
-        ax_histx.imshow(out, extent=(self.endmember_bands.min(),self.endmember_bands.max(), 0,10))
-        ax_histx.set_axis_off()
+            out = wavelength_to_rgb(self.endmember_bands.min(), self.endmember_bands.max(), 100)
+            ax_histx = self.em_plot.axes.inset_axes([0.0,-0.5, 1.0, 1], sharex=self.em_plot.axes)
+            ax_histx.imshow(out, extent=(self.endmember_bands.min(),self.endmember_bands.max(), 0,10))
+            ax_histx.set_axis_off()
 
-        self.em_plot.axes.set_xlabel('Wavelength', color='black')
-        self.em_plot.axes.set_ylabel('Continuum removed', color='black')
-        self.em_plot.axes.xaxis.label.set_color('black')
-        self.em_plot.axes.yaxis.label.set_color('black')
-        self.em_plot.axes.tick_params(axis='both', colors='black')
-        self.em_plot.canvas.figure.patch.set_facecolor('white')
-        self.em_plot.canvas.figure.canvas.draw()
+            self.em_plot.axes.set_xlabel('Wavelength', color='black')
+            self.em_plot.axes.set_ylabel('Continuum removed', color='black')
+            self.em_plot.axes.xaxis.label.set_color('black')
+            self.em_plot.axes.yaxis.label.set_color('black')
+            self.em_plot.axes.tick_params(axis='both', colors='black')
+            self.em_plot.canvas.figure.patch.set_facecolor('white')
+            self.em_plot.canvas.figure.canvas.draw()
 
     def save_endmembers_plot(self):
         """
