@@ -891,7 +891,7 @@ class SedimentWidget(QWidget):
 
                 im_corr = white_dark_correct(
                     np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
-                    white_data, dark_data, dark_for_white_data)
+                    white_data, dark_data, dark_for_white_data, use_float=True)
                 
                 for ind, c in enumerate(rgb_sorted):
                     self.viewer.layers[c].data = im_corr[ind]
