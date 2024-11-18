@@ -187,17 +187,6 @@ def compute_index_RABDnorm(left, trough, right, row_bounds, col_bounds, imagecha
     rabd_norm = rabd / rmean
     return rabd_norm
 
-def clean_index_map(index_map):
-
-    index_map = index_map.copy()
-    index_map[index_map == np.inf] = 0
-    percentiles = np.percentile(index_map, [1, 99])
-    index_map = np.clip(index_map, percentiles[0], percentiles[1])
-    if isinstance(index_map, da.Array):
-        index_map = index_map.compute()
-
-    return index_map
-
 def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=None):
     """Compute the projection of the index map.
     
@@ -320,6 +309,28 @@ def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
     
     return computed_index
 
+def compute_and_clean_index(spectral_index, row_bounds, col_bounds, imagechannels):
+    """Compute index map for index_name and clean it (nan) for plotting"""
+
+    computed_index = compute_index(
+        spectral_index=spectral_index,
+        row_bounds=row_bounds, col_bounds=col_bounds,
+        imagechannels=imagechannels)
+    computed_index = clean_index_map(computed_index)
+
+    return computed_index
+
+def clean_index_map(index_map):
+
+    index_map = index_map.copy()
+    index_map[index_map == np.inf] = 0
+    percentiles = np.percentile(index_map, [1, 99])
+    index_map = np.clip(index_map, percentiles[0], percentiles[1])
+    if isinstance(index_map, da.Array):
+        index_map = index_map.compute()
+
+    return index_map
+
 def load_index_series(index_file):
     """Load the index series from a yml file."""
     
@@ -375,13 +386,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 if not roi_plot_folder.exists():
                     roi_plot_folder.mkdir()
 
-            mainroi = np.array([np.array(x).reshape(4,2) for x in params.main_roi]).astype(int)
-            row_bounds = [
-                        mainroi[roi_ind][:,0].min(),
-                        mainroi[roi_ind][:,0].max()]
-            col_bounds = [
-                        mainroi[roi_ind][:,1].min(),
-                        mainroi[roi_ind][:,1].max()]
+            row_bounds, col_bounds = params.get_formatted_col_row_bounds(roi_ind)
             
             measurement_roi = None
             if len(params.measurement_roi) > 0:
@@ -398,25 +403,20 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 mask = load_mask(get_mask_path(roi_folder))
             else:
                 mask = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]), dtype=np.uint8)
+            
             myimage = ImChannels(imhdr_path=ex.joinpath('corrected.zarr'))
-
-            rgb = params.rgb
-            roi = measurement_roi
-            rgb_ch, rgb_names = myimage.get_indices_of_bands(rgb)
-            rgb_cube = np.array(myimage.get_image_cube(
-                rgb_ch, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
+            rgb_cube = np.array(myimage.get_image_cube_bands(
+                bands=params.rgb, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
 
             proj_pd = None
             for k in indices.keys():
                 # compute indices
-                computed_index = compute_index(indices[k],
-                                        row_bounds=row_bounds, col_bounds=col_bounds, imagechannels=myimage)
-                computed_index = clean_index_map(computed_index)
+                indices[k].index_map = compute_and_clean_index(
+                    spectral_index=indices[k], row_bounds=row_bounds,
+                    col_bounds=col_bounds, imagechannels=myimage)
             
-                indices[k].index_map = computed_index
-
                 proj = compute_index_projection(
-                            computed_index, mask,
+                            indices[k].index_map, mask,
                             colmin=colmin, colmax=colmax,
                             smooth_window=5)
                 indices[k].index_proj = proj
@@ -429,7 +429,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                     rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
                     format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
                     location=params.location, fig=fig, 
-                    roi=roi, repeat=True)
+                    roi=measurement_roi, repeat=True)
 
                 fig.savefig(
                         roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
@@ -456,7 +456,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                     rgb_image=rgb_cube, mask=mask,
                     index_objs=[indices[k] for k in indices.keys()], 
                     format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
-                    fig=fig, roi=roi, repeat=True)
+                    fig=fig, roi=measurement_roi, repeat=True)
 
             fig.savefig(
                         roi_plot_folder.joinpath('multi_index_plot'),

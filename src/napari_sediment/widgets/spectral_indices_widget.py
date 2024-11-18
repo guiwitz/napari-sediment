@@ -30,7 +30,7 @@ from ..widget_utilities.rgb_widget import RGBWidget
 from ..data_structures.parameters_plots import Paramplot
 from ..utilities.spectralindex_compute import (compute_index_projection,
                             clean_index_map, save_tif_cmap, create_index, export_index_series,
-                            compute_index, batch_create_plots, compute_normalized_index_params)
+                            compute_and_clean_index, batch_create_plots, compute_normalized_index_params)
 from ..data_structures.spectralindex import SpectralIndex
 from ..utilities.io import load_mask, get_mask_path
 from ..utilities.utils import wavelength_to_rgb
@@ -361,8 +361,6 @@ class SpectralIndexWidget(QWidget):
         """
         Create a collection of spectral indices as index_collection attribute.
         Index collection used in the following functions:
-        - compute_and_clean_index: 
-          computes index map for index_name and cleans it (nan) for plotting
         - compute_selected_indices_map_and_proj: 
           computes index map and projection for index_name and completes the index_collection attributes.
         - create_index_io_pick: 
@@ -546,26 +544,7 @@ class SpectralIndexWidget(QWidget):
 
         self.imhdr_path = Path(self.params.file_path)
 
-        self.mainroi = np.array([np.array(x).reshape(4,2) for x in self.params.main_roi]).astype(int)
-        rois = [[np.array(x).reshape(4,2) for x in y] for y in self.params.rois]
-
-        if self.params.measurement_roi == []:
-            for i in range(len(self.mainroi)):
-                row_bounds = [
-                        rois[i][0][:,0].min() - self.mainroi[i][:,0].min(),
-                        rois[i][0][:,0].max() - self.mainroi[i][:,0].min()]
-                col_bounds = [
-                        rois[i][0][:,1].min() - self.mainroi[i][:,1].min(),
-                        rois[i][0][:,1].max() - self.mainroi[i][:,1].min()]
-                
-                roi_square = [
-                    row_bounds[0], col_bounds[0],
-                    row_bounds[1], col_bounds[0],
-                    row_bounds[1], col_bounds[1],
-                    row_bounds[0], col_bounds[1]
-                    ]
-
-                self.params.measurement_roi.append(roi_square)
+        self.mainroi, _, self.measurement_roi = self.params.get_formatted_rois()
 
         self.spin_selected_roi.setRange(0, len(self.mainroi)-1)
         self.spin_selected_roi.setValue(0)
@@ -586,12 +565,7 @@ class SpectralIndexWidget(QWidget):
 
         roi_ind = self.spin_selected_roi.value()
 
-        self.row_bounds = [
-            self.mainroi[roi_ind][:,0].min(),
-            self.mainroi[roi_ind][:,0].max()]
-        self.col_bounds = [
-            self.mainroi[roi_ind][:,1].min(),
-            self.mainroi[roi_ind][:,1].max()]
+        self.row_bounds, self.col_bounds = self.params.get_formatted_col_row_bounds(roi_ind)
         
         self.cursor_pos = np.array([np.mean(self.row_bounds), np.mean(self.col_bounds)])
         self.cursor_pos = self.cursor_pos.astype(int)
@@ -608,7 +582,7 @@ class SpectralIndexWidget(QWidget):
         self._on_click_load_mask()
 
         self.add_measurement_roi_layer()
-        self.viewer.layers['rois'].data = [np.reshape(self.params.measurement_roi[roi_ind], (4,2))]
+        self.viewer.layers['rois'].data = [self.measurement_roi[roi_ind]]
 
         self.update_emplot_data()
         
@@ -1032,17 +1006,6 @@ class SpectralIndexWidget(QWidget):
 
         return colmin, colmax
     
-    def compute_and_clean_index(self, index_name):
-        """Compute index map for index_name and clean it (nan) for plotting"""
-
-        computed_index = compute_index(
-            spectral_index=self.index_collection[index_name],
-            row_bounds=self.row_bounds, col_bounds=self.col_bounds,
-            imagechannels=self.imagechannels)
-        computed_index = clean_index_map(computed_index)
-
-        return computed_index
-    
     def compute_selected_indices_map_and_proj(self, index_names, force_recompute=False):
         """Compute index map and projection for index_name
         and complete the index_collection attributes."""
@@ -1050,7 +1013,10 @@ class SpectralIndexWidget(QWidget):
         colmin, colmax = self.get_roi_bounds()
         for index_name in index_names:
             if (self.index_collection[index_name].index_map is None) or force_recompute:
-                computed_index = self.compute_and_clean_index(index_name)
+                computed_index = compute_and_clean_index(
+                    spectral_index=self.index_collection[index_name],
+                    row_bounds=self.row_bounds, col_bounds=self.col_bounds,
+                    imagechannels=self.imagechannels)
                 proj = compute_index_projection(
                     computed_index, self.viewer.layers['mask'].data,
                     colmin=colmin, colmax=colmax,
@@ -1512,6 +1478,8 @@ class SpectralIndexWidget(QWidget):
             
             measurement_roi = list(self.viewer.layers['rois'].data[0].astype(int).flatten())
             measurement_roi = [x.item() for x in measurement_roi]
+            if len(self.params.measurement_roi) == 0:
+                self.params.measurement_roi = [[] for _ in range(len(self.params.main_roi))]
             self.params.measurement_roi[self.spin_selected_roi.value()] = measurement_roi
         
         self.params.save_parameters()
