@@ -161,6 +161,28 @@ class ImChannels:
 
         return data
     
+    def get_image_cube_bands(self, bands, roi=None):
+        """
+        Get image stack containing the selected bands.
+        
+        Parameters
+        ----------
+        bands: list of float
+            list of band values for which to find the index of the closest
+            bands in the dataset
+
+        Returns
+        -------
+        data: array
+            array of shape (n_channels, n_rows, n_cols)
+        
+        """
+
+        bands_indices, _ = self.get_indices_of_bands(bands)
+        data = self.get_image_cube(channels=bands_indices, roi=roi)
+
+        return data
+    
     def get_indices_of_bands(self, bands):
         """
         Given the bands centers of the dataset and a set of band values to recover
@@ -187,3 +209,4 @@ class ImChannels:
         bands_names = [self.channel_names[x] for x in bands_indices]
 
         return bands_indices, bands_names
+    
