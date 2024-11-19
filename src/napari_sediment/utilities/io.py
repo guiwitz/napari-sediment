@@ -8,6 +8,7 @@ import zarr
 from ..data_structures.parameters import Param
 from ..data_structures.parameters_endmembers import ParamEndMember
 from ..data_structures.parameters_plots import Paramplot
+from ..data_structures.imchannels import ImChannels
 
 def save_mask(mask, filename):
 
@@ -88,6 +89,31 @@ def get_mask_path(export_folder):
 
     export_folder = Path(export_folder)
     return export_folder.joinpath('mask.tif')
+
+def get_mask_roi(main_folder, main_roi_index=0):
+    """Get mask from a given folder and roi index."""
+
+    params = load_project_params(main_folder)
+    mask_path = get_mask_path(main_folder.joinpath(f'roi_{main_roi_index}'))
+    row_bounds, col_bounds = params.get_formatted_col_row_bounds(main_roi_index)
+    if mask_path.is_file():
+        mask = load_mask(mask_path)
+    else:
+        mask = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]), dtype=np.uint8)
+    
+    return mask
+
+def get_rgb_roi(main_folder, main_roi_index=0):
+    """Get rgb image from a given folder and roi index."""
+
+    params = load_project_params(main_folder)
+    row_bounds, col_bounds = params.get_formatted_col_row_bounds(main_roi_index)
+    myimage = ImChannels(imhdr_path=main_folder.joinpath('corrected.zarr'))
+    rgb_cube = np.array(myimage.get_image_cube_bands(
+        bands=params.rgb, roi=[row_bounds[0], row_bounds[1], col_bounds[0], col_bounds[1]]))
+    
+    return rgb_cube, myimage
+   
 
 def get_data_background_path(current_folder, background_text='_WR_'):
 
