@@ -1,3 +1,4 @@
+import numpy as np
 from pathlib import Path
 from .io import get_data_background_path
 from .sediproc import correct_save_to_zarr
@@ -40,10 +41,24 @@ def batch_preprocessing(folder_to_analyze, export_folder, background_text='_WR_'
         use_float=use_float
         )
     imchannels = ImChannels(export_folder.joinpath('corrected.zarr'))
+    
+    # add a main roi
     param.main_roi = [[
         0, 0,
         imchannels.nrows, 0,
         imchannels.nrows, imchannels.ncols,
         0, imchannels.ncols
         ]]
+    
+    # add sub-rois
+    min_half_width = np.max([2, imchannels.ncols // 20])
+    param.rois = np.array([
+        [[
+        0, imchannels.ncols // 2 - min_half_width,
+        imchannels.nrows, imchannels.ncols // 2 - min_half_width,
+        imchannels.nrows, imchannels.ncols // 2 + min_half_width,
+        0, imchannels.ncols // 2 + min_half_width
+        ]]
+        ]).astype(int)
+    param.rois = [[[z.item() for z in x] for x in y] for y in param.rois]
     param.save_parameters()
