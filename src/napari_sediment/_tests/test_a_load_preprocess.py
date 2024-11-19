@@ -208,7 +208,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
 
     self.check_batch_destripe.setChecked(False)
-    self.check_save_as_float.setChecked(False)
+    self.check_save_as_float.setChecked(True)
     self._on_click_batch_correct()
 
 
@@ -379,7 +379,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
 
     self._add_manual_mask()
-    self.slider_mask_threshold.setValue((1000, 2157))
+    self.slider_mask_threshold.setValue((0.25, 0.6))
     self._on_click_intensity_threshold()
     nbscreenshot(viewer)
 
