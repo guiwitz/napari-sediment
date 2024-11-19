@@ -29,8 +29,10 @@ from ..widget_utilities.channel_widget import ChannelWidget
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..data_structures.parameters_plots import Paramplot
 from ..utilities.spectralindex_compute import (compute_index_projection,
-                            clean_index_map, save_tif_cmap, create_index, export_index_series,
-                            compute_and_clean_index, batch_create_plots, compute_normalized_index_params)
+                            clean_index_map, create_index, export_index_series,
+                            compute_and_clean_index,
+                            compute_normalized_index_params, built_in_indices)
+from ..utilities.spectralplot import batch_create_plots, save_tif_cmap
 from ..data_structures.spectralindex import SpectralIndex
 from ..utilities.io import load_mask, get_mask_path
 from ..utilities.utils import wavelength_to_rgb
@@ -391,57 +393,7 @@ class SpectralIndexWidget(QWidget):
         - var_init
         """
 
-        index_def = {
-            'RABD510': [470, 510, 530],
-            'RABD660670': [590, 665, 730],
-        }
-        self.index_collection = {}
-        for key, value in index_def.items():
-            self.index_collection[key] = SpectralIndex(index_name=key,
-                              index_type='RABD',
-                              left_band_default=value[0],
-                              middle_band_default=value[1],
-                              right_band_default=value[2]
-                              )
-            
-        index_def = {
-            'RABD510norm': [470, 510, 530],
-            'RABD660670norm': [590, 665, 730],
-        }
-        for key, value in index_def.items():
-            self.index_collection[key] = SpectralIndex(index_name=key,
-                              index_type='RABDnorm',
-                              left_band_default=value[0],
-                              middle_band_default=value[1],
-                              right_band_default=value[2]
-                              )
-            
-        index_def = {
-            'RABA410560': [410, 560],
-        }
-        for key, value in index_def.items():
-            self.index_collection[key] = SpectralIndex(index_name=key,
-                              index_type='RABA',
-                              left_band_default=value[0],
-                              right_band_default=value[1]
-                              )
-            
-        index_def = {
-            'R590R690': [590, 690],
-            'R660R670': [660, 670]
-        }
-        for key, value in index_def.items():
-            self.index_collection[key] = SpectralIndex(index_name=key,
-                              index_type='Ratio',
-                              left_band_default=value[0],
-                              right_band_default=value[1]
-                              )
-            
-        self.index_collection['RMean'] = SpectralIndex(index_name='RMean',
-                              index_type='RMean',
-                              left_band_default=300,
-                              right_band_default=900
-                              )
+        self.index_collection = built_in_indices()
         
         
     def add_connections(self):

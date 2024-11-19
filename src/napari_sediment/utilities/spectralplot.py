@@ -1,7 +1,19 @@
+import os
+from dataclasses import asdict
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from cmap import Colormap
 from napari.utils import colormaps
 from microfilm import colorify
+import tifffile
+import cmap
+from ..utilities.io import get_mask_roi, get_rgb_roi, load_plots_params, load_project_params
+from ..utilities.spectralindex_compute import (load_index_series,
+                                               compute_and_clean_index, compute_index_projection)
+from ..data_structures.parameters_plots import Paramplot
+
+
 
 def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
                           scale_unit='mm', location="", fig=None, roi=None, left_margin=0,
@@ -55,6 +67,8 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     # The figure and axes are set explicitly to make sure that the axes fill the figure
     # This is achieved using the add_axes method instead of subplots
     fig_size = [a4_size[1], a4_size[0]]
+    if fig is None:
+        fig = plt.figure()
     fig.clear()
     fig.set_size_inches(fig_size)
     fig.set_facecolor('white')
@@ -148,6 +162,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     top_margin = 2 * title_height * a4_size[0]
 
     if repeat:
+        # remake plot with adjusted margins adapted to content 
         plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=scale,
                           scale_unit=scale_unit, location=location, fig=fig, roi=roi,
                           left_margin=left_margin, right_margin=right_margin,
@@ -215,6 +230,8 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
         im_with_for_plot = im_with_for_plot / ratio
     
     fig_size = [a4_size[1], a4_size[0]]
+    if fig is None:
+        fig = plt.figure()
     fig.clear()
     fig.set_size_inches(fig_size)
     fig.set_facecolor('white')
@@ -354,3 +371,307 @@ def create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue
         limits=[red_contrast_limits, green_contrast_limits, blue_contrast_limits],
         proj_type='sum')
     return rgb_to_plot
+
+def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_index=0,
+                    mask=None, rgb_cube=None, myimage=None):
+    """Plot spectral index for a given experiment and region of interest. Data
+    such as the mask and rgb image are loaded from the export folder, but can also
+    be provided as arguments to avoid repeated loading of the same data.
+    
+    Parameters
+    ----------
+    export_folder : str
+        path to the export folder containing params file
+    index : object
+        index object from data_structures.spectralindex
+    params_plots : object
+        plot parameters object from data_structures.parameters_plots
+    main_roi_index : int
+        index of the main roi to plot
+    mask : np.ndarray
+        mask for the roi
+    rgb_cube : np.ndarray
+        rgb image for the roi
+    myimage : object
+        ImChannels object with image data
+    
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        figure with the plot
+    
+    """
+
+    params = load_project_params(export_folder)
+    if params_plots is None:
+        params_plots = Paramplot()
+    format_dict = asdict(params_plots)
+    
+    row_bounds, col_bounds = params.get_formatted_col_row_bounds(main_roi_index)
+    measurement_rois = params.get_formatted_measurement_roi()
+    measurement_roi = measurement_rois[main_roi_index]
+    colmin_proj = measurement_roi[:,1].min()
+    colmax_proj = measurement_roi[:,1].max()
+
+    # get mask
+    if mask is None:
+        mask = get_mask_roi(main_folder=export_folder, main_roi_index=main_roi_index)
+
+    # get RGB image
+    if (rgb_cube is None) or (myimage is None): 
+        rgb_cube, myimage = get_rgb_roi(main_folder=export_folder, main_roi_index=main_roi_index)
+    
+    # adjust rgb contrast
+    if params_plots.red_contrast_limits == []:
+        min_contrast = np.percentile(rgb_cube, 1, axis=[1,2])
+        max_contrast = np.percentile(rgb_cube, 99, axis=[1,2])
+        params_plots.red_contrast_limits = [min_contrast[0], max_contrast[0]]
+        params_plots.green_contrast_limits = [min_contrast[1], max_contrast[1]]
+        params_plots.blue_contrast_limits = [min_contrast[2], max_contrast[2]]
+
+    # compute index map and projection
+    index.index_map = compute_and_clean_index(
+            spectral_index=index, row_bounds=row_bounds,
+            col_bounds=col_bounds, imagechannels=myimage)
+            
+    index.index_proj = compute_index_projection(
+                index.index_map, mask,
+                colmin=colmin_proj, colmax=colmax_proj,
+                smooth_window=5)
+    
+    fig, ax1, ax2, ax3 = plot_spectral_profile(
+        rgb_image=rgb_cube, mask=mask, index_obj=index,
+        format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+        location=params.location, fig=None, 
+        roi=measurement_roi, repeat=True)
+    
+    return fig, mask, rgb_cube, myimage
+
+def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None, main_roi_index=0,
+                    mask=None, rgb_cube=None, myimage=None, recompute=True):
+    """Plot multispectral index projections for a given experiment and region of interest. Data
+    such as the mask and rgb image are loaded from the export folder, but can also
+    be provided as arguments to avoid repeated loading of the same data.
+    
+    Parameters
+    ----------
+    export_folder : str
+        path to the export folder containing params file
+    indices : list
+        list of index objects from data_structures.spectralindex
+    params_plots : object
+        plot parameters object from data_structures.parameters_plots
+    main_roi_index : int
+        index of the main roi to plot
+    mask : np.ndarray
+        mask for the roi
+    rgb_cube : np.ndarray
+        rgb image for the roi
+    myimage : object
+        ImChannels object with image data
+    recompute : bool
+        whether to recompute the index maps and projections
+    
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        figure with the plot
+    
+    """
+
+    params = load_project_params(export_folder)
+    if params_plots is None:
+        params_plots = Paramplot()
+    format_dict = asdict(params_plots)
+
+    row_bounds, col_bounds = params.get_formatted_col_row_bounds(main_roi_index)
+    measurement_rois = params.get_formatted_measurement_roi()
+    measurement_roi = measurement_rois[main_roi_index]
+    colmin_proj = measurement_roi[:,1].min()
+    colmax_proj = measurement_roi[:,1].max()
+
+    # get mask
+    if mask is None:
+        mask = get_mask_roi(main_folder=export_folder, main_roi_index=main_roi_index)
+
+    # get RGB image
+    if (rgb_cube is None) or (myimage is None): 
+        rgb_cube, myimage = get_rgb_roi(main_folder=export_folder, main_roi_index=main_roi_index)
+
+    measurement_rois = params.get_formatted_measurement_roi()
+    measurement_roi = measurement_rois[main_roi_index]
+
+    if recompute is True:
+        # compute index map and projection
+        for k in indices.keys():
+            indices[k].index_map = compute_and_clean_index(
+                    spectral_index=indices[k], row_bounds=row_bounds,
+                    col_bounds=col_bounds, imagechannels=myimage)
+                    
+            indices[k].index_proj = compute_index_projection(
+                        indices[k].index_map, mask,
+                        colmin=colmin_proj, colmax=colmax_proj,
+                        smooth_window=5)
+
+    fig = plot_multi_spectral_profile(
+        rgb_image=rgb_cube, mask=mask,
+        index_objs=[indices[k] for k in indices.keys()], 
+        format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+        fig=None, roi=measurement_roi, repeat=True)
+    
+    return fig
+
+def batch_create_plots(project_list, index_params_file, plot_params_file, normalize=False):
+    """Create index plots for a list of projects.
+    
+    Parameters
+    ----------
+    project_list: list of Path
+        list of project folders (containing Parameters.yml)
+    index_params_file: Path
+        path to index parameters file
+    plot_params_file: Path
+        path to plot parameters file
+    normalize: bool
+        whether to save plots in normalized folder
+
+    """
+
+    indices = load_index_series(index_params_file)
+    params_plots = load_plots_params(plot_params_file)
+    fig, ax = plt.subplots()
+    dpi = 300
+
+    for ex in project_list:
+
+        params = load_project_params(folder=ex)
+
+        roi_folders = list(ex.glob('roi*'))
+        roi_folders = [x.name for x in roi_folders if x.is_dir()]
+        
+        if len(roi_folders) == 0:
+            os.makedirs(ex.joinpath('roi_0'))
+            roi_folders = ['roi_0']
+
+        for roi_ind in range(len(roi_folders)):
+            
+            roi_folder = ex.joinpath(f'roi_{roi_ind}')
+            if normalize:
+                roi_plot_folder = roi_folder.joinpath('index_plots_normalized')
+                if not roi_plot_folder.exists():
+                    roi_plot_folder.mkdir()
+            else:
+                roi_plot_folder = roi_folder.joinpath('index_plots')
+                if not roi_plot_folder.exists():
+                    roi_plot_folder.mkdir()
+
+            '''row_bounds, col_bounds = params.get_formatted_col_row_bounds(roi_ind)
+            measurement_roi = measurement_rois[roi_ind]
+            colmin_proj = measurement_roi[:,1].min()
+            colmax_proj = measurement_roi[:,1].max()
+
+            # get mask
+            mask = get_mask_roi(main_folder=ex, main_roi_index=roi_ind)
+
+            # get RGB image
+            rgb_cube, myimage = get_rgb_roi(main_folder=ex, main_roi_index=roi_ind)'''
+
+            mask, myimage, rgb_cube = None, None, None
+
+            proj_pd = None
+            for k in indices.keys():
+                '''# compute indices
+                indices[k].index_map = compute_and_clean_index(
+                    spectral_index=indices[k], row_bounds=row_bounds,
+                    col_bounds=col_bounds, imagechannels=myimage)
+            
+                proj = compute_index_projection(
+                            indices[k].index_map, mask,
+                            colmin=colmin_proj, colmax=colmax_proj,
+                            smooth_window=5)
+                indices[k].index_proj = proj
+
+                # create single index plot
+                #fig, ax = plt.subplots()
+                format_dict = asdict(params_plots)
+                
+                fig, ax1, ax2, ax3 = plot_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
+                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+                    location=params.location, fig=fig, 
+                    roi=measurement_roi, repeat=True)'''
+                fig, mask, rgb_cube, myimage = plot_experiment_roi_index(
+                    export_folder=ex, index=indices[k], params_plots=params_plots,
+                    main_roi_index=roi_ind, mask=mask, rgb_cube=rgb_cube, myimage=myimage)
+
+                fig.savefig(
+                        roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
+                    dpi=dpi)
+                
+                # tif maps
+                index_map = indices[k].index_map
+                contrast = indices[k].index_map_range
+                napari_cmap = indices[k].colormap
+                export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
+                save_tif_cmap(image=index_map, image_path=export_path,
+                                napari_cmap=napari_cmap, contrast=contrast)
+                
+                # export projection to csv
+                if proj_pd is None:
+                    proj_pd = pd.DataFrame({'depth': np.arange(0, len(indices[k].index_proj))})
+                proj_pd[indices[k].index_name] = indices[k].index_proj
+            
+            proj_pd[f'depth [{params.scale_units}]'] = proj_pd['depth'] * params.scale
+            proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
+
+            # create multi index plot
+            '''measurement_rois = params.get_formatted_measurement_roi()
+            plot_multi_spectral_profile(
+                    rgb_image=rgb_cube, mask=mask,
+                    index_objs=[indices[k] for k in indices.keys()], 
+                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
+                    fig=fig, roi=measurement_roi, repeat=True)
+            '''
+            fig = plot_experiment_multispectral_roi(export_folder=ex, indices=indices,
+                                              params_plots=params_plots, main_roi_index=roi_ind,
+                    mask=mask, rgb_cube=rgb_cube, myimage=myimage, recompute=False)
+
+            fig.savefig(
+                        roi_plot_folder.joinpath('multi_index_plot'),
+                    dpi=dpi)
+            plt.close(fig)
+
+def save_tif_cmap(image, image_path, napari_cmap, contrast):
+    """Save image as tiff with colormap using specified contrast. The
+    saved image is only for visualization purposes, as the values are
+    rescaled and transformed to RGB.
+
+    Parameters
+    ----------
+    image: np.ndarray
+        image to save
+    image_path: str
+        path to save image
+    napari_cmap: napari Colormap
+        napari colormap or str
+    contrast: tuple of float
+        contrast
+
+    """
+    
+    if isinstance(napari_cmap, str):
+        current_cmap = cmap.Colormap(napari_cmap).to_matplotlib()
+    else:
+        current_cmap = cmap.Colormap(napari_cmap.colors).to_matplotlib()
+
+    if contrast is None:
+        contrast = (np.nanmin(image), np.nanmax(image))
+    norm_image = np.clip(image, a_min=contrast[0], a_max=contrast[1])
+    norm_image = (norm_image - np.nanmin(norm_image)) / (np.nanmax(norm_image) - np.nanmin(norm_image))
+    
+    colored_image = current_cmap(norm_image)
+    colored_image = (colored_image[:, :, :3] * 255).astype(np.uint8)
+
+    tifffile.imwrite(image_path, colored_image)
+    
+
