@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter
@@ -9,6 +10,9 @@ from ..data_structures.spectralindex import SpectralIndex
 
 
 def built_in_indices():
+    """Return a dictionary of built-in SpectralIndex objects.
+    In the future, this could be replaced by a mechanism to load indices from a file.
+    """
     
     index_def = {
             'RABD510': [470, 510, 530],
@@ -266,6 +270,23 @@ def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=No
     return proj
 
 def create_index(index_name, index_type, boundaries):
+    """Create a new index SpectralIndex object.
+    
+    Parameters
+    ----------
+    index_name: str
+        name of the index
+    index_type: str
+        type of the index, one of RABD, RABA, Ratio, RMean, RABDnorm
+    boundaries: list
+        list of bands
+    
+    Returns
+    -------
+    new_index: SpectralIndex
+        new index object
+
+    """
     
     if index_type in ['RABD', 'RABDnorm']:
         new_index = SpectralIndex(index_name=index_name,
@@ -287,16 +308,45 @@ def create_index(index_name, index_type, boundaries):
     return new_index
 
 def export_index_series(index_series, file_path):
+    """Export the index series to a yml file.
+    
+    Parameters
+    ----------
+    index_series: dict
+        dictionary of SpectralIndex objects
+    file_path: str or Path
+        file where to save the index series
+    
+    """
 
     index_series = [x.dict_spectral_index() for key, x in index_series.items()]
     index_series = {'index_definition': index_series}
+    file_path = Path(file_path)
     if file_path.suffix !='.yml':
         file_path = file_path.with_suffix('.yml')
     with open(file_path, "w") as file:
         yaml.dump(index_series, file)
 
 def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
-    """Compute the index and add to napari."""
+    """Given a spectral indef definition and image, compute an index map.
+    
+    Parameters
+    ----------
+    spectral_index: SpectralIndex
+        index object
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
+    
+    Returns
+    -------
+    computed_index: 2D np.ndarray
+        computed index map
+    
+    """
 
     funs3 = {'RABDnorm': compute_index_RABDnorm, 'RABD': compute_index_RABD}
     
@@ -325,7 +375,27 @@ def compute_index(spectral_index, row_bounds, col_bounds, imagechannels):
     return computed_index
 
 def compute_and_clean_index(spectral_index, row_bounds, col_bounds, imagechannels):
-    """Compute index map for index_name and clean it (nan) for plotting"""
+    """Given a spectral indef definition and image, compute a clean version
+    of an index map, with inf values replaced with 0 and clipping of the
+    intensity within 1-99 percentiles.
+    
+    Parameters
+    ----------
+    spectral_index: SpectralIndex
+        index object
+    row_bounds: tuple of int
+        (row_start, row_end)
+    col_bounds: tuple of int
+        (col_start, col_end)
+    imagechannels: ImageChannels
+        image channels object
+    
+    Returns
+    -------
+    computed_index: 2D np.ndarray
+        computed index map
+    
+    """
 
     computed_index = compute_index(
         spectral_index=spectral_index,
@@ -336,6 +406,20 @@ def compute_and_clean_index(spectral_index, row_bounds, col_bounds, imagechannel
     return computed_index
 
 def clean_index_map(index_map):
+    """Given an index map, clean it up by replacing inf values with 0
+    and clipping the intensity within 1-99 percentiles.
+    
+    Parameters
+    ----------
+    index_map: np.ndarray
+        index map
+    
+    Returns
+    -------
+    index_map: 2D np.ndarray
+        cleaned index map
+    
+    """
 
     index_map = index_map.copy()
     index_map[index_map == np.inf] = 0
@@ -347,7 +431,19 @@ def clean_index_map(index_map):
     return index_map
 
 def load_index_series(index_file):
-    """Load the index series from a yml file."""
+    """Load the index series from a yml file.
+    
+    Parameters
+    ----------
+    index_file: str or Path
+        file where the index series is saved
+    
+    Returns
+    -------
+    index_collection: dict
+        dictionary of SpectralIndex objects
+
+    """
     
     index_collection = {}
     with open(index_file) as file:
@@ -358,6 +454,20 @@ def load_index_series(index_file):
     return index_collection
 
 def compute_normalized_index_params(project_list, index_params_file, export_folder):
+    """Given a folder with multiple experiments, load all projections and compute
+    the overall min and max values for each index. Then export a new index yml file
+    with updated plotting ranges.
+
+    Parameters
+    ----------
+    project_list: list of Path
+        list of paths to export folders
+    index_params_file: Path
+        path to the index parameters file used to list the required indices
+    export_folder: Path
+        path to the folder where to save the updated index yml file
+
+    """
 
     indices = load_index_series(index_params_file)
 
