@@ -9,23 +9,15 @@ class Paramplot:
     Class for keeping track of processing parameters.
     
     Paramters
-    ---------
-    left_right_margin_fraction: float
-        fraction of the image to be used as left and right margin
-    bottom_top_margin_fraction: float
-        fraction of the image to be used as bottom and top margin
-    plot_image_w_fraction: float
-        fraction of the image to be used for plotting
-    font_factor: float
-        factor to scale the font size
+    ----------
+    title_font: float
+        font size for the title
+    label_font: float
+        font size for the labels
     color_plotline: list
         triplet of rgb values for the plot line
     plot_thickness: float
         thickness of the plot line
-    figure_size_factor: float
-        factor to scale the figure size
-    index_colormap: str
-        colormap for index
     red_contrast_limits: list
         contrast limits for red channel
     green_contrast_limits: list
@@ -37,14 +29,17 @@ class Paramplot:
     
     """
 
-    title_font: float = None
-    label_font: float = None
+    title_font: float = 12
+    label_font: float = 12
     color_plotline: list = field(default_factory=list)
-    plot_thickness: float = None
+    plot_thickness: float = 1
     red_contrast_limits: list = field(default_factory=list)
     green_contrast_limits: list = field(default_factory=list)
     blue_contrast_limits: list = field(default_factory=list)
     rgb_bands: list = field(default_factory=list)
+
+    def __post_init__(self):
+        self.color_plotline = [0, 0, 0]
     
     def save_parameters(self, save_path):
         """Save parameters as yml file.
