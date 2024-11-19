@@ -19,6 +19,8 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
                           scale_unit='mm', location="", fig=None, roi=None, left_margin=0,
                           right_margin=0, bottom_margin=0, top_margin=0,
                           repeat=True):
+    """Given data inputs of RGB image, mask and index, create a figure with RGB image,
+    index map and index projection. Typically called by plot_experiment_roi_index."""
     
     index_name = index_obj.index_name
     index_image = index_obj.index_map
@@ -189,6 +191,11 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
                                 scale_unit='mm', location="", fig=None, roi=None,
                                 left_margin=0, right_margin=0, bottom_margin=0,
                                 top_margin=0, repeat=True):
+    
+    """
+    Given data inputs of RGB image, mask and indices, create a figure of
+    multi-spectral profiles. Typically called by plot_experiment_multispectral_roi.
+    """
 
     title_font = format_dict['title_font']
     label_font = format_dict['label_font']
@@ -362,7 +369,8 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
     return fig
 
 def create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits):
-    
+    """Create an MxNx3 RGB image with adjusted contrast limits."""
+
     rgb_to_plot = rgb_image.copy()
     rgb_to_plot, _, _, _ = colorify.multichannel_to_rgb(
         rgb_to_plot,
@@ -376,7 +384,9 @@ def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_
                     mask=None, rgb_cube=None, myimage=None):
     """Plot spectral index for a given experiment and region of interest. Data
     such as the mask and rgb image are loaded from the export folder, but can also
-    be provided as arguments to avoid repeated loading of the same data.
+    be provided as arguments to avoid repeated loading of the same data. This function
+    is a wrapper around the plot_spectral_profile function providing the necessary data
+    based on the export folder.
     
     Parameters
     ----------
@@ -451,7 +461,9 @@ def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None,
                     mask=None, rgb_cube=None, myimage=None, recompute=True):
     """Plot multispectral index projections for a given experiment and region of interest. Data
     such as the mask and rgb image are loaded from the export folder, but can also
-    be provided as arguments to avoid repeated loading of the same data.
+    be provided as arguments to avoid repeated loading of the same data. This function
+    is a wrapper around the plot_multi_spectral_profile function providing the necessary data
+    based on the export folder.
     
     Parameters
     ----------
@@ -522,7 +534,8 @@ def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None,
     return fig
 
 def batch_create_plots(project_list, index_params_file, plot_params_file, normalize=False):
-    """Create index plots for a list of projects.
+    """Create index plots for a list of projects. Calls plot_experiment_roi_index and 
+    plot_experiment_multispectral_roi for each project and roi.
     
     Parameters
     ----------
@@ -565,41 +578,10 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
                 if not roi_plot_folder.exists():
                     roi_plot_folder.mkdir()
 
-            '''row_bounds, col_bounds = params.get_formatted_col_row_bounds(roi_ind)
-            measurement_roi = measurement_rois[roi_ind]
-            colmin_proj = measurement_roi[:,1].min()
-            colmax_proj = measurement_roi[:,1].max()
-
-            # get mask
-            mask = get_mask_roi(main_folder=ex, main_roi_index=roi_ind)
-
-            # get RGB image
-            rgb_cube, myimage = get_rgb_roi(main_folder=ex, main_roi_index=roi_ind)'''
-
             mask, myimage, rgb_cube = None, None, None
-
             proj_pd = None
             for k in indices.keys():
-                '''# compute indices
-                indices[k].index_map = compute_and_clean_index(
-                    spectral_index=indices[k], row_bounds=row_bounds,
-                    col_bounds=col_bounds, imagechannels=myimage)
-            
-                proj = compute_index_projection(
-                            indices[k].index_map, mask,
-                            colmin=colmin_proj, colmax=colmax_proj,
-                            smooth_window=5)
-                indices[k].index_proj = proj
-
-                # create single index plot
-                #fig, ax = plt.subplots()
-                format_dict = asdict(params_plots)
                 
-                fig, ax1, ax2, ax3 = plot_spectral_profile(
-                    rgb_image=rgb_cube, mask=mask, index_obj=indices[k],
-                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
-                    location=params.location, fig=fig, 
-                    roi=measurement_roi, repeat=True)'''
                 fig, mask, rgb_cube, myimage = plot_experiment_roi_index(
                     export_folder=ex, index=indices[k], params_plots=params_plots,
                     main_roi_index=roi_ind, mask=mask, rgb_cube=rgb_cube, myimage=myimage)
@@ -625,13 +607,6 @@ def batch_create_plots(project_list, index_params_file, plot_params_file, normal
             proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
 
             # create multi index plot
-            '''measurement_rois = params.get_formatted_measurement_roi()
-            plot_multi_spectral_profile(
-                    rgb_image=rgb_cube, mask=mask,
-                    index_objs=[indices[k] for k in indices.keys()], 
-                    format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
-                    fig=fig, roi=measurement_roi, repeat=True)
-            '''
             fig = plot_experiment_multispectral_roi(export_folder=ex, indices=indices,
                                               params_plots=params_plots, main_roi_index=roi_ind,
                     mask=mask, rgb_cube=rgb_cube, myimage=myimage, recompute=False)
