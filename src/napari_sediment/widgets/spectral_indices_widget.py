@@ -1389,6 +1389,11 @@ class SpectralIndexWidget(QWidget):
         """
 
         index_series = {key: x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()}
+        for key, x in index_series.items():
+            if self.check_smooth_projection.isChecked():
+                x.smooth_proj_window = self.get_smoothing_window()
+            else:
+                x.smooth_proj_window = None
         file_path = self.export_folder.joinpath('index_settings.yml')
         export_index_series(index_series, file_path)
         

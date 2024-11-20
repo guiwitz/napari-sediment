@@ -44,6 +44,8 @@ class SpectralIndex:
         range of index map for plotting
     colormap: str
         colormap for index map
+    smooth_proj_window: int
+        window for smoothing index projection
     
     """
 
@@ -59,6 +61,7 @@ class SpectralIndex:
     index_proj: np.ndarray = None
     index_map_range: np.ndarray = None
     colormap: str = 'viridis'
+    smooth_proj_window: int = None
     
     def __post_init__(self):
         """Use defaults for bands."""

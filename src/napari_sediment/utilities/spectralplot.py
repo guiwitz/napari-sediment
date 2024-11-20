@@ -447,7 +447,7 @@ def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_
     index.index_proj = compute_index_projection(
                 index.index_map, mask,
                 colmin=colmin_proj, colmax=colmax_proj,
-                smooth_window=5)
+                smooth_window=index.smooth_proj_window)
     
     fig, ax1, ax2, ax3 = plot_spectral_profile(
         rgb_image=rgb_cube, mask=mask, index_obj=index,
@@ -523,7 +523,7 @@ def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None,
             indices[k].index_proj = compute_index_projection(
                         indices[k].index_map, mask,
                         colmin=colmin_proj, colmax=colmax_proj,
-                        smooth_window=5)
+                        smooth_window=indices[k].smooth_proj_window)
 
     fig = plot_multi_spectral_profile(
         rgb_image=rgb_cube, mask=mask,
@@ -533,7 +533,8 @@ def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None,
     
     return fig
 
-def batch_create_plots(project_list, index_params_file, plot_params_file, normalize=False):
+def batch_create_plots(project_list, index_params_file, plot_params_file,
+                       normalize=False):
     """Create index plots for a list of projects. Calls plot_experiment_roi_index and 
     plot_experiment_multispectral_roi for each project and roi.
     
