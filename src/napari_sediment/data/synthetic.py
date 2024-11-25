@@ -152,8 +152,15 @@ def save_test_dataset(data_name, save_path, **kwargs):
 
     im_test, dark_ref, dark_for_white_ref, white_ref = generate_synthetic_dataset(**kwargs)
     
-    im_test = add_signal_to_image(im_test=im_test, widths=[15, 30], ch_positions = [40, 40],
-                                        row_boundaries=[[10,20], [60,70]], col_boundaries=[[10,110],[10,110]], amplitudes=[-400, -400], channels=80)
+    #im_test = add_signal_to_image(im_test=im_test, widths=[15, 30], ch_positions = [40, 40],
+    #                                   row_boundaries=[[10,20], [60,70]], col_boundaries=[[10,110],[10,110]], amplitudes=[-400, -400], channels=80)
+    im_test = add_signal_to_image(
+        im_test=im_test, widths=[15, 30, 15, 15, 15],
+        ch_positions = [40, 40, 20, 40, 20],
+        row_boundaries=[[10,20], [40,50], [60,70], [80,90], [85,95]],
+        col_boundaries=[[10,110], [10,110], [10,110], [10,110], [10,110]],
+        amplitudes=[-400, -400, -200, -200, -200],
+        channels=80)
 
     im_test = add_ellipse_to_image(im_test, 100, 37, 10, 20, -600)
 
