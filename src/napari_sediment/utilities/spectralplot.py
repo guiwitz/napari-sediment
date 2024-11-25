@@ -23,7 +23,6 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
                           repeat=True, color_proj_by_index=True, add_colorbar=True):
     """Given data inputs of RGB image, mask and index, create a figure with RGB image,
     index map and index projection. Typically called by plot_experiment_roi_index."""
-    
     if isinstance(index_obj, list):
         if len(index_obj) > 2:
             raise ValueError('Only two indices can be plotted at the same time')
@@ -100,7 +99,8 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     
     ax1 = fig.add_axes(rect=(left_margin/a4_size[1], bottom_margin/a4_size[0], im_width_inches/a4_size[1], im_height_inches/a4_size[0]))
     ax2 = fig.add_axes(rect=(im_width_inches/a4_size[1]+left_margin/a4_size[1], bottom_margin/a4_size[0], im_width_inches/a4_size[1], im_height_inches/a4_size[0]))
-    ax3 = fig.add_axes(rect=((2 * im_width_inches+left_margin)/a4_size[1], bottom_margin/a4_size[0], plot_width_inches/a4_size[1], im_height_inches/a4_size[0]))
+    ax3_left= (2 * im_width_inches+left_margin)/a4_size[1]
+    ax3 = fig.add_axes(rect=(ax3_left, bottom_margin/a4_size[0], plot_width_inches/a4_size[1], im_height_inches/a4_size[0]))
     if add_colorbar:
         #ax2b = fig.add_axes(rect=((2*im_width_inches+left_margin+0.1)/a4_size[1], bottom_margin/a4_size[0],0.8*cbar_frac * plot_width_inches/a4_size[1], 0.5*im_height_inches/a4_size[0]))
         ax2b = fig.add_axes(rect=(1.1 * im_width_inches/a4_size[1] + left_margin/a4_size[1], bottom_margin/a4_size[0] - 0.05 * im_height_inches/a4_size[0], 0.8 * im_width_inches/a4_size[1], 0.04 * im_height_inches/a4_size[0])) 
@@ -128,11 +128,12 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
         ax2.plot(roi_array[:,1], roi_array[:,0], 'r')
     
     proj = [x.index_proj for x in index_obj]
+    mean_proj = [np.nanmean(x) for x in proj]
     for ind, p in enumerate(proj):
         ax3.plot(p, np.arange(len(p)), color=np.array(color_plotline[ind]), linewidth=plot_thickness)
-        ax3.plot(np.ones_like(p) * np.nanmean(p), np.arange(len(p)), color='black', linestyle='--')
+        ax3.plot(np.ones_like(p) * mean_proj[ind], np.arange(len(p)), color=color_plotline[ind], linestyle='--')
 
-    ax3.set_ylim(0, len(proj))
+    ax3.set_ylim(0, len(proj[0]))
     ax3.yaxis.tick_right()
     ax3.invert_yaxis()
     
@@ -164,9 +165,23 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     suptitle = fig.suptitle(full_name + '\n' + location,
                     fontsize=title_font)
     
+    # redraw to make sure, measures are ok (see https://stackoverflow.com/questions/69252219/uncorrect-bbox-coordinates-with-get-window-extent-method-and-transform-option)
+    fig.canvas.draw()
+    # add colorbar
+    lowest_y = get_text_miny(ax3.xaxis.label, fig.canvas.get_renderer(), fig)
+    if add_colorbar:
+        texts = ax2b.get_xticklabels()
+        cbar_miny = get_text_miny(texts[0], fig.canvas.get_renderer(), fig)
+        lowest_y = min(lowest_y, cbar_miny)
+
+    mean_text = [f'Mean {index_obj[i].index_name}: {mean_proj[i]:.2f}' for i in range(len(index_obj))]
+    mean_text = '\n'.join(mean_text)
+    description_text = fig.text(ax3_left, lowest_y - 0.1, mean_text, ha='left', fontsize=label_font)
+    
     # check the size of titles labels and tickmarks, adjust margins accordingly,
     # and repeat the plot
-
+    # redraw to make sure, measures are ok (see https://stackoverflow.com/questions/69252219/uncorrect-bbox-coordinates-with-get-window-extent-method-and-transform-option)
+    fig.canvas.draw()
     # adjust left margin
     renderer = fig.canvas.get_renderer()
     text = ax1.yaxis.label
@@ -183,19 +198,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     right_margin = 1.0 * (3 * label_width + max_y_tick_width) * a4_size[1]
 
     # adjust bottom margin
-    text = ax3.xaxis.label
-    label_height = get_text_height(text, renderer, fig)
-    x_tick_heights = [get_text_height(label, renderer, fig) for label in ax3.get_xticklabels()]
-    max_x_tick_height = max(x_tick_heights)
-    bottom_margin = 1.0 * (3 * label_height + max_x_tick_height) * a4_size[0]
-
-    if add_colorbar:
-        cbar_box = colorbar.ax.get_position()
-        texts = ax2b.get_xticklabels()
-        bbox = texts[0].get_window_extent(renderer)
-        bbox = bbox.transformed(fig.transFigure.inverted())
-        cbar_ysize = (cbar_box.ymax - cbar_box.ymin) + bbox.ymax-bbox.ymin
-        bottom_margin = bottom_margin + cbar_ysize
+    bottom_margin = -get_text_miny(description_text, renderer, fig) * a4_size[0]
 
     # adjust top margin
     bbox = suptitle.get_window_extent(renderer).transformed(fig.transFigure.inverted())
@@ -383,6 +386,12 @@ def get_text_height(text, renderer, fig):
     # Convert from display to figure coordinates
     bbox = bbox.transformed(fig.transFigure.inverted())
     return bbox.ymax - bbox.ymin
+
+def get_text_miny(text, renderer, fig):
+    bbox = text.get_window_extent(renderer)
+    # Convert from display to figure coordinates
+    bbox = bbox.transformed(fig.transFigure.inverted())
+    return bbox.ymin
 
 
 def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=1,
