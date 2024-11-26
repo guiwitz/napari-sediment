@@ -269,7 +269,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
 
     from napari_sediment.widgets.batch_preproc_widget import BatchPreprocWidget
-    viewer2 = napari.Viewer()
+    viewer2 = make_napari_viewer()
     self2 = BatchPreprocWidget(viewer2)
     viewer2.window.add_dock_widget(self2);
 
