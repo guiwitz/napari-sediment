@@ -1,4 +1,5 @@
 from pathlib import Path
+from warnings import warn
 import numpy as np
 import pandas as pd
 from scipy.signal import savgol_filter
@@ -496,12 +497,35 @@ def compute_normalized_index_params(project_list, index_params_file, export_fold
 
     export_index_series(index_series=indices, file_path=export_folder.joinpath('normalized_index_settings.yml'))
 
-def save_index_zarr(project_folder, main_roi_index, index_name, index_map):
+def save_index_zarr(project_folder, main_roi_index, index_name, index_map, overwrite=False):
+    """Save an index map to a zarr file.
+
+    Parameters
+    ----------
+    project_folder: Path
+        path to the project folder
+    main_roi_index: int
+        index of the main roi
+    index_name: str
+        name of the index
+    index_map: np.ndarray
+        index map
+    overwrite: bool
+        whether to overwrite the file if it already exists
+
+    Returns
+    -------
+
+    """
     
     folder_name = project_folder.joinpath(f'roi_{main_roi_index}').joinpath('index_maps')
     if not folder_name.is_dir():
         folder_name.mkdir()
     file_name = folder_name.joinpath(index_name + '.zarr')
+
+    if file_name.is_dir() and not overwrite:
+        warn(f'File {file_name} already exists')
+        return None
     
     dtype = 'f4'
     
@@ -515,9 +539,55 @@ def save_index_zarr(project_folder, main_roi_index, index_name, index_map):
     z1[:,:] = index_map
 
 def load_index_zarr(project_folder, main_roi_index, index_name):
+    """Load an index map from a zarr file.
+
+    Parameters
+    ----------
+    project_folder: Path
+        path to the project folder
+    main_roi_index: int
+        index of the main roi
+    index_name: str
+        name of the index
+    
+    Returns
+    -------
+    index_map: np.ndarray
+        index map
+    
+    """
     
     file_name = project_folder.joinpath(f'roi_{main_roi_index}', 'index_maps', index_name + '.zarr')
-    z1 = zarr.open(file_name, mode='r')
+    if not file_name.is_dir():
+        warn(f'File {file_name} does not exist')
+        return None
     zarr_image = da.from_zarr(file_name)
     
     return np.array(zarr_image)
+
+def load_projection(project_folder, main_roi_index, index_name):
+    """Load an index projection from a csv file.
+
+    Parameters
+    ----------
+    project_folder: Path
+        path to the project folder
+    main_roi_index: int
+        index of the main roi
+    index_name: str
+        name of the index
+
+    Returns
+    -------
+    proj: np.ndarray
+        index projection
+        
+    """
+    
+    file_name = project_folder.joinpath(f'roi_{main_roi_index}', 'index_plots', 'index_projection.csv')
+    if not file_name.is_file():
+        warn(f'File {file_name} does not exist')
+        return None
+    proj = pd.read_csv(file_name)
+    
+    return proj[index_name].values
