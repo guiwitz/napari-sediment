@@ -11,7 +11,7 @@ import cmap
 from matplotlib import cm
 import matplotlib as mpl
 from ..utilities.io import get_mask_roi, get_rgb_roi, load_plots_params, load_project_params
-from ..utilities.spectralindex_compute import (load_index_series,
+from ..utilities.spectralindex_compute import (load_index_series, save_index_zarr, load_index_zarr, load_projection,
                                                compute_and_clean_index, compute_index_projection)
 from ..data_structures.parameters_plots import Paramplot
 
@@ -588,7 +588,7 @@ def create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue
     return rgb_to_plot
 
 def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_index=0,
-                    mask=None, rgb_cube=None, myimage=None, add_colorbar=True):
+                    mask=None, rgb_cube=None, myimage=None, add_colorbar=True, load_data=False):
     """Plot spectral index for a given experiment and region of interest. Data
     such as the mask and rgb image are loaded from the export folder, but can also
     be provided as arguments to avoid repeated loading of the same data. This function
@@ -613,6 +613,8 @@ def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_
         ImChannels object with image data
     add_colorbar : bool
         whether to add a colorbar to the index plot
+    load_data : bool
+        whether to load pre-computed zarr index map and projection files
 
     Returns
     -------
@@ -656,15 +658,22 @@ def plot_experiment_roi_index(export_folder, index, params_plots=None, main_roi_
         index = [index]
     
     for ind in index:
-        ind.index_map = compute_and_clean_index(
-                spectral_index=ind, row_bounds=row_bounds,
-                col_bounds=col_bounds, imagechannels=myimage)
-                
-        ind.index_proj = compute_index_projection(
+        if load_data:
+            ind.index_map = load_index_zarr(
+                project_folder=export_folder, main_roi_index=main_roi_index, index_name=ind.index_name)
+            ind.index_proj = load_projection(project_folder=export_folder, main_roi_index=main_roi_index, index_name=ind.index_name)
+        
+        # if data is not loaded or inexistent, compute it
+        if ind.index_map is None:
+            ind.index_map = compute_and_clean_index(
+                    spectral_index=ind, row_bounds=row_bounds,
+                    col_bounds=col_bounds, imagechannels=myimage)
+        if ind.index_proj is None:         
+            ind.index_proj = compute_index_projection(
                     ind.index_map, mask,
                     colmin=colmin_proj, colmax=colmax_proj,
                     smooth_window=ind.smooth_proj_window)
-        
+    
     fig, ax1, ax2, ax3 = plot_spectral_profile(
         rgb_image=rgb_cube, mask=mask, index_obj=index,
         format_dict=format_dict, scale=params.scale, scale_unit=params.scale_units,
@@ -750,7 +759,7 @@ def plot_experiment_multispectral_roi(export_folder, indices, params_plots=None,
     return fig
 
 def batch_create_plots(project_list, index_params_file, plot_params_file,
-                       normalize=False):
+                       normalize=False, load_data=False, roi_to_process=None):
     """Create index plots for a list of projects. Calls plot_experiment_roi_index and 
     plot_experiment_multispectral_roi for each project and roi.
     
@@ -764,10 +773,13 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
         path to plot parameters file
     normalize: bool
         whether to save plots in normalized folder
+    load_data: bool
+        whether to load pre-computed zarr index map and projection files
+    roi_to_process: int
+        index of the roi to process. If None, all rois are processed.
 
     """
 
-    indices = load_index_series(index_params_file)
     params_plots = load_plots_params(plot_params_file)
     fig, ax = plt.subplots()
     dpi = 300
@@ -775,15 +787,20 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
     for ex in project_list:
 
         params = load_project_params(folder=ex)
-
-        roi_folders = list(ex.glob('roi*'))
-        roi_folders = [x.name for x in roi_folders if x.is_dir()]
-        
-        if len(roi_folders) == 0:
-            os.makedirs(ex.joinpath('roi_0'))
-            roi_folders = ['roi_0']
+        if roi_to_process is not None:
+            roi_folders = [f'roi_{roi_to_process}']
+        else:
+            roi_folders = list(ex.glob('roi*'))
+            roi_folders = [x.name for x in roi_folders if x.is_dir()]
+            
+            if len(roi_folders) == 0:
+                os.makedirs(ex.joinpath('roi_0'))
+                roi_folders = ['roi_0']
 
         for roi_ind in range(len(roi_folders)):
+            
+            # index are loaded here to reset them for each roi
+            indices = load_index_series(index_params_file)
             
             roi_folder = ex.joinpath(f'roi_{roi_ind}')
             if normalize:
@@ -801,19 +818,26 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
                 
                 fig, mask, rgb_cube, myimage = plot_experiment_roi_index(
                     export_folder=ex, index=indices[k], params_plots=params_plots,
-                    main_roi_index=roi_ind, mask=mask, rgb_cube=rgb_cube, myimage=myimage)
+                    main_roi_index=roi_ind, mask=mask, rgb_cube=rgb_cube, myimage=myimage, load_data=load_data)
 
                 fig.savefig(
-                        roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'),
-                    dpi=dpi)
+                    roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'), dpi=dpi)
                 
-                # tif maps
+                # tif and zarr maps
+                # only overwrite if data are not loaded (even if they exist). If load_data is true but the data do not exist,
+                # then the data are saved.
+                overwrite = True
+                if load_data:
+                    overwrite = False
                 index_map = indices[k].index_map
                 contrast = indices[k].index_map_range
                 napari_cmap = indices[k].colormap
                 export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
                 save_tif_cmap(image=index_map, image_path=export_path,
-                                napari_cmap=napari_cmap, contrast=contrast)
+                                napari_cmap=napari_cmap, contrast=contrast, overwrite=overwrite)
+                save_index_zarr(
+                    project_folder=ex, main_roi_index=roi_ind, index_name=indices[k].index_name,
+                    index_map=indices[k].index_map, overwrite=overwrite)
                 
                 # export projection to csv
                 if proj_pd is None:
@@ -821,19 +845,29 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
                 proj_pd[indices[k].index_name] = indices[k].index_proj
             
             proj_pd[f'depth [{params.scale_units}]'] = proj_pd['depth'] * params.scale
-            proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
+            if overwrite or not roi_plot_folder.joinpath('index_projection.csv').is_file():
+                proj_pd.to_csv(roi_plot_folder.joinpath('index_projection.csv'), index=False)
+
+            # pair plots
+            index_keys = list(indices.keys())
+            for k in range(len(index_keys)):
+                for j in range(k+1, len(index_keys)):
+                    fig, mask, rgb_cube, myimage = plot_experiment_roi_index(
+                    export_folder=ex, index=[indices[index_keys[k]], indices[index_keys[j]]], params_plots=params_plots,
+                    main_roi_index=roi_ind, mask=mask, rgb_cube=rgb_cube, myimage=myimage, load_data=False)
+
+                    fig.savefig(
+                            roi_plot_folder.joinpath(f'{indices[index_keys[k]].index_name}_{indices[index_keys[j]].index_name}_index_plot.png'), dpi=dpi)
 
             # create multi index plot
             fig = plot_experiment_multispectral_roi(export_folder=ex, indices=indices,
                                               params_plots=params_plots, main_roi_index=roi_ind,
                     mask=mask, rgb_cube=rgb_cube, myimage=myimage, recompute=False)
 
-            fig.savefig(
-                        roi_plot_folder.joinpath('multi_index_plot'),
-                    dpi=dpi)
+            fig.savefig(roi_plot_folder.joinpath('multi_index_plot'), dpi=dpi)
             plt.close(fig)
 
-def save_tif_cmap(image, image_path, napari_cmap, contrast):
+def save_tif_cmap(image, image_path, napari_cmap, contrast, overwrite=False):
     """Save image as tiff with colormap using specified contrast. The
     saved image is only for visualization purposes, as the values are
     rescaled and transformed to RGB.
@@ -848,8 +882,13 @@ def save_tif_cmap(image, image_path, napari_cmap, contrast):
         napari colormap or str
     contrast: tuple of float
         contrast
+    overwrite: bool
+        whether to overwrite existing file
 
     """
+    
+    if image_path.exists() and not overwrite:
+        return
     
     if isinstance(napari_cmap, str):
         current_cmap = cmap.Colormap(napari_cmap).to_matplotlib()
