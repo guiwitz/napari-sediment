@@ -4,6 +4,8 @@ import pandas as pd
 from scipy.signal import savgol_filter
 import dask.array as da
 import yaml
+import dask.array as da
+import zarr
 
 from .sediproc import find_index_of_band
 from ..data_structures.spectralindex import SpectralIndex
@@ -494,5 +496,28 @@ def compute_normalized_index_params(project_list, index_params_file, export_fold
 
     export_index_series(index_series=indices, file_path=export_folder.joinpath('normalized_index_settings.yml'))
 
-
+def save_index_zarr(project_folder, main_roi_index, index_name, index_map):
     
+    folder_name = project_folder.joinpath(f'roi_{main_roi_index}').joinpath('index_maps')
+    if not folder_name.is_dir():
+        folder_name.mkdir()
+    file_name = folder_name.joinpath(index_name + '.zarr')
+    
+    dtype = 'f4'
+    
+    z1 = zarr.open(file_name, mode='w', shape=index_map.shape,
+                   chunks=index_map.shape, dtype=dtype)
+
+    z1.attrs['metadata'] = {
+        'index_name': index_name,
+        }
+    
+    z1[:,:] = index_map
+
+def load_index_zarr(project_folder, main_roi_index, index_name):
+    
+    file_name = project_folder.joinpath(f'roi_{main_roi_index}', 'index_maps', index_name + '.zarr')
+    z1 = zarr.open(file_name, mode='r')
+    zarr_image = da.from_zarr(file_name)
+    
+    return np.array(zarr_image)
