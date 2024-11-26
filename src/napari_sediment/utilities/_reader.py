@@ -9,6 +9,7 @@ import numpy as np
 from spectral import open_image
 import zarr
 from pathlib import Path
+import dask.array as da
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
@@ -40,31 +41,25 @@ def napari_get_reader(path):
 
 
 def reader_function(path):
-    """Take a path or list of paths and return a list of LayerData tuples.
-
-    Readers are expected to return data as a list of tuples, where each tuple
-    is (data, [add_kwargs, [layer_type]]), "add_kwargs" and "layer_type" are
-    both optional.
+    """Take a path for a hdr or zarr file and return a layer data tuple. If
+    'wavelegnth' is in the metadata, the data will be interpreted as hyperspectral
+    data. If 'index_name' is in the metadata, the data will be interpreted as an
+    index map. Otherwise, the data will be interpreted as an image.
 
     Parameters
     ----------
-    path : str or list of str
-        Path to file, or list of paths.
+    path : str
+        Path to file
 
     Returns
     -------
-    layer_data : list of tuples
-        A list of LayerData tuples where each tuple in the list contains
-        (data, metadata, layer_type), where data is a numpy array, metadata is
-        a dict of keyword arguments for the corresponding viewer.add_* method
-        in napari, and layer_type is a lower-case string naming the type of
-        layer. Both "meta", and "layer_type" are optional. napari will
-        default to layer_type=="image" if not provided
+    layer_data : list of tuple
+        A list of LayerData tuples with the data, metadata, and layer type.
+
     """
-    # handle both a string and a list of strings
-    #paths = [path] if isinstance(path, str) else path
-    # load all files into array
-    array, metadata = read_spectral(path)# for _path in paths]
+    
+    # load data and metadata
+    array, metadata = read_spectral(path)
     
     if 'wavelength' in metadata:
         add_kwargs = {'name': metadata['wavelength'], 'channel_axis': 2}
@@ -120,28 +115,32 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
     elif path.suffix == '.zarr':
         zarr_image = zarr.open(path, mode='r')
 
-        metadata = zarr_image.attrs['metadata']
+        if 'metadata' in zarr_image.attrs:
+            metadata = zarr_image.attrs['metadata']
 
-        if 'index_name' in zarr_image.attrs['metadata']:
-            return np.array(zarr_image), metadata
-        
-        if bands is None:
-            bands = np.arange(zarr_image.shape[0])
-        else :
-            bands = np.array(bands)
-        
-        if row_bounds is None:
-            row_bounds = (0, zarr_image.shape[1])
-        if col_bounds is None:
-            col_bounds = (0, zarr_image.shape[2])
-
-        #data = zarr_image.get_orthogonal_selection(
-        #    (bands, slice(row_bounds[0], row_bounds[1]), slice(col_bounds[0],col_bounds[1])))
-        import dask.array as da
-        zarr_image = da.from_zarr(path)
-        data = zarr_image[bands, row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
+            if 'index_name' in zarr_image.attrs['metadata']:
+                data = np.array(zarr_image)
             
-        data = np.moveaxis(data, 0, 2)
+            elif 'wavelength' in zarr_image.attrs['metadata']:
+                if bands is None:
+                    bands = np.arange(zarr_image.shape[0])
+                else :
+                    bands = np.array(bands)
+                
+                if row_bounds is None:
+                    row_bounds = (0, zarr_image.shape[1])
+                if col_bounds is None:
+                    col_bounds = (0, zarr_image.shape[2])
+
+                zarr_image = da.from_zarr(path)
+                data = zarr_image[bands, row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
+                    
+                data = np.moveaxis(data, 0, 2)
+            else:
+                data = np.array(zarr_image)
+        else:
+            data = np.array(zarr_image)
+            metadata = {}
         
     return data, metadata
 
