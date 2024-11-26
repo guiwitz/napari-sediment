@@ -31,6 +31,7 @@ from napari_sediment.widgets.sediment_widget import SedimentWidget
 
 # In[3]:
 
+
 def test_load_preprocess_workflow(make_napari_viewer):
     viewer = make_napari_viewer()
     self = SedimentWidget(viewer)
@@ -71,14 +72,13 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Here we used a synthetic dataset allowing to present the features of the software in a simplified way.
 
-    # In[5]:
+    # In[7]:
 
 
-    import os
     synth_path = Path(os.path.expanduser("~")).joinpath('Sediment_synthetic')
 
 
-    # In[6]:
+    # In[8]:
 
 
     # if you run this notebook, you need to create the dataset first by executing this cell. Data are saved in your home folder. Exported data are in the same location
@@ -100,7 +100,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
         os.makedirs(export_path, exist_ok=True)
 
 
-    # In[7]:
+    # In[9]:
 
 
     imhdr_path = synth_path.joinpath('sediment_data/Demo/capture/Demo.hdr')
@@ -110,7 +110,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     self.export_path_display.setText(self.export_folder.as_posix())
 
 
-    # In[8]:
+    # In[10]:
 
 
     nbscreenshot(viewer)
@@ -128,7 +128,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # To select multiple bands, hold the Shift key. The imported bands are stored in the ```imcube``` layer and not in separate layers . Beware that for large datasets, it is not recommended to load all bands as this will consume large amounts of memory.
 
-    # In[9]:
+    # In[11]:
 
 
     self.check_sync_bands_rgb.setChecked(False)
@@ -142,7 +142,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # The RGB section allows you to control which bands are displayed as RGB. You can pick the wavelengths to be used for RGB using the three adjustable numbers. The closest wavelengths are selected in the list of actual wavelengths when ```Load RGB``` is pressed and the RGB layers updated. The contrast of the composite RGB image can be adjusted using the ```RGB Contrast```slider.
 
-    # In[10]:
+    # In[12]:
 
 
     self.rgb_widget.spin_rchannel.setValue(410)
@@ -169,14 +169,14 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # In ```Layer```, one can then choose what to correct: either the loaded image cube which can contains arbitrary bands, or the loaded RGB data. Note that if the option ```Sync bands with RGB``` is checked, both ```imcube``` and ```RGB``` representations are corrected.
 
-    # In[11]:
+    # In[13]:
 
 
     self.tabs.setCurrentIndex(1)
     self._on_click_background_correct()
 
 
-    # In[12]:
+    # In[14]:
 
 
     nbscreenshot(viewer)
@@ -186,13 +186,13 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Destriping is performed using a Savgol filter (local fit of each scan line to remove outliers). The size of the region to fit is set using the ```Savgol Width```. Note that here you can choose which layer to destripe: ```imcube```, ```imcube_corrected``` or ```RGB```. In the latter case, if you also background corrected for RGB, then the red, green, blue layers will actually contain the completely pre-processed data that one can obtain later on in batch mode. This generates another layer called ```imcube_destripe```.
 
-    # In[13]:
+    # In[15]:
 
 
     self._on_click_destripe()
 
 
-    # In[14]:
+    # In[16]:
 
 
     nbscreenshot(viewer)
@@ -204,7 +204,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # If no processing is needed, one should simply uncheck both the ```White correct``` and ```Destripe``` checkboxes. Normally the processed data, which after normalization should be in the range 0-1, are multiplied by $2^{12}$ and saved as integers. To avoid this and save data as floats, one can tick the box ```Save as floats``` (this can also be used to simply convert data to zarr).
 
-    # In[15]:
+    # In[17]:
 
 
     self.check_batch_destripe.setChecked(False)
@@ -265,16 +265,16 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Note that this widget can be opened as a regular widget without the main widget, as shown here.
 
-    # In[16]:
+    # In[18]:
 
 
     from napari_sediment.widgets.batch_preproc_widget import BatchPreprocWidget
-    viewer2 = make_napari_viewer()
+    viewer2 = napari.Viewer()
     self2 = BatchPreprocWidget(viewer2)
     viewer2.window.add_dock_widget(self2);
 
 
-    # In[17]:
+    # In[19]:
 
 
     self2._on_click_select_main_folder(main_folder=synth_path.joinpath('sediment_data/'))
@@ -283,19 +283,19 @@ def test_load_preprocess_workflow(make_napari_viewer):
     self2.qlist_channels._on_change_channel_selection()
 
 
-    # In[18]:
+    # In[20]:
 
 
     nbscreenshot(viewer2)
 
 
-    # In[19]:
+    # In[21]:
 
 
     self2.preproc_export_path_display.value = synth_path.joinpath('sediment_export_series')
 
 
-    # In[20]:
+    # In[22]:
 
 
     self2.check_do_background_correction.setChecked(True)
@@ -309,7 +309,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # In the next step we select the region to be kept for analysis. Often raw data contain borders with very different signals from the actual relevant regions that might disturb further analysis steps and need to be discarded. One can add a main ROI encompassing the full picture using ```Add main ROI```. The horizontal size of this ROI can also be set with ```Main ROI width```. The ROI can then be manually adjusted directly in the layer using the editing tools.
 
-    # In[21]:
+    # In[23]:
 
 
     self.tabs.setCurrentIndex(2)
@@ -320,12 +320,12 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
     # Note that you might be interested in multiple separate main rois in your experiment. So you can just add as many as you want:
 
-    # In[22]:
+    # In[25]:
 
 
     self._on_click_add_main_roi()
     self.viewer.layers['main-roi'].data = [np.array([[5,7],[120,7],[120,80],[5,80]]),
-                                        np.array([[5,85],[110,85],[110,100],[5,100]])]
+                                        np.array([[5,85],[110,85],[110,110],[5,110]])]
     nbscreenshot(viewer)
 
 
@@ -335,7 +335,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Let's crop using the first main ROI:
 
-    # In[23]:
+    # In[26]:
 
 
     self._on_crop_with_main()
@@ -344,7 +344,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
     # And now we can add an analysis ROI:
 
-    # In[24]:
+    # In[27]:
 
 
     self._add_analysis_roi(cursor_pos=[0,0,52,0])
@@ -360,7 +360,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # ###  Create one ore more masks
     # A series of (Semi-)Automated methods are also available for this task.
 
-    # In[25]:
+    # In[28]:
 
 
     self.tabs.setCurrentIndex(3)
@@ -375,7 +375,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Each type of masking will generate a layer with a different name. Those layers can be combined in the end.
 
-    # In[26]:
+    # In[29]:
 
 
     self._add_manual_mask()
@@ -392,32 +392,32 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Here we add two small annotations:
 
-    # In[27]:
+    # In[30]:
 
 
     self.mask_tabs.setCurrentIndex(4)
 
 
-    # In[28]:
+    # In[31]:
 
 
     self.mlwidget.select_layer_widget.value = self.viewer.layers['imcube']
     self.mlwidget.radio_multi_channel.setChecked(True)
 
 
-    # In[29]:
+    # In[32]:
 
 
     self.mlwidget.add_annotation_layer()
 
 
-    # In[30]:
+    # In[33]:
 
 
     self.viewer.layers['intensity-mask'].visible = False
 
 
-    # In[31]:
+    # In[34]:
 
 
     self.viewer.layers['annotations'].data[45:50, 25:35] = 2
@@ -425,7 +425,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     self.viewer.layers['annotations'].refresh()
 
 
-    # In[32]:
+    # In[35]:
 
 
     nbscreenshot(viewer)
@@ -435,14 +435,14 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # In the end you will obtain a new layer ```ml-mask``` with the mask, as well as a ```segmentation``` layer with the segmentation of the two annotated labels.
 
-    # In[33]:
+    # In[36]:
 
 
     self.mlwidget.spin_downsample.setValue(1)
     self.mlwidget.update_model_btn.clicked.emit()
 
 
-    # In[34]:
+    # In[37]:
 
 
     nbscreenshot(viewer)
@@ -452,7 +452,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # As potentially multiple masks were generated, e.g.  one with a threshold, one via ML etc. those need to be combined in a single mask. This can be done using ```Combine masks```. Finally the mask can be cleaned by closing holes in the mask using ```Clean mask```. The full mask will be available in ```complete-mask```. Note that when later saving the project, only the latter is saved and not all independent masks.
 
-    # In[35]:
+    # In[38]:
 
 
     viewer.layers['segmentation'].visible = False
@@ -460,7 +460,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     self._on_click_combine_masks()
 
 
-    # In[36]:
+    # In[39]:
 
 
     nbscreenshot(viewer)
@@ -470,14 +470,14 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Finally when all the work is done, one needs to save all the information, including e.g. metadata, masks, ROIs etc. This can be done in the ```Main``` tab using the ```Export Project``` button. If an export folder has been set in the Main tab, that location will be used, otherwise a new one should be selected. That saved project can later on be re-imported as well.
 
-    # In[37]:
+    # In[40]:
 
 
     self.tabs.setCurrentIndex(0)
     nbscreenshot(viewer)
 
 
-    # In[38]:
+    # In[41]:
 
 
     self.export_project()
@@ -490,7 +490,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # Finally in the ```IO``` tab one can export a snapshot of the current view (for presentation purposes) as well as import/export masks potentially generated with another tool.
 
-    # In[39]:
+    # In[42]:
 
 
     self.tabs.setCurrentIndex(4)
@@ -501,7 +501,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # In the Plotting tab, one can visualize the spectrum for a single pixel. This is achieved by hovering over the image and holding the Shift key. Only the data from the loaded channels is displayed. This means that for large data, one can only display all channels after conversion to the zarr format (otherwise the full dataset is too large to load).
 
-    # In[40]:
+    # In[43]:
 
 
     self.tabs.setCurrentIndex(5)
@@ -522,7 +522,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 
     # For the pixel size, you can either enter a number manually in ```Pixel Size``` as well as set the corresponding unit (in this example the pixel size is 2.5mm):
 
-    # In[41]:
+    # In[44]:
 
 
     self.tabs.setCurrentIndex(6)
@@ -535,23 +535,24 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # 1. If one knows the size of the selected main-roi, one can just enter it in the ```Scale size in units``` and the click on ```Compute pixel size with main-roi```.
     # 2. One can add an adjustable scale bar (green) to the image using ```Add scale layer```, adjust its size and then specify it's size in actual units. This is useful e.g. if a ruler is visible in the image. One can then compute the scale by clicking on ```Compute pixel size with scale```.
 
-    # In[42]:
+    # In[45]:
 
 
     self._on_click_add_scale_layer()
 
 
-    # In[43]:
+    # In[46]:
 
 
     nbscreenshot(viewer)
 
 
-    # ## Re-loading project
-    # 
-    # Once the plugin is closed, one can re-import the project by simply specifying the Export folder. As data location is saved in the ```Parameters.yml``` file, no need to specify it here (note that re-loading will stop working if you move the data!)
+# ## Re-loading project
+# 
+# Once the plugin is closed, one can re-import the project by simply specifying the Export folder. As data location is saved in the ```Parameters.yml``` file, no need to specify it here (note that re-loading will stop working if you move the data!)
 
-    # In[44]:
+# In[47]:
+
 
 def test_reload(make_napari_viewer):
     viewer = make_napari_viewer()
@@ -565,16 +566,13 @@ def test_reload(make_napari_viewer):
     nbscreenshot(viewer)
 
 
-    # Upon clicking on ```Import Project```, this is the re-loaded state you will see:
+	# Upon clicking on ```Import Project```, this is the re-loaded state you will see:
 
-    # In[45]:
+	# In[48]:
 
 
     self.import_project()
     nbscreenshot(viewer)
-
-
-    # In[ ]:
 
 
 
