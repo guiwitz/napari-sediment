@@ -1,5 +1,5 @@
-import numpy as np
 from pathlib import Path
+import numpy as np
 from .io import get_data_background_path
 from .sediproc import correct_save_to_zarr
 from ..data_structures.imchannels import ImChannels

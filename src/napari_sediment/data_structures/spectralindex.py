@@ -1,8 +1,6 @@
-import os
-import numpy as np
-
 import dataclasses
 from dataclasses import dataclass, asdict
+import numpy as np
 
 
 @dataclass

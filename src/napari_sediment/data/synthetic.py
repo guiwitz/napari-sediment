@@ -1,10 +1,7 @@
 from pathlib import Path
 import os
-import matplotlib.pyplot as plt
 import numpy as np
-
 from spectral.io.envi import save_image
-
 from skimage.draw import ellipse
 
 
