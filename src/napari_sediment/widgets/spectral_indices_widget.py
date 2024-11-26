@@ -21,22 +21,22 @@ import pandas as pd
 from napari_guitils.gui_structures import TabSet, VHGroup
 
 from ..data_structures.parameters import Param
-from ..utilities.io import load_project_params, load_plots_params
+from ..data_structures.spectralindex import SpectralIndex
+from ..data_structures.parameters_plots import Paramplot
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
-from ..utilities.spectralplot import plot_spectral_profile, plot_multi_spectral_profile
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..widget_utilities.rgb_widget import RGBWidget
-from ..data_structures.parameters_plots import Paramplot
+from ..widget_utilities.folder_list_widget import FolderListWidget
+from ..utilities.io import (load_project_params, load_plots_params,
+                            load_mask, get_mask_path)
 from ..utilities.spectralindex_compute import (compute_index_projection,
                             clean_index_map, create_index, export_index_series,
                             compute_and_clean_index,
                             compute_normalized_index_params, built_in_indices)
-from ..utilities.spectralplot import batch_create_plots, save_tif_cmap
-from ..data_structures.spectralindex import SpectralIndex
-from ..utilities.io import load_mask, get_mask_path
+from ..utilities.spectralplot import (batch_create_plots, save_tif_cmap,
+                                      plot_spectral_profile, plot_multi_spectral_profile)
 from ..utilities.utils import wavelength_to_rgb
-from ..widget_utilities.folder_list_widget import FolderListWidget
 
 class SpectralIndexWidget(QWidget):
     """
