@@ -11,15 +11,15 @@
 # In[2]:
 
 
+import os
 import napari
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from napari.utils.notebook_display import nbscreenshot
-
 from napari_sediment.widgets.spectral_indices_widget import SpectralIndexWidget
+
 plt.style.use('default')
-import os
 synth_path = Path(os.path.expanduser("~")).joinpath('Sediment_synthetic')
 
 
@@ -60,9 +60,9 @@ def test_spectral_indices_workflow(make_napari_viewer):
 
     # ### Indices
     # 
-    # In this tab, one can define and compute various indices to quantify absorption bands. In the ```Index Definition``` section, a series of common indices have been preset to use certain combinations of wavelengths. Those can be adjusted either by entering values or by dragging the sliders below the plot. Once adjustments have been made, one can keep those for the the selected index name by clicking on ```Update current index```. One can also create completely new indices by first selecting a triplet (RABD) or pari (RABA/Ratio/RMean) of wavelengths, defining a name (```Myindex```) and clicking on ```New index```. New indices get added to the choices in the ```Index Definition```.
+    # In this tab, one can define and compute various indices to quantify absorption bands. In the ```Index Definition``` section, a series of common indices have been preset to use certain combinations of wavelengths. Those can be adjusted either by entering values or by dragging the sliders below the plot. Once adjustments have been made, one can keep those for the the selected index name by clicking on ```Update current index```. One can also create completely new indices by first selecting a triplet (RABD) or pari (RABA/Ratio/RMean) of wavelengths, defining a name (```Myindex```) and clicking on ```New index```. New indices get added to the choices in the ```Index Definition```. Here we create two new RABD indices around 450 and 600.
 
-    # In[6]:
+    # In[8]:
 
 
     self.spin_index_left.setValue(550)
@@ -72,8 +72,15 @@ def test_spectral_indices_workflow(make_napari_viewer):
     self.qtext_new_index_name.setText('Myindex')
     self._on_click_new_index(None)
 
+    self.spin_index_left.setValue(400)
+    self.spin_index_middle.setValue(450)
+    self.spin_index_right.setValue(500)
 
-    # In[7]:
+    self.qtext_new_index_name.setText('Myindex2')
+    self._on_click_new_index(None)
+
+
+    # In[9]:
 
 
     self.tabs.setCurrentIndex(1)
@@ -94,18 +101,18 @@ def test_spectral_indices_workflow(make_napari_viewer):
     # 
     # Note that is the ```Force recompute``` checkbox is ticked, index maps are recomputed every time they are needed. This ensures that e.g. when adjusting index boundaries, those changes are always taken into account.
 
-    # In[8]:
+    # In[10]:
 
 
     self.tabs.setCurrentIndex(2)
     self.index_pick_boxes['Myindex'].setChecked(True)
-    self.index_pick_boxes['RMean'].setChecked(True)
+    self.index_pick_boxes['Myindex2'].setChecked(True)
     self._on_compute_index_maps(None)
     for x in self.viewer.layers:
         x.visible = False
     self.viewer.layers[-1].visible = True
-    self.viewer.layers[-1].colormap = 'I Blue'
-    self.viewer.layers[-2].colormap = 'I Forest'
+    self.viewer.layers[-1].colormap = 'bop blue'
+    self.viewer.layers[-2].colormap = 'bop orange'
     nbscreenshot(viewer)
 
 
@@ -117,23 +124,28 @@ def test_spectral_indices_workflow(make_napari_viewer):
     # 
     # The index maps can be saved as tiff files. Alternatively they can be exported in two types of figures:
     # - figures containing an image of the data, the index map as well as the projection
+    # - figures containing an image of the data, an **overlay of two index maps** as well as the projections of both indices
     # - a figure combining all index maps
     # 
-    # These figures can all be automatically generated using the ```Create and Save all index plots``` button. An example of such figures is visible below:
+    # These figures can all be automatically generated using the ```Create and Save all index plots``` button. Additionally one can:
+    # - generate all plots for all ROIs (with the same settings) by ticking the box ```Process all ROIs```
+    # - create a normalized version of the figures where intensity ranges are the same across multiple ROIs. An example of such figures is visible below:
 
-    # In[9]:
+    # In[23]:
 
 
+    self.check_index_all_rois.setChecked(True)
+    self.check_normalize_single_export.setChecked(True)
     self._on_click_create_and_save_all_plots()
 
 
-    # In[10]:
+    # In[24]:
 
 
     from IPython.display import Markdown, display, Image
 
     image_path = synth_path.joinpath('sediment_export', 'roi_0', 'index_plots', 'Myindex_index_plot.png')
-    image_path2 = synth_path.joinpath('sediment_export', 'roi_0', 'index_plots', 'multi_index_plot.png')
+    image_path2 = synth_path.joinpath('sediment_export', 'roi_1', 'index_plots', 'Myindex_Myindex2_index_plot.png')
     #image_path = image_path.as_posix()
     display(Image(image_path))
     display(Image(image_path2))
@@ -150,14 +162,14 @@ def test_spectral_indices_workflow(make_napari_viewer):
     # 
     # Those plot parameters can be saved in a yml file by clicking on ```Save plot parameters``` and re-used later for other sessions. Results can be pre-viewed using the ```Create index plot``` and ```Create multi-index plot```.
 
-    # In[11]:
+    # In[25]:
 
 
     self.tabs.setCurrentIndex(3)
     nbscreenshot(viewer)
 
 
-    # In[12]:
+    # In[26]:
 
 
     self._on_click_save_plot_parameters(file_path=synth_path.joinpath('plot_params.yml'))
@@ -173,7 +185,7 @@ def test_spectral_indices_workflow(make_napari_viewer):
     # 
     # Here we use the settings used in our single dataset to analyze the ```sediment_export_series``` folder.
 
-    # In[13]:
+    # In[27]:
 
 
     self._on_click_select_main_batch_folder(main_folder=synth_path.joinpath('sediment_export_series'))
@@ -181,13 +193,13 @@ def test_spectral_indices_workflow(make_napari_viewer):
     self.batch_index_params_file.value = synth_path.joinpath('sediment_export', 'index_settings.yml')
 
 
-    # In[14]:
+    # In[28]:
 
 
     self._on_click_batch_create_plots()
 
 
-    # In[15]:
+    # In[29]:
 
 
     self.tabs.setCurrentIndex(4)
@@ -196,7 +208,7 @@ def test_spectral_indices_workflow(make_napari_viewer):
 
     # Here's an example of the resulting figures. Note that like here, in case the no regions of interest have been selected in this series of data, plots are generated with the full images.
 
-    # In[16]:
+    # In[30]:
 
 
     image_path = synth_path.joinpath('sediment_export_series', 'Demo', 'roi_0', 'index_plots', 'Myindex_index_plot.png')
