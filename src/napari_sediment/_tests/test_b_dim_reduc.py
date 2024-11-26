@@ -15,27 +15,26 @@
 # In[2]:
 
 import pytest
+import os
 import napari
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from napari.utils.notebook_display import nbscreenshot
-
 from napari_sediment.widgets.hyperanalysis_widget import HyperAnalysisWidget
-plt.style.use('default')
 
-import os
+plt.style.use('default')
 synth_path = Path(os.path.expanduser("~")).joinpath('Sediment_synthetic')
 
 
 # In[3]:
+
 
 def test_dim_reduc_workflow(make_napari_viewer):
 
     viewer = make_napari_viewer()# napari.Viewer()
     self = HyperAnalysisWidget(viewer)
     viewer.window.add_dock_widget(self);
-
 
     # In[4]:
 
@@ -95,7 +94,7 @@ def test_dim_reduc_workflow(make_napari_viewer):
     # 
     # Once a threshold is selected, click on one of the ```Reduce on... ``` buttons. This creates a new layer ```denoised``` with the reduced data.
     # 
-    # **Note that because the layer ```ìmcube``` is still present, the slider at the bottom of the viewer still indicates all bands. But if you turn off all layers except for ```denoised```, you will notice that the denoised stack is eventually empty (here after slice 4).**
+    # **Note that because the layer ```imcube``` is still present, the slider at the bottom of the viewer still indicates all bands. But if you turn off all layers except for ```denoised```, you will notice that the denoised stack is eventually empty (here after slice 4).**
 
     # In[9]:
 
@@ -129,7 +128,7 @@ def test_dim_reduc_workflow(make_napari_viewer):
     self._on_click_ppi()
 
 
-    # In[12]:
+    # In[13]:
 
 
     self.tabs.setCurrentIndex(2)
@@ -148,7 +147,7 @@ def test_dim_reduc_workflow(make_napari_viewer):
     # - curves can be smoothed using the Savitzky-Golay method using a windows of variable size
     # - an approximate continuous signal can be subtracted from the data
 
-    # In[13]:
+    # In[14]:
 
 
     self.tabs.setCurrentIndex(3)
@@ -157,13 +156,13 @@ def test_dim_reduc_workflow(make_napari_viewer):
     nbscreenshot(viewer)
 
 
-    # We see here that the pixel coloring reflects that end-member clustering: we have two absorption regions in green and orange and background pixels in blue.
+    # We see here that the pixel coloring reflects that end-member clustering: we have two absorption regions in green/red and orange/red and background pixels in blue. The red region is a mixed signal region.
 
     # ## Plotting
     # 
     # As in the previous plugin, we can here visualize full spectra for individual pixels. One can just hover over the image by pressing the Shift key, and pixel spectra will appear in the plot.
 
-    # In[14]:
+    # In[15]:
 
 
     self.tabs.setCurrentIndex(4)
@@ -178,14 +177,14 @@ def test_dim_reduc_workflow(make_napari_viewer):
     # 
     # The end-member information is important in the next step in order to define indices that quantify spectra. As in the other widgets, come back to the ```Main``` tab and click on ```Export Project```.
 
-    # In[15]:
+    # In[16]:
 
 
     self.tabs.setCurrentIndex(0)
     self.save_index_project()
 
 
-    # In[16]:
+    # In[17]:
 
 
     nbscreenshot(viewer)
