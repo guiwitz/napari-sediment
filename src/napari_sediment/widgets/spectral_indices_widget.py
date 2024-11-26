@@ -202,20 +202,23 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff, 2, 0, 1, 2)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
         self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv, 3, 0, 1, 2)
-        self.btn_save_all_plot = QPushButton("Create and Save all index plots")
+        self.btn_save_all_plot = QPushButton("Save all index plots")
         self.index_compute_group.glayout.addWidget(self.btn_save_all_plot, 4, 0, 1, 1)
+        self.check_index_all_rois = QCheckBox("Process all ROIs")
+        self.check_index_all_rois.setChecked(False)
+        self.index_compute_group.glayout.addWidget(self.check_index_all_rois, 5, 0, 1, 1)
         self.check_normalize_single_export = QCheckBox("Normalize index plots")
-        self.check_normalize_single_export.setChecked(True)
+        self.check_normalize_single_export.setChecked(False)
         self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
-        self.index_compute_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
+        self.index_compute_group.glayout.addWidget(self.check_normalize_single_export, 5, 1, 1, 1)
         self.btn_export_index_settings = QPushButton("Export index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings, 5, 0, 1, 2)
+        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings, 6, 0, 1, 2)
         self.btn_import_index_settings = QPushButton("Import index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings, 6, 0, 1, 2)
+        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings, 7, 0, 1, 2)
         self.index_file_display = QLineEdit("No file selected")
-        self.index_compute_group.glayout.addWidget(self.index_file_display, 7, 0, 1, 2)
+        self.index_compute_group.glayout.addWidget(self.index_file_display, 8, 0, 1, 2)
         self.check_force_recompute = QCheckBox("Force recompute")
-        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 8, 0, 1, 2)
+        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 9, 0, 1, 2)
         self.check_force_recompute.setChecked(True)
         self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
 
@@ -422,6 +425,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
         self.btn_save_plot.clicked.connect(self._on_click_save_plot)
         self.btn_save_all_plot.clicked.connect(self._on_click_create_and_save_all_plots)
+        self.check_index_all_rois.stateChanged.connect(self._on_change_index_all_rois)
         #self.btn_reset_figure_size.clicked.connect(self._on_click_reset_figure_size)
         self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
         self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
@@ -897,6 +901,17 @@ class SpectralIndexWidget(QWidget):
 
         self.connect_plot_formatting()
         self._on_click_export_index_settings()
+
+    def _on_change_index_all_rois(self, event=None):
+        """
+        Called: "Index Compute" tab, checkbox "Process all ROIs"
+        """
+
+        # Disable the "Normalize" checkbox if not multiple rois are computed
+        if self.check_index_all_rois.isChecked():
+            self.check_normalize.setEnabled(True)
+        else:
+            self.check_normalize.setEnabled(False)
     
     def update_single_or_multi_index_plot(self, event=None):
         if self.current_plot_type == 'single':
@@ -1074,63 +1089,42 @@ class SpectralIndexWidget(QWidget):
             self.pixlabel.setPixmap(self.pixmap)
             self.scrollArea.show()
 
-    def create_and_save_all_single_index_plot(self, event=None, force_recompute=None):
+    def create_and_save_all_single_index_plot(self, event=None):
         """Create and save all single index plots for the selected indices and
         save to file. If normalize is checked, also create and save normalized
         index plots."""
 
-        if force_recompute is None:
-            force_recompute = self.check_force_recompute.isChecked()
+        roi_to_process = None
+        if not self.check_index_all_rois.isChecked():
+            roi_to_process = [self.spin_selected_roi.value()]
 
         self._update_save_plot_parameters()
+        self._on_click_save_plot_parameters(file_path=self.export_folder.joinpath('plot_settings.yml'))
         self.params.location = self.metadata_location.text()
         self.params.scale = self.spinbox_metadata_scale.value()
+        self.params.save_parameters()
+        self._on_click_export_index_settings()
 
-        export_folder = self.plot_folder()
-
-        # get rgb image and index image to plot
-        rgb_image = self.get_rgb_array()
-        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        if len(index_series) == 0:
-            warnings.warn('No index selected') 
-            return
-        
-        mask = self.viewer.layers['mask'].data
-
-        for i_s in index_series:
-
-            self.compute_selected_indices_map_and_proj([i_s.index_name], force_recompute=force_recompute)
-            roi = None
-            if 'rois' in self.viewer.layers:
-                roi=self.viewer.layers['rois'].data[0]
-
-            format_dict = asdict(self.params_plots)
-            _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-                rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[i_s.index_name],
-                format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
-                location=self.params.location, fig=self.index_plot_live.canvas.figure, 
-                roi=roi)
-
-            self.index_plot_live.canvas.figure.savefig(
-                export_folder.joinpath(f'{i_s.index_name}_index_plot.png'),
-            dpi=self.spin_final_dpi.value())
-
-        if self.check_normalize_single_export.isChecked():
-            self._on_click_export_index_settings()
-            self._on_click_save_plot_parameters(file_path=self.export_folder.joinpath('plot_settings.yml'))
-            self._on_export_index_projection()
-
-            compute_normalized_index_params(
+        batch_create_plots(
                 project_list=[self.export_folder],
                 index_params_file=self.export_folder.joinpath('index_settings.yml'),
-                export_folder=self.export_folder)
-            
-            batch_create_plots(
-                project_list=[self.export_folder],
-                index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
                 plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
-                normalize=True
+                normalize=False, load_data=False, roi_to_process=roi_to_process
             )
+
+        compute_normalized_index_params(
+            project_list=[self.export_folder],
+            index_params_file=self.export_folder.joinpath('index_settings.yml'),
+            export_folder=self.export_folder)
+            
+        batch_create_plots(
+            project_list=[self.export_folder],
+            index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
+            plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
+            normalize=True,
+            load_data=True,
+            roi_to_process=roi_to_process
+        )
             
 
     def create_and_save_multi_index_plot(self, event=None, force_recompute=None):
