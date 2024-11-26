@@ -65,14 +65,14 @@ def reader_function(path):
     #paths = [path] if isinstance(path, str) else path
     # load all files into array
     array, metadata = read_spectral(path)# for _path in paths]
-    # stack arrays into single array
-    #data = np.squeeze(np.stack(arrays))
+    
+    if 'wavelength' in metadata:
+        add_kwargs = {'name': metadata['wavelength'], 'channel_axis': 2}
+        array = np.moveaxis(array, 2, 0)
+    elif 'index_name' in metadata:
+        add_kwargs = {'name': metadata['index_name']}
 
-    # optional kwargs for the corresponding viewer.add_* method
-    add_kwargs = {'name': metadata['wavelength'], 'channel_axis': 2}
-
-    layer_type = "image"  # optional, default is "image"
-    array = np.moveaxis(array, 2, 0)
+    layer_type = "image"
     return [(array, {}, layer_type)]
 
 def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
@@ -118,8 +118,13 @@ def read_spectral(path, bands=None, row_bounds=None, col_bounds=None):
             data = img.read_subregion(row_bounds=row_bounds, col_bounds=col_bounds, bands=bands)
 
     elif path.suffix == '.zarr':
-        zarr_image = read_hyper_zarr(path)
+        zarr_image = zarr.open(path, mode='r')
+
         metadata = zarr_image.attrs['metadata']
+
+        if 'index_name' in zarr_image.attrs['metadata']:
+            return np.array(zarr_image), metadata
+        
         if bands is None:
             bands = np.arange(zarr_image.shape[0])
         else :
