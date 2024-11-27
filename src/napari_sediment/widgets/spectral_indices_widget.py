@@ -9,12 +9,12 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
                             QComboBox, QLineEdit, QSizePolicy,
                             QGridLayout, QCheckBox, QDoubleSpinBox,
-                            QColorDialog, QScrollArea)
+                            QColorDialog, QScrollArea, QSizePolicy)
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
 from superqt import QLabeledDoubleRangeSlider, QLabeledDoubleSlider
 from magicgui.widgets import FileEdit
-
+from cmap import Colormap
 from napari.utils import progress
 import pandas as pd
 #from napari_matplotlib.base import NapariMPLWidget
@@ -37,6 +37,8 @@ from ..utilities.spectralindex_compute import (compute_index_projection,
 from ..utilities.spectralplot import (batch_create_plots, save_tif_cmap,
                                       plot_spectral_profile, plot_multi_spectral_profile)
 from ..utilities.utils import wavelength_to_rgb
+from ..utilities.morecolormaps import get_cmap_catalogue
+get_cmap_catalogue()
 
 class SpectralIndexWidget(QWidget):
     """
@@ -226,7 +228,7 @@ class SpectralIndexWidget(QWidget):
         # "Plots" Tab
         self.pixlabel = QLabel()
 
-        self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
+        self.tabs.widget(3).layout().setAlignment(Qt.AlignTop)
 
         self.button_zoom_in = QPushButton('Zoom IN', self)
         self.button_zoom_in.clicked.connect(self.on_zoom_in)
@@ -254,14 +256,6 @@ class SpectralIndexWidget(QWidget):
         self.index_plot_live.canvas.figure.set_layout_engine('none')
 
         self.scrollArea.setWidgetResizable(True)
-
-        self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(14, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(14, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', QLabel('Preview DPI'), grid_pos=(15, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(15, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(16, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(16, 1, 1, 1))
-        
 
         self.btn_create_index_plot = QPushButton("Create index plot")
         self.btn_create_multi_index_plot = QPushButton("Create multi-index plot")
@@ -310,7 +304,15 @@ class SpectralIndexWidget(QWidget):
         self.btn_load_plot_params = QPushButton("Load plot parameters")
         self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
 
+        self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(9, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(9, 1, 1, 1))
+        self.tabs.add_named_tab('P&lots', QLabel('Preview DPI'), grid_pos=(10, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(10, 1, 1, 1))
+        self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(11, 0, 1, 1))
+        self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(11, 1, 1, 1))
+
         # "Batch" Tab
+        self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
         self.btn_select_main_folder = QPushButton("Select main folder")
         self.tabs.add_named_tab('Batch', self.btn_select_main_folder)
         self.main_path_display = QLineEdit("No path")
@@ -318,8 +320,8 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Batch', QLabel('Available folders'))
         self.file_list = FolderListWidget(napari_viewer)
         self.tabs.add_named_tab('Batch',self.file_list)
-        self.file_list.setMaximumHeight(100)
-        
+        self.file_list.setFixedHeight(100)
+        self.file_list.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.batch_plot_params_file = FileEdit()
         self.tabs.add_named_tab('Batch', QLabel('Plot parameters file'))
         self.tabs.add_named_tab('Batch', self.batch_plot_params_file.native)
@@ -1279,7 +1281,7 @@ class SpectralIndexWidget(QWidget):
                     self.viewer.layers[i.index_name].data = computed_index
                     self.viewer.layers[i.index_name].refresh()
                 else:
-                    colormap = self.index_collection[i.index_name].colormap
+                    colormap = Colormap(self.index_collection[i.index_name].colormap).identifier
                     contrast_limits = self.index_collection[i.index_name].index_map_range
                     layer = self.viewer.add_image(
                         data=computed_index, name=i.index_name, colormap=colormap,
@@ -1297,7 +1299,7 @@ class SpectralIndexWidget(QWidget):
             layer = self.viewer.layers[event.index]
         if layer.name in self.index_collection:
             self.index_collection[layer.name].index_map_range = layer.contrast_limits
-            self.index_collection[layer.name].colormap = layer.colormap.name
+            self.index_collection[layer.name].colormap = layer.colormap._display_name
 
     
     def _on_change_index_index(self, event=None):

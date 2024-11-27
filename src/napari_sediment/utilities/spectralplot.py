@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from cmap import Colormap
-from napari.utils import colormaps
 from microfilm import colorify
 import tifffile
 import cmap
@@ -15,7 +14,8 @@ from ..utilities.spectralindex_compute import (load_index_series, save_index_zar
                                                compute_and_clean_index, compute_index_projection,
                                                compute_overlay_RGB)
 from ..data_structures.parameters_plots import Paramplot
-
+from ..utilities.morecolormaps import get_cmap_catalogue
+get_cmap_catalogue()
 
 
 def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
@@ -55,7 +55,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     index_image, mlp_colormaps = compute_overlay_RGB(index_obj)
 
     if color_proj_by_index:
-        color_plotline = [colormaps.ALL_COLORMAPS[x.colormap].colors[-1,:] for x in index_obj]
+        color_plotline = [Colormap(x.colormap).to_napari().colors[-1,:] for x in index_obj]
 
     rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
     rgb_to_plot[mask == 1, :] = 0
@@ -230,11 +230,11 @@ def plot_spectral_profile_original(rgb_image, mask, index_obj, format_dict, scal
     blue_contrast_limits = format_dict['blue_contrast_limits']
 
     # get colormap
-    newmap = Colormap(colormaps.ALL_COLORMAPS[index_colormap].colors)
+    newmap = Colormap(index_colormap)
     mpl_map = newmap.to_matplotlib()
 
     if color_proj_by_index:
-        color_plotline = colormaps.ALL_COLORMAPS[index_colormap].colors[-1,:]
+        color_plotline = Colormap(index_colormap).to_napari().colors[-1,:]
 
     rgb_to_plot = create_rgb_image(rgb_image, red_contrast_limits, green_contrast_limits, blue_contrast_limits)
     rgb_to_plot[mask == 1, :] = 0
@@ -449,7 +449,7 @@ def plot_multi_spectral_profile(rgb_image, mask, index_objs, format_dict, scale=
 
         # get line color from colormap
         if color_proj_by_index:
-            current_color = colormaps.ALL_COLORMAPS[index_objs[i].colormap].colors[-1,:]
+            current_color = Colormap(index_objs[i].colormap).to_napari().colors[-1,:]
         else:
             current_color = np.array(color_plotline)
 

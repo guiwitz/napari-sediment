@@ -7,12 +7,14 @@ import dask.array as da
 import yaml
 import dask.array as da
 import zarr
-from napari.utils import colormaps
 from microfilm import colorify
 from cmap import Colormap
 
 from .sediproc import find_index_of_band
 from ..data_structures.spectralindex import SpectralIndex
+
+from ..utilities.morecolormaps import get_cmap_catalogue
+get_cmap_catalogue()
 
 
 def built_in_indices():
@@ -452,7 +454,7 @@ def compute_overlay_RGB(index_obj):
 
     """
     
-    mlp_colormaps = [Colormap(colormaps.ALL_COLORMAPS[x.colormap].colors).to_matplotlib() for x in index_obj]
+    mlp_colormaps = [Colormap(x.colormap).to_matplotlib() for x in index_obj]
     if index_obj[0].index_map_range is None:
         rescale_type = 'min_max'
     else:
