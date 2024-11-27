@@ -7,6 +7,9 @@ import dask.array as da
 import yaml
 import dask.array as da
 import zarr
+from napari.utils import colormaps
+from microfilm import colorify
+from cmap import Colormap
 
 from .sediproc import find_index_of_band
 from ..data_structures.spectralindex import SpectralIndex
@@ -432,6 +435,38 @@ def clean_index_map(index_map):
         index_map = index_map.compute()
 
     return index_map
+
+def compute_overlay_RGB(index_obj):
+    """Given a list of two SpectralIndex objects, compute an overlay RGB image.
+
+    Parameters
+    ----------
+    index_obj: list of SpectralIndex
+        list of two index objects
+    
+    Returns
+    -------
+    index_image: np.ndarray
+        overlay RGB image
+    mlp_colormaps: list of matplotlib colormaps
+
+    """
+    
+    mlp_colormaps = [Colormap(colormaps.ALL_COLORMAPS[x.colormap].colors).to_matplotlib() for x in index_obj]
+    if index_obj[0].index_map_range is None:
+        rescale_type = 'min_max'
+    else:
+        rescale_type = 'limits'
+
+    index_image, _, _, _ = colorify.multichannel_to_rgb(
+        images=[x.index_map for x in index_obj],
+        rescale_type=rescale_type,
+        limits=[x.index_map_range for x in index_obj],
+        proj_type='sum',
+        alpha=0.5,
+        cmap_objects=mlp_colormaps,
+        )
+    return index_image, mlp_colormaps
 
 def load_index_series(index_file):
     """Load the index series from a yml file.

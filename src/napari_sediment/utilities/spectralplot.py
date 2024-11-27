@@ -12,7 +12,8 @@ from matplotlib import cm
 import matplotlib as mpl
 from ..utilities.io import get_mask_roi, get_rgb_roi, load_plots_params, load_project_params
 from ..utilities.spectralindex_compute import (load_index_series, save_index_zarr, load_index_zarr, load_projection,
-                                               compute_and_clean_index, compute_index_projection)
+                                               compute_and_clean_index, compute_index_projection,
+                                               compute_overlay_RGB)
 from ..data_structures.parameters_plots import Paramplot
 
 
@@ -50,20 +51,8 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     green_contrast_limits = format_dict['green_contrast_limits']
     blue_contrast_limits = format_dict['blue_contrast_limits']
 
-    # get colormap
-    mlp_colormaps = [Colormap(colormaps.ALL_COLORMAPS[x.colormap].colors).to_matplotlib() for x in index_obj]
-    if index_obj[0].index_map_range is None:
-        rescale_type = 'min_max'
-    else:
-        rescale_type = 'limits'
-    index_image, _, _, _ = colorify.multichannel_to_rgb(
-        images=[x.index_map for x in index_obj],
-        rescale_type=rescale_type,
-        limits=[x.index_map_range for x in index_obj],
-        proj_type='sum',
-        alpha=0.5,
-        cmap_objects=mlp_colormaps,
-        )
+    # create RGB overlay image
+    index_image, mlp_colormaps = compute_overlay_RGB(index_obj)
 
     if color_proj_by_index:
         color_plotline = [colormaps.ALL_COLORMAPS[x.colormap].colors[-1,:] for x in index_obj]
@@ -858,7 +847,13 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
 
                     fig.savefig(
                             roi_plot_folder.joinpath(f'{indices[index_keys[k]].index_name}_{indices[index_keys[j]].index_name}_index_plot.png'), dpi=dpi)
-
+                    index_image, _ = compute_overlay_RGB(index_obj=[indices[index_keys[k]], indices[index_keys[j]]])
+                    index_image[np.isnan(indices[index_keys[k]].index_map),:] = 1
+                    tifffile.imwrite(
+                        roi_plot_folder.joinpath(f'{indices[index_keys[k]].index_name}_{indices[index_keys[j]].index_name}_index_map.tif'),
+                        data=(255*index_image[:, :, :3]).astype(np.uint8))
+                    
+                    
             # create multi index plot
             fig = plot_experiment_multispectral_roi(export_folder=ex, indices=indices,
                                               params_plots=params_plots, main_roi_index=roi_ind,
