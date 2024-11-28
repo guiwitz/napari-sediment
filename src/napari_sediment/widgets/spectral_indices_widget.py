@@ -316,24 +316,22 @@ class SpectralIndexWidget(QWidget):
         self.save_plot_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('P&lots', self.save_plot_group.gbox)
 
-        self.btn_save_plot = QPushButton("Save plot")
-        self.save_plot_group.glayout.addWidget(self.btn_save_plot, 0, 0, 1, 2)
         self.btn_save_plot_params = QPushButton("Save plot parameters")
-        self.save_plot_group.glayout.addWidget(self.btn_save_plot_params, 1, 0, 1, 2)
+        self.save_plot_group.glayout.addWidget(self.btn_save_plot_params, 0, 0, 1, 2)
         self.btn_load_plot_params = QPushButton("Load plot parameters")
-        self.save_plot_group.glayout.addWidget(self.btn_load_plot_params, 2, 0, 1, 2)
+        self.save_plot_group.glayout.addWidget(self.btn_load_plot_params, 1, 0, 1, 2)
 
         self.btn_save_all_plot = QPushButton("Save index maps and index plots")
-        self.save_plot_group.glayout.addWidget(self.btn_save_all_plot, 3, 0, 1, 1)
+        self.save_plot_group.glayout.addWidget(self.btn_save_all_plot, 2, 0, 1, 2)
         self.check_index_all_rois = QCheckBox("Process all ROIs")
         self.check_index_all_rois.setToolTip("Process all ROIs with the same settings")
         self.check_index_all_rois.setChecked(False)
-        self.save_plot_group.glayout.addWidget(self.check_index_all_rois, 4, 0, 1, 1)
+        self.save_plot_group.glayout.addWidget(self.check_index_all_rois, 3, 0, 1, 1)
         self.check_normalize_single_export = QCheckBox("Normalize index plots")
         self.check_normalize_single_export.setChecked(False)
         self.check_normalize_single_export.setEnabled(False)
         self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
-        self.save_plot_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
+        self.save_plot_group.glayout.addWidget(self.check_normalize_single_export, 3, 1, 1, 1)
 
         # "Batch" Tab
         self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
@@ -434,7 +432,6 @@ class SpectralIndexWidget(QWidget):
         self.btn_save_roi.clicked.connect(self._on_click_save_roi)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
-        #self.btn_compute_index_maps.clicked.connect(self._on_compute_index_maps)
         self.btn_add_index_maps_to_viewer.clicked.connect(self._on_add_index_map_to_viewer)
         self.btn_save_endmembers_plot.clicked.connect(self.save_endmembers_plot)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
@@ -450,10 +447,8 @@ class SpectralIndexWidget(QWidget):
 
         self.connect_plot_formatting()
         self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
-        self.btn_save_plot.clicked.connect(self._on_click_save_plot)
         self.btn_save_all_plot.clicked.connect(self._on_click_create_and_save_all_plots)
         self.check_index_all_rois.stateChanged.connect(self._on_change_index_all_rois)
-        #self.btn_reset_figure_size.clicked.connect(self._on_click_reset_figure_size)
         self.btn_save_plot_params.clicked.connect(self._on_click_save_plot_parameters)
         self.btn_load_plot_params.clicked.connect(self._on_click_load_plot_parameters)
 
