@@ -323,7 +323,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_load_plot_params = QPushButton("Load plot parameters")
         self.save_plot_group.glayout.addWidget(self.btn_load_plot_params, 2, 0, 1, 2)
 
-        self.btn_save_all_plot = QPushButton("Save all index plots")
+        self.btn_save_all_plot = QPushButton("Save maps and index plots")
         self.save_plot_group.glayout.addWidget(self.btn_save_all_plot, 3, 0, 1, 1)
         self.check_index_all_rois = QCheckBox("Process all ROIs")
         self.check_index_all_rois.setChecked(False)
@@ -1044,16 +1044,19 @@ class SpectralIndexWidget(QWidget):
         # get rgb image and index image to plot
         rgb_image = self.get_rgb_array()
 
+        # get selected indices
         index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
         if len(index_series) == 0:
             warnings.warn('No index selected') 
             return
-        elif len(index_series) > 1:
-            warnings.warn('Multiple indices selected, only the first one will be plotted')
+        elif len(index_series) > 2:
+            raise ValueError('Only one or two indices can be selected for single index plot')
 
+        # get mask
         mask = self.viewer.layers['mask'].data
 
-        self.compute_selected_indices_map_and_proj([index_series[0].index_name],
+        # compute maps if necessary
+        self.compute_selected_indices_map_and_proj([ind.index_name for ind in index_series],
                                                    force_recompute=force_recompute)
 
         roi = None
@@ -1062,7 +1065,7 @@ class SpectralIndexWidget(QWidget):
 
         format_dict = asdict(self.params_plots)
         _, self.ax1, self.ax2, self.ax3 = plot_spectral_profile(
-            rgb_image=rgb_image, mask=mask, index_obj=self.index_collection[index_series[0].index_name],
+            rgb_image=rgb_image, mask=mask, index_obj=[self.index_collection[ind.index_name] for ind in index_series],
             format_dict=format_dict, scale=self.params.scale, scale_unit=self.params.scale_units,
             location=self.params.location, fig=self.index_plot_live.canvas.figure, 
             roi=roi)
