@@ -107,7 +107,7 @@ def test_spectral_indices_workflow(make_napari_viewer):
     self.tabs.setCurrentIndex(2)
     self.index_pick_boxes['Myindex'].setChecked(True)
     self.index_pick_boxes['Myindex2'].setChecked(True)
-    self._on_compute_index_maps(None)
+    self._on_add_index_map_to_viewer(None)
     for x in self.viewer.layers:
         x.visible = False
     self.viewer.layers[-1].visible = True
