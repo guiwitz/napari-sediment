@@ -323,13 +323,15 @@ class SpectralIndexWidget(QWidget):
         self.btn_load_plot_params = QPushButton("Load plot parameters")
         self.save_plot_group.glayout.addWidget(self.btn_load_plot_params, 2, 0, 1, 2)
 
-        self.btn_save_all_plot = QPushButton("Save maps and index plots")
+        self.btn_save_all_plot = QPushButton("Save index maps and index plots")
         self.save_plot_group.glayout.addWidget(self.btn_save_all_plot, 3, 0, 1, 1)
         self.check_index_all_rois = QCheckBox("Process all ROIs")
+        self.check_index_all_rois.setToolTip("Process all ROIs with the same settings")
         self.check_index_all_rois.setChecked(False)
         self.save_plot_group.glayout.addWidget(self.check_index_all_rois, 4, 0, 1, 1)
         self.check_normalize_single_export = QCheckBox("Normalize index plots")
         self.check_normalize_single_export.setChecked(False)
+        self.check_normalize_single_export.setEnabled(False)
         self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
         self.save_plot_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
 
@@ -934,9 +936,9 @@ class SpectralIndexWidget(QWidget):
 
         # Disable the "Normalize" checkbox if not multiple rois are computed
         if self.check_index_all_rois.isChecked():
-            self.check_normalize.setEnabled(True)
+            self.check_normalize_single_export.setEnabled(True)
         else:
-            self.check_normalize.setEnabled(False)
+            self.check_normalize_single_export.setEnabled(False)
     
     def update_single_or_multi_index_plot(self, event=None):
         if self.current_plot_type == 'single':
@@ -1154,19 +1156,20 @@ class SpectralIndexWidget(QWidget):
                 normalize=False, load_data=False, roi_to_process=roi_to_process
             )
 
-        compute_normalized_index_params(
-            project_list=[self.export_folder],
-            index_params_file=self.export_folder.joinpath('index_settings.yml'),
-            export_folder=self.export_folder)
-            
-        batch_create_plots(
-            project_list=[self.export_folder],
-            index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
-            plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
-            normalize=True,
-            load_data=True,
-            roi_to_process=roi_to_process
-        )
+        if self.check_normalize_single_export.isChecked():
+            compute_normalized_index_params(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('index_settings.yml'),
+                export_folder=self.export_folder)
+                
+            batch_create_plots(
+                project_list=[self.export_folder],
+                index_params_file=self.export_folder.joinpath('normalized_index_settings.yml'),
+                plot_params_file=self.export_folder.joinpath('plot_settings.yml'),
+                normalize=True,
+                load_data=True,
+                roi_to_process=roi_to_process
+            )
             
 
     def create_and_save_multi_index_plot(self, event=None, force_recompute=None):
