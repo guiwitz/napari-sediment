@@ -456,14 +456,14 @@ def compute_overlay_RGB(index_obj):
     
     mlp_colormaps = [Colormap(x.colormap).to_matplotlib() for x in index_obj]
     if index_obj[0].index_map_range is None:
-        rescale_type = 'min_max'
+        limits=[(np.nanmin(x.index_map), np.nanmax(x.index_map)) for x in index_obj]
     else:
-        rescale_type = 'limits'
+        limits=[x.index_map_range for x in index_obj]
 
     index_image, _, _, _ = colorify.multichannel_to_rgb(
         images=[x.index_map for x in index_obj],
-        rescale_type=rescale_type,
-        limits=[x.index_map_range for x in index_obj],
+        rescale_type='limits',
+        limits=limits,
         proj_type='sum',
         alpha=0.5,
         cmap_objects=mlp_colormaps,
