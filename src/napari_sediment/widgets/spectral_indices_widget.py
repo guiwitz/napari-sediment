@@ -32,8 +32,8 @@ from ..utilities.io import (load_project_params, load_plots_params,
                             load_mask, get_mask_path)
 from ..utilities.spectralindex_compute import (compute_index_projection,
                             clean_index_map, create_index, export_index_series,
-                            compute_and_clean_index,
-                            compute_normalized_index_params, built_in_indices)
+                            compute_and_clean_index, load_index_zarr, load_projection,
+                            save_index_zarr, compute_normalized_index_params, built_in_indices)
 from ..utilities.spectralplot import (batch_create_plots, save_tif_cmap,
                                       plot_spectral_profile, plot_multi_spectral_profile)
 from ..utilities.utils import wavelength_to_rgb
@@ -171,6 +171,17 @@ class SpectralIndexWidget(QWidget):
         self.tabs.add_named_tab('Index C&ompute', self.index_pick_group.gbox)
         self._create_index_io_pick()
 
+        ### I/O index settings ###
+        self.index_io_group = VHGroup('Index I/O', orientation='G')
+        self.index_io_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('Index C&ompute', self.index_io_group.gbox)
+        self.btn_export_index_settings = QPushButton("Export index settings")
+        self.index_io_group.glayout.addWidget(self.btn_export_index_settings, 0, 0, 1, 2)
+        self.btn_import_index_settings = QPushButton("Import index settings")
+        self.index_io_group.glayout.addWidget(self.btn_import_index_settings, 1, 0, 1, 2)
+        self.index_file_display = QLineEdit("No file selected")
+        self.index_io_group.glayout.addWidget(self.index_file_display, 2, 0, 1, 2)
+
         ### Elements "Projection" ###
         self.index_options_group = VHGroup('Projection', orientation='G')
         self.index_options_group.glayout.setAlignment(Qt.AlignTop)
@@ -195,8 +206,6 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group = VHGroup('Compute and export', orientation='G')
         self.index_compute_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Index C&ompute', self.index_compute_group.gbox)
-        self.btn_compute_index_maps = QPushButton("(Re-)Compute index map(s)")
-        self.index_compute_group.glayout.addWidget(self.btn_compute_index_maps, 0, 0, 1, 2)
         self.btn_add_index_maps_to_viewer = QPushButton("Add index map(s) to Viewer")
         self.index_compute_group.glayout.addWidget(self.btn_add_index_maps_to_viewer, 1, 0, 1, 2)
 
@@ -204,31 +213,62 @@ class SpectralIndexWidget(QWidget):
         self.index_compute_group.glayout.addWidget(self.btn_export_index_tiff, 2, 0, 1, 2)
         self.btn_export_indices_csv = QPushButton("Export index projections to csv")
         self.index_compute_group.glayout.addWidget(self.btn_export_indices_csv, 3, 0, 1, 2)
-        self.btn_save_all_plot = QPushButton("Save all index plots")
-        self.index_compute_group.glayout.addWidget(self.btn_save_all_plot, 4, 0, 1, 1)
-        self.check_index_all_rois = QCheckBox("Process all ROIs")
-        self.check_index_all_rois.setChecked(False)
-        self.index_compute_group.glayout.addWidget(self.check_index_all_rois, 5, 0, 1, 1)
-        self.check_normalize_single_export = QCheckBox("Normalize index plots")
-        self.check_normalize_single_export.setChecked(False)
-        self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
-        self.index_compute_group.glayout.addWidget(self.check_normalize_single_export, 5, 1, 1, 1)
-        self.btn_export_index_settings = QPushButton("Export index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_export_index_settings, 6, 0, 1, 2)
-        self.btn_import_index_settings = QPushButton("Import index settings")
-        self.index_compute_group.glayout.addWidget(self.btn_import_index_settings, 7, 0, 1, 2)
-        self.index_file_display = QLineEdit("No file selected")
-        self.index_compute_group.glayout.addWidget(self.index_file_display, 8, 0, 1, 2)
+        self.btn_export_indices_zarr = QPushButton("Export index map(s) to zarr")
+        self.index_compute_group.glayout.addWidget(self.btn_export_indices_zarr, 4, 0, 1, 2)
         self.check_force_recompute = QCheckBox("Force recompute")
-        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 9, 0, 1, 2)
+        self.index_compute_group.glayout.addWidget(self.check_force_recompute, 5, 0, 1, 2)
         self.check_force_recompute.setChecked(True)
         self.check_force_recompute.setToolTip("Force recompute of index maps. If only adjusting plot options can be unchecked.")
 
 
         # "Plots" Tab
-        self.pixlabel = QLabel()
 
         self.tabs.widget(3).layout().setAlignment(Qt.AlignTop)
+
+        ### Create figure
+        self.scale = 1.0
+        self.pix_width = None
+        self.pix_height = None
+
+        self.pixlabel = QLabel()
+        self.scrollArea = QScrollArea()
+        self.scrollArea.setWidget(self.pixlabel)
+        self.scrollArea.setWidgetResizable(True)
+
+        self.index_plot_live = SpectralPlotter(napari_viewer=self.viewer)
+        self.index_plot_live.canvas.figure.set_layout_engine('none')
+
+        ### Elements "Live plot" ###
+        self.live_plot_group = VHGroup('Live plot', orientation='G')
+        self.live_plot_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('P&lots', self.live_plot_group.gbox)
+
+        self.btn_create_index_plot = QPushButton("Create index plot")
+        self.btn_create_multi_index_plot = QPushButton("Create multi-index plot")
+        self.live_plot_group.glayout.addWidget(self.btn_create_index_plot, 1, 0, 1, 2)
+        self.live_plot_group.glayout.addWidget(self.btn_create_multi_index_plot, 1, 2, 1, 2)
+
+        # Plot formatting
+        self.spin_title_font = QDoubleSpinBox()
+        self.spin_label_font = QDoubleSpinBox()
+        for sbox in [self.spin_label_font, self.spin_title_font]:
+            sbox.setRange(0, 100)
+            sbox.setValue(12)
+            sbox.setSingleStep(1)
+        self.live_plot_group.glayout.addWidget(QLabel('Title Font'), 2, 0, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.spin_title_font, 2, 1, 1, 1)
+        self.live_plot_group.glayout.addWidget(QLabel('Label Font'), 2, 2, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.spin_label_font, 2, 3, 1, 1)
+        self.qcolor_plotline = QColorDialog()
+        self.btn_qcolor_plotline = QPushButton("Select plot line color")
+        self.live_plot_group.glayout.addWidget(self.btn_qcolor_plotline, 3, 0, 1, 2)
+        self.qcolor_plotline.setCurrentColor(Qt.blue)
+        self.spin_plot_thickness = QDoubleSpinBox()
+        self.spin_plot_thickness.setRange(1, 10)
+        self.spin_plot_thickness.setValue(1)
+        self.spin_plot_thickness.setSingleStep(0.1)
+        self.live_plot_group.glayout.addWidget(QLabel('Plot line thickness'), 3, 2, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.spin_plot_thickness, 3, 3, 1, 1)
 
         self.button_zoom_in = QPushButton('Zoom IN', self)
         self.button_zoom_in.clicked.connect(self.on_zoom_in)
@@ -245,48 +285,22 @@ class SpectralIndexWidget(QWidget):
         self.spin_final_dpi.setValue(300)
         self.spin_final_dpi.setSingleStep(1)
 
-        self.scale = 1.0
-        self.pix_width = None
-        self.pix_height = None
+        self.live_plot_group.glayout.addWidget(self.button_zoom_in, 4, 0, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.button_zoom_out, 4, 1, 1, 1)
+        self.live_plot_group.glayout.addWidget(QLabel('Preview DPI'), 5, 0, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.spin_preview_dpi, 5, 1, 1, 1)
+        self.live_plot_group.glayout.addWidget(QLabel('Final DPI'), 6, 0, 1, 1)
+        self.live_plot_group.glayout.addWidget(self.spin_final_dpi, 6, 1, 1, 1)
 
-        self.scrollArea = QScrollArea()
-        self.scrollArea.setWidget(self.pixlabel)
-
-        self.index_plot_live = SpectralPlotter(napari_viewer=self.viewer)
-        self.index_plot_live.canvas.figure.set_layout_engine('none')
-
-        self.scrollArea.setWidgetResizable(True)
-
-        self.btn_create_index_plot = QPushButton("Create index plot")
-        self.btn_create_multi_index_plot = QPushButton("Create multi-index plot")
-        self.tabs.add_named_tab('P&lots', self.btn_create_index_plot, grid_pos=(1, 0, 1, 2))
-        self.tabs.add_named_tab('P&lots', self.btn_create_multi_index_plot, grid_pos=(1, 2, 1, 2))
-        
-        self.spin_title_font = QDoubleSpinBox()
-        self.spin_label_font = QDoubleSpinBox()
-        for sbox in [self.spin_label_font, self.spin_title_font]:
-            sbox.setRange(0, 100)
-            sbox.setValue(12)
-            sbox.setSingleStep(1)
-        self.tabs.add_named_tab('P&lots', QLabel('Title Font'), grid_pos=(2, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_title_font, grid_pos=(2, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', QLabel('Label Font'), grid_pos=(2, 2, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_label_font, grid_pos=(2, 3, 1, 1))
-        self.qcolor_plotline = QColorDialog()
-        self.btn_qcolor_plotline = QPushButton("Select plot line color")
-        self.tabs.add_named_tab('P&lots', self.btn_qcolor_plotline, grid_pos=(3, 0, 1, 2))
-        self.qcolor_plotline.setCurrentColor(Qt.blue)
-        self.spin_plot_thickness = QDoubleSpinBox()
-        self.spin_plot_thickness.setRange(1, 10)
-        self.spin_plot_thickness.setValue(1)
-        self.spin_plot_thickness.setSingleStep(0.1)
-        self.tabs.add_named_tab('P&lots', QLabel('Plot line thickness'), grid_pos=(3, 2, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_plot_thickness, grid_pos=(3, 3, 1, 1))
+        ### Elements "Live plot" ###
+        self.metadata_group = VHGroup('Metadata', orientation='G')
+        self.metadata_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('P&lots', self.metadata_group.gbox)
 
         self.metadata_location = QLineEdit("No location")
         self.metadata_location.setToolTip("Indicate the location of data acquisition")
-        self.tabs.add_named_tab('P&lots', QLabel('Location'), grid_pos=(4, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.metadata_location, grid_pos=(4, 1, 1, 3))
+        self.metadata_group.glayout.addWidget(QLabel('Location'), 0, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.metadata_location, 0, 1, 1, 3)
         self.spinbox_metadata_scale = QDoubleSpinBox()
         self.spinbox_metadata_scale.setToolTip("Indicate conversion factor from pixel to mm")
         self.spinbox_metadata_scale.setDecimals(4)
@@ -294,22 +308,30 @@ class SpectralIndexWidget(QWidget):
         self.spinbox_metadata_scale.setSingleStep(0.0001)
         self.spinbox_metadata_scale.setValue(1)
         self.scale_name = QLineEdit("No location")
-        self.tabs.add_named_tab('P&lots', QLabel('Scale'), grid_pos=(5, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spinbox_metadata_scale, grid_pos=(5, 1, 1, 1))
+        self.metadata_group.glayout.addWidget(QLabel('Scale'), 1, 0, 1, 1)
+        self.metadata_group.glayout.addWidget(self.spinbox_metadata_scale, 1, 1, 1, 1)
+
+        ### Elements "Save plot" ###
+        self.save_plot_group = VHGroup('Save plot', orientation='G')
+        self.save_plot_group.glayout.setAlignment(Qt.AlignTop)
+        self.tabs.add_named_tab('P&lots', self.save_plot_group.gbox)
 
         self.btn_save_plot = QPushButton("Save plot")
-        self.tabs.add_named_tab('P&lots', self.btn_save_plot, grid_pos=(6, 0, 1, 2))
+        self.save_plot_group.glayout.addWidget(self.btn_save_plot, 0, 0, 1, 2)
         self.btn_save_plot_params = QPushButton("Save plot parameters")
-        self.tabs.add_named_tab('P&lots', self.btn_save_plot_params, grid_pos=(7, 0, 1, 2))
+        self.save_plot_group.glayout.addWidget(self.btn_save_plot_params, 1, 0, 1, 2)
         self.btn_load_plot_params = QPushButton("Load plot parameters")
-        self.tabs.add_named_tab('P&lots', self.btn_load_plot_params, grid_pos=(8, 0, 1, 2))
+        self.save_plot_group.glayout.addWidget(self.btn_load_plot_params, 2, 0, 1, 2)
 
-        self.tabs.add_named_tab('P&lots', self.button_zoom_in, grid_pos=(9, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.button_zoom_out, grid_pos=(9, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', QLabel('Preview DPI'), grid_pos=(10, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_preview_dpi, grid_pos=(10, 1, 1, 1))
-        self.tabs.add_named_tab('P&lots', QLabel('Final DPI'), grid_pos=(11, 0, 1, 1))
-        self.tabs.add_named_tab('P&lots', self.spin_final_dpi, grid_pos=(11, 1, 1, 1))
+        self.btn_save_all_plot = QPushButton("Save all index plots")
+        self.save_plot_group.glayout.addWidget(self.btn_save_all_plot, 3, 0, 1, 1)
+        self.check_index_all_rois = QCheckBox("Process all ROIs")
+        self.check_index_all_rois.setChecked(False)
+        self.save_plot_group.glayout.addWidget(self.check_index_all_rois, 4, 0, 1, 1)
+        self.check_normalize_single_export = QCheckBox("Normalize index plots")
+        self.check_normalize_single_export.setChecked(False)
+        self.check_normalize_single_export.setToolTip("Normalize index plots across ROIs")
+        self.save_plot_group.glayout.addWidget(self.check_normalize_single_export, 4, 1, 1, 1)
 
         # "Batch" Tab
         self.tabs.widget(4).layout().setAlignment(Qt.AlignTop)
@@ -410,7 +432,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_save_roi.clicked.connect(self._on_click_save_roi)
         self.em_boundaries_range.valueChanged.connect(self._on_change_em_boundaries)
         self.em_boundaries_range2.valueChanged.connect(self._on_change_em_boundaries)
-        self.btn_compute_index_maps.clicked.connect(self._on_compute_index_maps)
+        #self.btn_compute_index_maps.clicked.connect(self._on_compute_index_maps)
         self.btn_add_index_maps_to_viewer.clicked.connect(self._on_add_index_map_to_viewer)
         self.btn_save_endmembers_plot.clicked.connect(self.save_endmembers_plot)
         self.btn_create_index.clicked.connect(self._on_click_new_index)
@@ -422,6 +444,7 @@ class SpectralIndexWidget(QWidget):
         self.btn_create_index_plot.clicked.connect(self._on_click_create_single_index_liveplot)
         self.btn_create_multi_index_plot.clicked.connect(self._on_click_create_multi_index_liveplot)
         self.btn_export_indices_csv.clicked.connect(self._on_export_index_projection)
+        self.btn_export_indices_zarr.clicked.connect(self._on_click_export_index_zarr)
 
         self.connect_plot_formatting()
         self.btn_qcolor_plotline.clicked.connect(self._on_click_open_plotline_color_dialog)
@@ -981,6 +1004,20 @@ class SpectralIndexWidget(QWidget):
 
         colmin, colmax = self.get_roi_bounds()
         for index_name in index_names:
+            # if not force_recompute, check if index map is already computed
+            # or stored in zarr file
+            if not force_recompute:
+                if self.index_collection[index_name].index_map is None:
+                    self.index_collection[index_name].index_map = load_index_zarr(
+                        project_folder=self.export_folder,
+                        main_roi_index=self.spin_selected_roi.value(),
+                        index_name=self.index_collection[index_name].index_name)
+                    self.index_collection[index_name].index_proj = load_projection(
+                        project_folder=self.export_folder,
+                        main_roi_index=self.spin_selected_roi.value(),
+                        index_name=self.index_collection[index_name].index_name)
+            
+            # if force_recompute or index map is not stored, compute it
             if (self.index_collection[index_name].index_map is None) or force_recompute:
                 computed_index = compute_and_clean_index(
                     spectral_index=self.index_collection[index_name],
@@ -1248,16 +1285,6 @@ class SpectralIndexWidget(QWidget):
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[1]
             self.index_collection[name].middle_band = None
-    
-    def _on_compute_index_maps(self, event):
-        """
-        Compute the index and add to napari.
-        Called: "Index Compute" tab, button "(Re-)Compute index map(s)"
-        """
-
-        index_names = [x.index_name for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-        self.compute_selected_indices_map_and_proj(index_names, force_recompute=True)
-        self._on_add_index_map_to_viewer(force_recompute=False)
 
     def _on_add_index_map_to_viewer(self, event=None, force_recompute=None):
         """
@@ -1273,11 +1300,14 @@ class SpectralIndexWidget(QWidget):
             pbr.set_description("Computing index")
 
             index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
-            self.compute_selected_indices_map_and_proj([x.index_name for x in index_series], force_recompute=force_recompute)
+            
+            self.compute_selected_indices_map_and_proj(
+                index_names=[x.index_name for x in index_series],
+                force_recompute=force_recompute)
+            
             for i in index_series:
                 computed_index = self.index_collection[i.index_name].index_map
                 if i.index_name in self.viewer.layers:
-                    #self.viewer.layers.remove(i.index_name)
                     self.viewer.layers[i.index_name].data = computed_index
                     self.viewer.layers[i.index_name].refresh()
                 else:
@@ -1359,6 +1389,23 @@ class SpectralIndexWidget(QWidget):
         proj_pd = self.create_projection_table(index_names)
         proj_pd[f'depth [{self.params.scale_units}]'] = proj_pd['depth'] * self.params.scale
         proj_pd.to_csv(export_folder.joinpath('index_projection.csv'), index=False)
+
+    def _on_click_export_index_zarr(self, event=None, force_recompute=False):
+        """
+        Export index maps to zarr
+        Called: "Index Compute" tab, button "Export index map(s) to zarr"
+        """
+        
+        index_series = [x for key, x in self.index_collection.items() if self.index_pick_boxes[key].isChecked()]
+        self.compute_selected_indices_map_and_proj([x.index_name for x in index_series], force_recompute=False)
+        
+        for index_item in index_series:
+            save_index_zarr(
+                project_folder=self.export_folder, 
+                main_roi_index=self.spin_selected_roi.value(),
+                index_name=index_item.index_name,
+                index_map=index_item.index_map,
+                overwrite=True)
 
     def _on_click_export_index_tiff(self, event=None, force_recompute=False):
         """
@@ -1472,6 +1519,14 @@ class SpectralIndexWidget(QWidget):
 
         export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
         export_folder = export_folder.joinpath('index_plots')
+        export_folder.mkdir(exist_ok=True)
+        return export_folder
+    
+    def index_maps_zarr_folder(self):
+        """If necessary create folder for index maps and return path."""
+
+        export_folder = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
+        export_folder = export_folder.joinpath('index_maps')
         export_folder.mkdir(exist_ok=True)
         return export_folder
 
