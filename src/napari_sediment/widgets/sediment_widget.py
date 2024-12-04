@@ -34,7 +34,7 @@ from ..utilities._reader import read_spectral
 from ..utilities.sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
-                       savgol_destripe)
+                       savgol_destripe, get_exposure_ratio)
 from ..data_structures.imchannels import ImChannels
 from ..utilities.io import save_mask, load_mask, load_project_params
 from ..data_structures.parameters import Param
@@ -872,10 +872,17 @@ class SedimentWidget(QWidget):
                 col_bounds=col_bounds,
                 clean_white=True
                 )
+            
+            exposure_ratio = get_exposure_ratio(self.white_file_path, self.imhdr_path)
 
             if (selected_layer == 'imcube') | (self.check_sync_bands_rgb.isChecked()):
                 im_corr = white_dark_correct(
-                    self.viewer.layers['imcube'].data, white_data, dark_data, dark_for_white_data)
+                    data=self.viewer.layers['imcube'].data,
+                    white_data=white_data, 
+                    dark_for_im_data=dark_data,
+                    dark_for_white_data=dark_for_white_data, 
+                    use_float=True,
+                    exposure_ratio=exposure_ratio)
                 
                 if 'imcube_corrected' in self.viewer.layers:
                     self.viewer.layers['imcube_corrected'].data = im_corr
@@ -891,7 +898,8 @@ class SedimentWidget(QWidget):
 
                 im_corr = white_dark_correct(
                     np.stack([self.viewer.layers[x].data for x in rgb_sorted], axis=0), 
-                    white_data, dark_data, dark_for_white_data, use_float=True)
+                    white_data, dark_data, dark_for_white_data, use_float=True, 
+                    exposure_ratio=exposure_ratio)
                 
                 for ind, c in enumerate(rgb_sorted):
                     self.viewer.layers[c].data = im_corr[ind]
