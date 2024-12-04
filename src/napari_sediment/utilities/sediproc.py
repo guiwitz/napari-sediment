@@ -1,3 +1,4 @@
+from warnings import warn
 from pathlib import Path
 import numpy as np
 from spectral import open_image
@@ -125,9 +126,36 @@ def load_white_dark(white_file_path, dark_for_im_file_path,
 
     return im_white, im_dark, im_dark_for_white
 
+def get_exposure_ratio(white_file_path, imhdr_path):
+    """Get exposure ratio between white reference and image.
+
+    Parameters
+    ----------
+    white_file_path : str
+        Path to white reference image.
+    imhdr_path : str
+        Path to image header file.
+    
+    Returns
+    -------
+    exposure_ratio : float
+        Ratio of exposure times between white reference and image.
+    """
+
+    white = open_image(white_file_path)
+    im = open_image(imhdr_path)
+
+    exposure_ratio = 1
+    if ('tint' in white.metadata.keys()) and ('tint' in im.metadata.keys()):
+        exposure_ratio = float(white.metadata['tint']) / float(im.metadata['tint'])
+    else:
+        warn('Exposure times not found in metadata. Using default ratio of 1.')
+
+    return exposure_ratio
+
 
 def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=None,
-                       use_float=False):
+                       use_float=False, exposure_ratio=1):
     """White and dark reference correction.
 
     Parameters
@@ -142,6 +170,8 @@ def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=N
         Dark reference data for white ref. Dims are (rows, cols, bands)
     use_float : bool, optional
         Whether to use float data type. Default is False.
+    exposure_ratio : float, optional
+        Ratio of exposure times between white reference and image. Default is 1.
     
     Returns
     -------
@@ -158,9 +188,9 @@ def white_dark_correct(data, white_data, dark_for_im_data, dark_for_white_data=N
     data = np.moveaxis(data, 0, 1)
     white_av, dark_for_im_av, dark_for_white_av = data_to_process
     if dark_for_white_av is None:
-        im_corr = (data - dark_for_im_av) / (white_av - dark_for_im_av)
+        im_corr = exposure_ratio * (data - dark_for_im_av) / (white_av - dark_for_im_av)
     else:
-        im_corr = (data - dark_for_im_av) / (white_av - dark_for_white_av)
+        im_corr = exposure_ratio * (data - dark_for_im_av) / (white_av - dark_for_white_av)
     
     im_corr = np.moveaxis(im_corr, 1,0)
     im_corr[im_corr < 0] = 0
@@ -403,7 +433,8 @@ def savgol_destripe(image, width=100, order=2):
 
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
-        zarr_ind, band, background_correction=True, destripe=False, use_float=False
+        zarr_ind, band, background_correction=True, destripe=False, use_float=False,
+        exposure_correct=True
         ):
     """White dark correction and save to zarr
     
@@ -429,6 +460,8 @@ def correct_single_channel(
         Whether to perform destriping. Default is True.
     use_float : bool, optional
         Whether to use float data type. Default is False.
+    exposure_correct : bool, optional
+        Whether to perform exposure correction. Default is True.
     
     Returns
     -------
@@ -449,12 +482,16 @@ def correct_single_channel(
         img_dark_load = dark.read_band(band)
         img_dark_white_load = dark_white.read_band(band)
 
+        exposure_ratio = 1
+        if exposure_correct:
+            exposure_ratio = get_exposure_ratio(white_path, im_path)
+        
         corrected = white_dark_correct(
             data=img_load[np.newaxis,:,:],
             white_data=img_white_load[:,:,np.newaxis], 
             dark_for_im_data=img_dark_load[:,:,np.newaxis],
             dark_for_white_data=img_dark_white_load[:,:,np.newaxis],
-            use_float=use_float
+            use_float=use_float, exposure_ratio=exposure_ratio
         )[0]
     if destripe:
     #    import pystripe
