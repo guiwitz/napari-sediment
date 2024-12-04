@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout, QLineEdit,
                             QFileDialog, QCheckBox, QSpinBox, QLabel)
 from qtpy.QtCore import Qt
+from superqt import QDoubleRangeSlider
 from magicgui.widgets import FileEdit
 from napari.utils import progress
 from napari_guitils.gui_structures import TabSet
@@ -10,7 +11,6 @@ from napari_guitils.gui_structures import VHGroup
 
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.folder_list_widget import FolderListWidget
-from ..utilities.sediproc import correct_save_to_zarr
 from ..utilities.io import get_data_background_path
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.batch_preproc import batch_preprocessing
@@ -104,29 +104,22 @@ class BatchPreprocWidget(QWidget):
             self.qspin_destripe_width.setValue(100)
         self.options_group.glayout.addWidget(QLabel('Savgol Width'), 2, 0, 1, 1)
         self.options_group.glayout.addWidget(self.qspin_destripe_width, 2, 1, 1, 1)
-        self.qspin_min_band = QSpinBox()
-        self.qspin_min_band.setRange(0, 1000)
-        if min_band is not None:
-            self.qspin_min_band.setValue(min_band)
-        else:
-            self.qspin_min_band.setValue(0)
+        
+        self.slider_batch_wavelengths = QDoubleRangeSlider(Qt.Horizontal)
+        self.slider_batch_wavelengths.setRange(0, 1000)
+        self.slider_batch_wavelengths.setSingleStep(1)
+        self.slider_batch_wavelengths.setSliderPosition([0, 1000])
+
+        if (min_band is not None) and (max_band is not None):
+            self.slider_batch_wavelengths.setRange(min_band, max_band)
+            self.slider_batch_wavelengths.setSliderPosition([min_band, max_band])
 
         self.check_do_min_max = QCheckBox("Crop bands")
         self.check_do_min_max.setChecked(False)
         self.options_group.glayout.addWidget(self.check_do_min_max, 3, 0, 1, 1)
 
-        self.options_group.glayout.addWidget(QLabel('Min band'), 4, 0, 1, 1)
-        self.options_group.glayout.addWidget(self.qspin_min_band, 4, 1, 1, 1)
-        self.qspin_max_band = QSpinBox()
-        self.qspin_max_band.setRange(0, 1000)
-        if max_band is not None:
-            self.qspin_max_band.setValue(max_band)
-        else:
-            self.qspin_max_band.setValue(1000)
-        self.options_group.glayout.addWidget(QLabel('Max band'), 5, 0, 1, 1)
-        self.options_group.glayout.addWidget(self.qspin_max_band, 5, 1, 1, 1)
-        self.qspin_max_band.setEnabled(False)
-        self.qspin_min_band.setEnabled(False)
+        self.options_group.glayout.addWidget(QLabel('Bands'), 4, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.slider_batch_wavelengths, 4, 1, 1, 1)
 
         self.spin_chunksize = QSpinBox()
         self.spin_chunksize.setRange(1, 10000)
@@ -185,11 +178,9 @@ class BatchPreprocWidget(QWidget):
 
     def _on_change_min_max(self, event=None):
         if self.check_do_min_max.isChecked():
-            self.qspin_max_band.setEnabled(True)
-            self.qspin_min_band.setEnabled(True)
+            self.slider_batch_wavelengths.setEnabled(True)
         else:
-            self.qspin_max_band.setEnabled(False)
-            self.qspin_min_band.setEnabled(False)
+            self.slider_batch_wavelengths.setEnabled(False)
 
     def _on_change_select_bands(self, event=None):
 
@@ -266,8 +257,8 @@ class BatchPreprocWidget(QWidget):
 
                 min_max_band = None
                 if self.check_do_min_max.isChecked():
-                    min_band = self.qspin_min_band.value()
-                    max_band = self.qspin_max_band.value()
+                    min_band = self.slider_batch_wavelengths.value()[0]
+                    max_band = self.slider_batch_wavelengths.value()[1]
                     min_max_band = [min_band, max_band]
 
                 batch_preprocessing(
