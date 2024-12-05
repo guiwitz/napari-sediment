@@ -140,5 +140,43 @@ def get_data_background_path(current_folder, background_text='_WR_'):
     
     return current_folder, wr_folder, white_file_path, dark_for_white_file_path, dark_for_im_file_path, imhdr_path
     
+def get_im_main_roi(export_folder, bands, mainroi_index=None):
+    """Get bands from a given main roi from an export folder, i.e.
+     containing a corrected.zarr file.
+
+    Parameters
+    ----------
+    export_folder : str
+        Path to export folder.
+    bands : list of int
+        List of bands to get.
+    mainroi_index : list of int
+        Index of main roi to get. Default is None.
+        If None, get full image.
+
+    Returns
+    -------
+    new_cube : array
+        Image cube containing the bands in dimensions (bands, rows, cols).
+     
+     """
+    
+    params = load_project_params(folder=export_folder)
+    mainrois, subrois, measurementroi = params.get_formatted_rois()
+
+    roi_bounds = None
+    if mainroi_index is not None:
+        roi_bounds = [mainrois[mainroi_index][:,0].min(),mainrois[mainroi_index][:,0].max(),
+                       mainrois[mainroi_index][:,1].min(), mainrois[mainroi_index][:,1].max()]
 
 
+    if not export_folder.joinpath('corrected.zarr').exists():
+        raise FileNotFoundError(f"File {export_folder.joinpath('corrected.zarr')} does not exist")
+    
+    imagechannels = ImChannels(export_folder.joinpath('corrected.zarr'))
+    
+    new_cube = imagechannels.get_image_cube(channels=bands,
+                roi=roi_bounds)
+
+    return new_cube
+    
