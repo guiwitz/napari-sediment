@@ -824,7 +824,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
                 napari_cmap = indices[k].colormap
                 export_path = roi_plot_folder.joinpath(f'{indices[k].index_name}_index_map.tif')
                 save_tif_cmap(image=index_map, image_path=export_path,
-                                napari_cmap=napari_cmap, contrast=contrast, overwrite=overwrite)
+                                napari_cmap=napari_cmap, contrast=contrast, overwrite=True)
                 save_index_zarr(
                     project_folder=ex, main_roi_index=roi_ind, index_name=indices[k].index_name,
                     index_map=indices[k].index_map, overwrite=overwrite)
