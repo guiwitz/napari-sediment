@@ -979,7 +979,8 @@ class SpectralIndexWidget(QWidget):
                 project_list=exported_projects,
                 index_params_file=export_folder.joinpath('normalized_index_settings.yml'),
                 plot_params_file=self.batch_plot_params_file.value,
-                normalize=True
+                normalize=True,
+                load_data=True
             )
             
 
