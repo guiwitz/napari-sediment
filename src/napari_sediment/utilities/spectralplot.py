@@ -770,7 +770,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
     """
 
     params_plots = load_plots_params(plot_params_file)
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
     dpi = 300
 
     for ex in project_list:
@@ -812,6 +812,7 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
                 fig.savefig(
                     roi_plot_folder.joinpath(f'{indices[k].index_name}_index_plot.png'), dpi=dpi)
                 
+                plt.close(fig)
                 # tif and zarr maps
                 # only overwrite if data are not loaded (even if they exist). If load_data is true but the data do not exist,
                 # then the data are saved.
@@ -847,6 +848,8 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
 
                     fig.savefig(
                             roi_plot_folder.joinpath(f'{indices[index_keys[k]].index_name}_{indices[index_keys[j]].index_name}_index_plot.png'), dpi=dpi)
+                    plt.close(fig)
+
                     index_image, _ = compute_overlay_RGB(index_obj=[indices[index_keys[k]], indices[index_keys[j]]])
                     index_image[np.isnan(indices[index_keys[k]].index_map),:] = 1
                     tifffile.imwrite(
