@@ -3,6 +3,7 @@ import tifffile
 import yaml
 from pathlib import Path
 import os
+from warnings import warn
 
 import zarr
 from ..data_structures.parameters import Param
@@ -76,6 +77,10 @@ def load_endmember_params(folder):
 def load_plots_params(file_path):
     """Load plot parameters from yaml file in a given folder."""
 
+    if not Path(file_path).exists():
+        warn(f"File {file_path} does not exist")
+        return None
+    
     file_path = Path(file_path)
     params_plots = Paramplot()
     with open(file_path) as file:
