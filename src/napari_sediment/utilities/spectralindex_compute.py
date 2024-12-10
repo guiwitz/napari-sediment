@@ -564,16 +564,29 @@ def save_index_zarr(project_folder, main_roi_index, index_name, index_map, overw
         warn(f'File {file_name} already exists')
         return None
     
-    dtype = 'f4'
-    
-    z1 = zarr.open(file_name, mode='w', shape=index_map.shape,
-                   chunks=index_map.shape, dtype=dtype)
+    z1 = save_zarr(index_map, file_name)
 
     z1.attrs['metadata'] = {
         'index_name': index_name,
         }
-    
-    z1[:,:] = index_map
+
+def save_zarr(image, zarr_path):
+    """Save an image to a zarr file.
+
+    Parameters
+    ----------
+    image: np.ndarray
+        image
+    zarr_path: str
+        path to the zarr file
+
+    """
+
+    dtype = 'f4'
+    im_zarr = zarr.open(zarr_path, mode='w', shape=image.shape,
+               chunks=image.shape, dtype=dtype)
+    im_zarr[:] = image
+    return im_zarr
 
 def load_index_zarr(project_folder, main_roi_index, index_name):
     """Load an index map from a zarr file.
