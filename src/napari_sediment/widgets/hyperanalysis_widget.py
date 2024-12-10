@@ -15,12 +15,13 @@ import zarr
 import pandas as pd
 
 from ..data_structures.parameters import Param
+from ..data_structures.parameters_plots import Paramplot
 from ..data_structures.parameters_endmembers import ParamEndMember
 from ..utilities.io import load_project_params, load_endmember_params, save_image_to_zarr
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
-from ..utilities.io import load_mask, get_mask_path
+from ..utilities.io import load_mask, get_mask_path, load_plots_params
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..utilities.utils import wavelength_to_rgb
 from ..utilities.hyperanalysis import (compute_vertical_correlations, compute_end_members,
@@ -313,6 +314,11 @@ class HyperAnalysisWidget(QWidget):
         
         self._on_click_load_mask()
 
+        self.params_plots = load_plots_params(self.export_folder.joinpath('params_plots.yml'))
+        if self.params_plots is None:
+            self.params_plots = Paramplot(
+                red_contrast_limits=None, green_contrast_limits=None, blue_contrast_limits=None)
+
         if self.check_load_corrected.isChecked():
             self.imagechannels = ImChannels(self.export_folder.joinpath('corrected.zarr'))
         else:
@@ -322,7 +328,11 @@ class HyperAnalysisWidget(QWidget):
         self.rgbwidget.rgb = self.params.rgb
         self.rgbwidget.row_bounds = self.row_bounds
         self.rgbwidget.col_bounds = self.col_bounds
-        self.rgbwidget._on_click_RGB()
+        self.rgbwidget._on_click_RGB(
+            contrast_limits=[
+                self.params_plots.red_contrast_limits,
+                self.params_plots.green_contrast_limits,
+                self.params_plots.blue_contrast_limits])
 
         self._on_click_select_all()
         if self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('Parameters_indices.yml').exists():

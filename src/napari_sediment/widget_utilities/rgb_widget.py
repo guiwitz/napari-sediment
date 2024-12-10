@@ -105,14 +105,44 @@ class RGBWidget(QWidget):
         self.spin_bchannel.setValue(460)
 
     def _on_click_RGB(self, event=None, contrast_limits=None):
-        """Load RGB image. Band indices are in self.rgb which are set by the spin boxes"""
+        """Load RGB image. Band indices are in self.rgb which are set by the spin boxes
+        
+        Parameters
+        ----------
+
+        contrast_limits : list of tuples
+            List of tuples with contrast limits for each channel
+            [[r_min, r_max], [g_min, g_max], [b_min, b_max]], default is None
+        
+        """
 
         roi = None
         if (self.row_bounds is not None) and (self.col_bounds is not None):
             roi = np.concatenate([self.row_bounds, self.col_bounds])
         self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
         rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
-        self.add_rgb_cube_to_viewer(rgb_cube, contrast_limits=contrast_limits)
+        self.add_rgb_cube_to_viewer(rgb_cube)
+        self._update_rgb_contrast(contrast_limits=contrast_limits)
+        
+
+    def _update_rgb_contrast(self, contrast_limits=None):
+        """Update contrast limits of RGB channels
+        
+        Parameters
+        ----------
+
+        contrast_limits : list of tuples
+            List of tuples with contrast limits for each channel
+            [[r_min, r_max], [g_min, g_max], [b_min, b_max]], default is None
+            
+        """
+            
+        rgb = ['red', 'green', 'blue']
+        for ind, c in enumerate(rgb):
+            if contrast_limits is not None:
+                if contrast_limits[ind] is not None:
+                    update_contrast_on_layer(self.viewer.layers[c], contrast_limits=contrast_limits[ind])
+
 
     def get_current_rgb_cube(self):
 
@@ -160,16 +190,13 @@ class RGBWidget(QWidget):
 
         self.add_rgb_cube_to_viewer(rgb_cube)
 
-    def add_rgb_cube_to_viewer(self, rgb_cube, contrast_limits=None):
+    def add_rgb_cube_to_viewer(self, rgb_cube):
         """Add RGB cube to viewer
         
         Parameters
         ----------
         rgb_cube : np.ndarray
             RGB cube with shape (3, rows, cols)
-        contrast_limits : list of tuples
-            List of tuples with contrast limits for each channel
-            [[r_min, r_max], [g_min, g_max], [b_min, b_max]], default is None
         
         """
         
@@ -185,8 +212,3 @@ class RGBWidget(QWidget):
                 self.viewer.layers[cmap].data = rgb_cube[ind]
                 if self.translate:
                     self.viewer.layers[cmap].translate = (self.row_bounds[0], self.col_bounds[0])
-            
-            if contrast_limits is not None:
-                update_contrast_on_layer(self.viewer.layers[cmap], contrast_limits=contrast_limits[ind])
-            else:
-                update_contrast_on_layer(self.viewer.layers[cmap])

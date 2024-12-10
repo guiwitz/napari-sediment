@@ -56,7 +56,7 @@ class SedimentWidget(QWidget):
         
         self.viewer = napari_viewer
         self.params = Param()
-        self.params_plot = Paramplot()
+        self.params_plot = Paramplot(red_contrast_limits=None, green_contrast_limits=None, blue_contrast_limits=None)
         self.current_image_name = None
         self.metadata = None
         self.imhdr_path = None
@@ -713,6 +713,9 @@ class SedimentWidget(QWidget):
         #main_roi_folders = self.export_folder.glob('main_roi_*')
 
         self.params = load_project_params(folder=self.export_folder)#.joinpath(f'main_roi_{self.spin_selected_roi.value()}'))
+        self.params_plot = load_plots_params(self.export_folder.joinpath('params_plots.yml'))
+        if self.params_plot is None:
+            self.params_plot = Paramplot(red_contrast_limits=None, green_contrast_limits=None, blue_contrast_limits=None)
 
         # files
         self.imhdr_path = Path(self.params.file_path)
@@ -732,14 +735,10 @@ class SedimentWidget(QWidget):
         self._on_select_file()
 
         # load contrast limits
-        params_plot = load_plots_params(self.export_folder.joinpath('params_plots.yml'))
-        if params_plot is not None:
-            self.params_plot = params_plot
-            if self.params_plot.red_contrast_limits is not None:
-                self.viewer.layers['red'].contrast_limits = self.params_plot.red_contrast_limits
-                self.viewer.layers['green'].contrast_limits = self.params_plot.green_contrast_limits
-                self.viewer.layers['blue'].contrast_limits = self.params_plot.blue_contrast_limits
-        print(self.params_plot)
+        self.rgb_widget._update_rgb_contrast(contrast_limits=
+                                             [self.params_plot.red_contrast_limits,
+                                              self.params_plot.green_contrast_limits,
+                                              self.params_plot.blue_contrast_limits])
         # metadata
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
@@ -1615,7 +1614,11 @@ class SedimentWidget(QWidget):
             self.qlist_channels._update_channel_list(imagechannels=self.imagechannels)
 
             self.rgb_widget.imagechannels = self.imagechannels
-            self.rgb_widget._on_click_RGB()
+            self.rgb_widget._on_click_RGB(contrast_limits=
+                                          [self.params_plot.red_contrast_limits,
+                                           self.params_plot.green_contrast_limits,
+                                           self.params_plot.blue_contrast_limits])
+            
             # after first load, update contrast limits
             self._update_contrast_limits()
             self.rgb_widget.row_bounds = self.row_bounds

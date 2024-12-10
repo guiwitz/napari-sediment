@@ -520,6 +520,10 @@ class SpectralIndexWidget(QWidget):
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
 
+        self.params_plots = load_plots_params(self.export_folder.joinpath('params_plots.yml'))
+        if self.params_plots is None:
+            self.params_plots = Paramplot(
+                red_contrast_limits=None, green_contrast_limits=None, blue_contrast_limits=None)
         self.imhdr_path = Path(self.params.file_path)
 
         self.mainroi, _, self.measurement_roi = self.params.get_formatted_rois()
@@ -556,6 +560,10 @@ class SpectralIndexWidget(QWidget):
 
         self.get_RGB()
         self.rgbwidget.load_and_display_rgb_bands(roi=np.concatenate([self.row_bounds, self.col_bounds]))
+        self.rgbwidget._update_rgb_contrast(contrast_limits=
+                                            [self.params_plots.red_contrast_limits,
+                                             self.params_plots.green_contrast_limits,
+                                             self.params_plots.blue_contrast_limits])
 
         self._on_click_load_mask()
 
