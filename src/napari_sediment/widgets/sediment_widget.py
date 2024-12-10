@@ -36,7 +36,7 @@ from ..utilities.sediproc import (white_dark_correct, load_white_dark,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
                        savgol_destripe, get_exposure_ratio)
 from ..data_structures.imchannels import ImChannels
-from ..utilities.io import save_mask, load_mask, load_project_params
+from ..utilities.io import save_mask, load_mask, load_project_params, load_plots_params
 from ..data_structures.parameters import Param
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.classifier import ConvPaintSpectralWidget
@@ -45,6 +45,8 @@ from ..utilities.images import save_rgb_tiff_image
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..utilities.utils import update_contrast_on_layer
 from .batch_preproc_widget import BatchPreprocWidget
+from ..data_structures.parameters_plots import Paramplot
+
 
 
 class SedimentWidget(QWidget):
@@ -54,6 +56,7 @@ class SedimentWidget(QWidget):
         
         self.viewer = napari_viewer
         self.params = Param()
+        self.params_plot = Paramplot()
         self.current_image_name = None
         self.metadata = None
         self.imhdr_path = None
@@ -158,6 +161,8 @@ class SedimentWidget(QWidget):
 
         # RGB widget
         self.rgb_widget = RGBWidget(viewer=self.viewer)
+        self.btn_save_rgb_contrast = QPushButton("Save RGB contrast")
+        self.rgb_widget.rgbmain_group.glayout.addWidget(self.btn_save_rgb_contrast, 2, 0, 1, 2)
         self.tabs.add_named_tab('&Main', self.rgb_widget.rgbmain_group.gbox)
         self.rgb_widget.btn_RGB.clicked.connect(self._on_click_sync_RGB)
 
@@ -612,6 +617,7 @@ class SedimentWidget(QWidget):
         self.btn_select_all.clicked.connect(self._on_click_select_all)
         self.check_sync_bands_rgb.stateChanged.connect(self._on_click_sync_RGB)
         self.rgb_widget.btn_dislpay_as_rgb.clicked.connect(self._update_threshold_limits)
+        self.btn_save_rgb_contrast.clicked.connect(self._on_click_save_rgb_contrast)
 
         # Elements of the "Processing" tab
         self.btn_select_white_file.clicked.connect(self._on_click_select_white_file)
@@ -670,17 +676,18 @@ class SedimentWidget(QWidget):
 
 
     # Functions for "Main" tab elements
-    def _on_click_select_imhdr(self):
+    def _on_click_select_imhdr(self, event=None, imhdr_path=None):
         """
         Interactively select hdr file
         Called: "Main" tab, button "Select hdr file"
         """
-        imhdr_path = QFileDialog.getOpenFileName(self, "Select file")[0]
-        if imhdr_path == '':
-            return
-        imhdr_path = Path(imhdr_path)
-        if imhdr_path.parent.suffix == '.zarr':
-            imhdr_path = imhdr_path.parent
+        if imhdr_path is None:
+            imhdr_path = QFileDialog.getOpenFileName(self, "Select file")[0]
+            if imhdr_path == '':
+                return
+            imhdr_path = Path(imhdr_path)
+            if imhdr_path.parent.suffix == '.zarr':
+                imhdr_path = imhdr_path.parent
         self.set_paths(imhdr_path)
         self._on_select_file()
         self._on_click_add_main_roi()
@@ -724,6 +731,15 @@ class SedimentWidget(QWidget):
         # load data
         self._on_select_file()
 
+        # load contrast limits
+        params_plot = load_plots_params(self.export_folder.joinpath('params_plots.yml'))
+        if params_plot is not None:
+            self.params_plot = params_plot
+            if self.params_plot.red_contrast_limits is not None:
+                self.viewer.layers['red'].contrast_limits = self.params_plot.red_contrast_limits
+                self.viewer.layers['green'].contrast_limits = self.params_plot.green_contrast_limits
+                self.viewer.layers['blue'].contrast_limits = self.params_plot.blue_contrast_limits
+        print(self.params_plot)
         # metadata
         self.metadata_location.setText(self.params.location)
         self.spinbox_metadata_scale.setValue(self.params.scale)
@@ -767,6 +783,7 @@ class SedimentWidget(QWidget):
                 roi_folder.mkdir(exist_ok=True)
 
         self.save_params()
+        self.params_plot.save_parameters(self.export_folder.joinpath('params_plots.yml'))
 
         self._on_click_save_mask()
     
@@ -812,6 +829,17 @@ class SedimentWidget(QWidget):
         self.slider_mask_threshold.setRange(im.min(), im.max())
         self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
 
+    def _on_click_save_rgb_contrast(self):
+
+        self._update_contrast_limits()
+        self.params_plot.save_parameters(self.export_folder.joinpath('params_plots.yml'))
+
+    def _update_contrast_limits(self):
+
+        self.params_plot.red_contrast_limits = np.array(self.viewer.layers['red'].contrast_limits).tolist()
+        self.params_plot.green_contrast_limits = np.array(self.viewer.layers['green'].contrast_limits).tolist()
+        self.params_plot.blue_contrast_limits = np.array(self.viewer.layers['blue'].contrast_limits).tolist()
+        self.params_plot.rgb_bands = self.rgb_widget.rgb
 
     # Functions for "Processing" tab elements
     def _on_click_select_dark_file(self):
@@ -1066,7 +1094,10 @@ class SedimentWidget(QWidget):
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
         self.rgb_widget.row_bounds = self.row_bounds
         self.rgb_widget.col_bounds = self.col_bounds
-        self.rgb_widget._on_click_RGB()
+        self.rgb_widget._on_click_RGB(
+            contrast_limits=[self.params_plot.red_contrast_limits,
+                      self.params_plot.green_contrast_limits,
+                      self.params_plot.blue_contrast_limits])
         self.remove_masks()
         self._on_click_load_mask()
 
@@ -1080,7 +1111,10 @@ class SedimentWidget(QWidget):
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
         self.rgb_widget.row_bounds = self.row_bounds
         self.rgb_widget.col_bounds = self.col_bounds
-        self.rgb_widget._on_click_RGB()
+        self.rgb_widget._on_click_RGB(
+            contrast_limits=[self.params_plot.red_contrast_limits,
+                      self.params_plot.green_contrast_limits,
+                      self.params_plot.blue_contrast_limits])
 
     def _on_click_import_roi(self, event=None):
         """
@@ -1582,6 +1616,8 @@ class SedimentWidget(QWidget):
 
             self.rgb_widget.imagechannels = self.imagechannels
             self.rgb_widget._on_click_RGB()
+            # after first load, update contrast limits
+            self._update_contrast_limits()
             self.rgb_widget.row_bounds = self.row_bounds
             self.rgb_widget.col_bounds = self.col_bounds
             # add imcube from RGB

@@ -104,7 +104,7 @@ class RGBWidget(QWidget):
         self.spin_gchannel.setValue(545)
         self.spin_bchannel.setValue(460)
 
-    def _on_click_RGB(self, event=None):
+    def _on_click_RGB(self, event=None, contrast_limits=None):
         """Load RGB image. Band indices are in self.rgb which are set by the spin boxes"""
 
         roi = None
@@ -112,7 +112,7 @@ class RGBWidget(QWidget):
             roi = np.concatenate([self.row_bounds, self.col_bounds])
         self.rgb_ch, self.rgb_names = self.imagechannels.get_indices_of_bands(self.rgb)
         rgb_cube = self.imagechannels.get_image_cube(self.rgb_ch, roi=roi)
-        self.add_rgb_cube_to_viewer(rgb_cube)
+        self.add_rgb_cube_to_viewer(rgb_cube, contrast_limits=contrast_limits)
 
     def get_current_rgb_cube(self):
 
@@ -160,7 +160,18 @@ class RGBWidget(QWidget):
 
         self.add_rgb_cube_to_viewer(rgb_cube)
 
-    def add_rgb_cube_to_viewer(self, rgb_cube):
+    def add_rgb_cube_to_viewer(self, rgb_cube, contrast_limits=None):
+        """Add RGB cube to viewer
+        
+        Parameters
+        ----------
+        rgb_cube : np.ndarray
+            RGB cube with shape (3, rows, cols)
+        contrast_limits : list of tuples
+            List of tuples with contrast limits for each channel
+            [[r_min, r_max], [g_min, g_max], [b_min, b_max]], default is None
+        
+        """
         
         cmaps = ['red', 'green', 'blue']
         for ind, cmap in enumerate(cmaps):
@@ -175,4 +186,7 @@ class RGBWidget(QWidget):
                 if self.translate:
                     self.viewer.layers[cmap].translate = (self.row_bounds[0], self.col_bounds[0])
             
-            update_contrast_on_layer(self.viewer.layers[cmap])
+            if contrast_limits is not None:
+                update_contrast_on_layer(self.viewer.layers[cmap], contrast_limits=contrast_limits[ind])
+            else:
+                update_contrast_on_layer(self.viewer.layers[cmap])

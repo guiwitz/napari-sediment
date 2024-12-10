@@ -2,12 +2,16 @@ import numpy as np
 import colour
 
 
-def update_contrast_on_layer(napari_layer):
+def update_contrast_on_layer(napari_layer, contrast_limits=None):
 
     data = np.asarray(napari_layer.data)
           
     napari_layer.contrast_limits_range = (data.min(), data.max())
-    napari_layer.contrast_limits = np.percentile(data, (2,98))
+    
+    if contrast_limits is None:
+        napari_layer.contrast_limits = np.percentile(data, (2,98))
+    else:
+        napari_layer.contrast_limits = contrast_limits
 
 def wavelength_to_rgb(min_wavelength, max_wavelength, width):
 
