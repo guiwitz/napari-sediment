@@ -20,6 +20,9 @@ contributions:
     - id: napari-sediment.make_preproc_batchwidget
       python_name: napari_sediment.widgets.batch_preproc_widget:BatchPreprocWidget
       title: Make Batch Preprocess QWidget
+    - id: napari-sediment.make_concatwidget
+      python_name: napari_sediment.widgets.concatenation_widget:ConcatenationWidget
+      title: Make Concatenation QWidget
     - id: napari-sediment.make_convertwidget
       python_name: napari_sediment.widgets.convert_widget:ConvertWidget
       title: Make Convert QWidget
@@ -42,6 +45,8 @@ contributions:
       display_name: BatchIndex
     - command: napari-sediment.make_preproc_batchwidget
       display_name: BatchPreproc
+    - command: napari-sediment.make_concatwidget
+      display_name: Concatenation
     - command: napari-sediment.make_convertwidget
       display_name: Convert
     - command: napari-sediment.create_demo_data
