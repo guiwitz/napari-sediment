@@ -1026,7 +1026,9 @@ class SedimentWidget(QWidget):
             self.save_params()
             
             # reload corrected image as zarr
+            self.params_plot = Paramplot(red_contrast_limits=None, green_contrast_limits=None, blue_contrast_limits=None)
             self.open_file()
+            self._on_click_add_main_roi()
             
         self.viewer.window._status_bar._toggle_activity_dock(False)
 
