@@ -1256,7 +1256,7 @@ class SpectralIndexWidget(QWidget):
         name = self.qtext_new_index_name.text()
         self.current_index_type = self.combobox_index_type.currentText()
 
-        if self.combobox_index_type.currentText() == 'RABD':
+        if self.combobox_index_type.currentText() in ('RABD', 'RABDnorm'):
             current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
         else:
             current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
