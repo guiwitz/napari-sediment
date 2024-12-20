@@ -92,9 +92,16 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     ax3 = fig.add_axes(rect=(ax3_left, bottom_margin/a4_size[0], plot_width_inches/a4_size[1], im_height_inches/a4_size[0]))
     if add_colorbar:
         #ax2b = fig.add_axes(rect=((2*im_width_inches+left_margin+0.1)/a4_size[1], bottom_margin/a4_size[0],0.8*cbar_frac * plot_width_inches/a4_size[1], 0.5*im_height_inches/a4_size[0]))
-        ax2b = fig.add_axes(rect=(1.1 * im_width_inches/a4_size[1] + left_margin/a4_size[1], bottom_margin/a4_size[0] - 0.05 * im_height_inches/a4_size[0], 0.8 * im_width_inches/a4_size[1], 0.04 * im_height_inches/a4_size[0])) 
+        #ax2b = fig.add_axes(rect=(1.1 * im_width_inches/a4_size[1] + left_margin/a4_size[1], bottom_margin/a4_size[0] - 0.05 * im_height_inches/a4_size[0], 0.8 * im_width_inches/a4_size[1], 0.04 * im_height_inches/a4_size[0])) 
+        ax2b = fig.add_axes(rect=(
+            1.1 * im_width_inches/a4_size[1] + left_margin/a4_size[1],
+            bottom_margin/a4_size[0] - 0.2 * im_height_inches/a4_size[0],
+            0.8 * (im_width_inches+plot_width_inches)/a4_size[1],
+            0.04 * im_height_inches/a4_size[0])) 
         norm = mpl.colors.Normalize(vmin=index_obj[0].index_map_range[0], vmax=index_obj[0].index_map_range[1])
-        colorbar = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=mlp_colormaps[0]), cax=ax2b, orientation='horizontal')
+        colorbar = fig.colorbar(
+            cm.ScalarMappable(norm=norm, cmap=mlp_colormaps[0]),
+            cax=ax2b, orientation='horizontal')
 
     ax1.imshow(rgb_to_plot, aspect='auto')
     '''if index_contrast_limits is None:
