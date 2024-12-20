@@ -77,6 +77,9 @@ class SpectralIndex:
         if self.index_description is None:
             self.index_description = self.index_name
 
+        if self.index_map_range is None:
+            self.index_map_range = np.array([0, 1])
+
     def dict_spectral_index(self):
         """Return dataclass as dict and exclude large numpy arrays."""
 
