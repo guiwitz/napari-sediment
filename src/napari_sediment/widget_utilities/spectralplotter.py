@@ -19,7 +19,8 @@ class SpectralPlotter(QWidget):
         super().__init__()
 
         self.canvas = FigureCanvasQTAgg()
-        self.canvas.figure.set_tight_layout(tight_layout)
+        if tight_layout:
+            self.canvas.figure.set_layout_engine('tight')
 
         self.toolbar = NavigationToolbar2QT(self.canvas, self)
         
