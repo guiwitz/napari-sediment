@@ -150,7 +150,7 @@ def plot_spectral_profile(rgb_image, mask, index_obj, format_dict, scale=1,
     ax3.set_ylabel(f'depth [{scale_unit}]', fontsize=label_font)
     ax3.set_xlabel('Index value', fontsize=label_font)
     ax3.yaxis.set_label_position('right')
-    full_name = ", ".join([x.index_name for x in index_obj])
+    full_name = ", ".join([f'{x.index_name}: {x.index_description}' for x in index_obj])
     suptitle = fig.suptitle(full_name + '\n' + location,
                     fontsize=title_font)
     

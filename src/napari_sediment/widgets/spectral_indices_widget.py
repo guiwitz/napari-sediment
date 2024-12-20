@@ -148,21 +148,26 @@ class SpectralIndexWidget(QWidget):
         self.em_boundaries_range2 = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self.em_boundaries_range2.setValue((0, 0))
         self.tabs.add_named_tab('&Index Definition', QLabel('RABD/RABDnorm'), grid_pos=(tab_rows+1, 0, 1, 1))
-        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range, grid_pos=(tab_rows+1, 1, 1, 1))
         self.tabs.add_named_tab('&Index Definition', QLabel('RABA/Ratio/RMean'), grid_pos=(tab_rows+2, 0, 1, 1))
-        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 2))
-        self.btn_create_index = QPushButton("New index")
-        self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+3, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.em_boundaries_range2, grid_pos=(tab_rows+2, 1, 1, 1))
+        
         self.combobox_index_type = QComboBox()
         self.combobox_index_type.addItems(['RABD', 'RABDnorm', 'RABA', 'Ratio', 'RMean'])
+        self.tabs.add_named_tab('&Index Definition', QLabel('Index Type'), grid_pos=(tab_rows+3, 0, 1, 1))
         self.tabs.add_named_tab('&Index Definition', self.combobox_index_type, grid_pos=(tab_rows+3, 1, 1, 1))
         self.qtext_new_index_name = QLineEdit()
-        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+3, 2, 1, 2))
+        self.tabs.add_named_tab('&Index Definition', QLabel('Index Name'), grid_pos=(tab_rows+4, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_name, grid_pos=(tab_rows+4, 1, 1, 1))
+        self.qtext_new_index_description = QLineEdit()
+        self.tabs.add_named_tab('&Index Definition', QLabel('Index Description'), grid_pos=(tab_rows+5, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.qtext_new_index_description, grid_pos=(tab_rows+5, 1, 1, 1))
+        self.btn_create_index = QPushButton("Create new index")
+        self.tabs.add_named_tab('&Index Definition', self.btn_create_index, grid_pos=(tab_rows+6, 0, 1, 1))
         self.btn_update_index = QPushButton("Update current index")
-        self.tabs.add_named_tab('&Index Definition', self.btn_update_index, grid_pos=(tab_rows+4, 0, 1, 1))
+        self.tabs.add_named_tab('&Index Definition', self.btn_update_index, grid_pos=(tab_rows+6, 1, 1, 1))
         self.btn_save_endmembers_plot = QPushButton("Save endmembers plot")
-        self.tabs.add_named_tab('&Index Definition', self.btn_save_endmembers_plot, grid_pos=(tab_rows+5, 0, 1, 3))
-
+        self.tabs.add_named_tab('&Index Definition', self.btn_save_endmembers_plot, grid_pos=(tab_rows+7, 0, 1, 2))
 
         # "Index Compute" Tab
         ### Elements "Index Selection" ###
@@ -751,7 +756,7 @@ class SpectralIndexWidget(QWidget):
         #self._disconnect_spin_bounds()
         # update from interactive limit change
         if type(event) == tuple:
-            if self.current_index_type == 'RABD':
+            if self.current_index_type in ('RABD', 'RABDnorm'):
                 current_triplet = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
                 self.spin_index_left.setValue(current_triplet[0])
                 self.spin_index_middle.setValue(current_triplet[1])
@@ -763,7 +768,7 @@ class SpectralIndexWidget(QWidget):
             
         # update from spinbox change
         else:
-            if self.current_index_type == 'RABD':
+            if self.current_index_type in ('RABD', 'RABDnorm'):
                 current_triplet = [self.spin_index_left.value(), self.spin_index_middle.value(), self.spin_index_right.value()]
                 current_triplet = [float(x) for x in current_triplet]
                 self.em_boundaries_range.setValue(current_triplet)
@@ -780,7 +785,7 @@ class SpectralIndexWidget(QWidget):
         if self.end_members is not None:
             ymin = self.end_members.min()
             ymax = self.end_members.max()
-            if self.current_index_type == 'RABD':
+            if self.current_index_type in ('RABD', 'RABDnorm'):
                 x_toplot = current_triplet
                 ymin_toplot = 3*[ymin]
                 ymax_toplot = 3*[ymax]
@@ -1254,6 +1259,7 @@ class SpectralIndexWidget(QWidget):
         """
 
         name = self.qtext_new_index_name.text()
+        description = self.qtext_new_index_description.text()
         self.current_index_type = self.combobox_index_type.currentText()
 
         if self.combobox_index_type.currentText() in ('RABD', 'RABDnorm'):
@@ -1261,7 +1267,8 @@ class SpectralIndexWidget(QWidget):
         else:
             current_bands = np.array(self.em_boundaries_range2.value(), dtype=np.uint16)
         self.index_collection[name] = create_index(
-            index_name=name, index_type=self.combobox_index_type.currentText(), 
+            index_name=name, index_type=self.combobox_index_type.currentText(),
+            index_description=description,
             boundaries=current_bands)
         
         if name not in [self.qcom_indices.itemText(i) for i in range(self.qcom_indices.count())]:
@@ -1284,8 +1291,12 @@ class SpectralIndexWidget(QWidget):
         """
 
         name = self.qcom_indices.currentText()
+        description = self.qtext_new_index_description.text()
+
+        if name not in self.index_collection:
+            raise ValueError('Index not in collection, create new index instead')
         
-        if self.current_index_type == 'RABD':
+        if self.current_index_type in ('RABD', 'RABDnorm'):
             current_bands = np.array(self.em_boundaries_range.value(), dtype=np.uint16)
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[2]
@@ -1295,6 +1306,8 @@ class SpectralIndexWidget(QWidget):
             self.index_collection[name].left_band = current_bands[0]
             self.index_collection[name].right_band = current_bands[1]
             self.index_collection[name].middle_band = None
+
+        self.index_collection[name].index_description = description
 
     def _on_add_index_map_to_viewer(self, event=None, force_recompute=None):
         """
@@ -1351,10 +1364,15 @@ class SpectralIndexWidget(QWidget):
         self.current_index_type = current_index.index_type
         self.spin_index_left.setValue(current_index.left_band)
         self.spin_index_right.setValue(current_index.right_band)
-        if self.current_index_type == 'RABD':
+
+        self.combobox_index_type.setCurrentText(self.current_index_type)
+        self.qtext_new_index_description.setText(current_index.index_description)
+        self.qtext_new_index_name.setText(current_index.index_name)
+        
+        if self.current_index_type in ('RABD', 'RABDnorm'):
             self.spin_index_middle.setValue(current_index.middle_band)
 
-        if self.current_index_type == 'RABD':
+        if self.current_index_type in ('RABD', 'RABDnorm'):
             self.spin_index_middle.setVisible(True)
         else:
             self.spin_index_middle.setVisible(False)

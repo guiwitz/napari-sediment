@@ -14,6 +14,8 @@ class SpectralIndex:
         name of index
     index_type: str
         one of 'Ratio', 'RABD', 'RABA', 'RMean', 'RABDnorm'
+    index_description: str
+        description of index
     left_band: int
         left band to compute index
     right_band: int
@@ -49,6 +51,7 @@ class SpectralIndex:
 
     index_name: str = None
     index_type: str = None
+    index_description: str = None
     left_band: int = None
     right_band: int = None
     middle_band: int = None
@@ -70,6 +73,9 @@ class SpectralIndex:
             self.right_band = self.right_band_default
         if self.middle_band is None:
             self.middle_band = self.middle_band_default
+
+        if self.index_description is None:
+            self.index_description = self.index_name
 
     def dict_spectral_index(self):
         """Return dataclass as dict and exclude large numpy arrays."""

@@ -277,7 +277,7 @@ def compute_index_projection(index_image, mask, colmin, colmax, smooth_window=No
 
     return proj
 
-def create_index(index_name, index_type, boundaries):
+def create_index(index_name, index_type, index_description, boundaries):
     """Create a new index SpectralIndex object.
     
     Parameters
@@ -286,6 +286,8 @@ def create_index(index_name, index_type, boundaries):
         name of the index
     index_type: str
         type of the index, one of RABD, RABA, Ratio, RMean, RABDnorm
+    index_description: str
+        description of the index
     boundaries: list
         list of bands
     
@@ -299,6 +301,7 @@ def create_index(index_name, index_type, boundaries):
     if index_type in ['RABD', 'RABDnorm']:
         new_index = SpectralIndex(index_name=index_name,
                             index_type=index_type,
+                            index_description=index_description,
                             left_band_default=boundaries[0],
                             middle_band_default=boundaries[1],
                             right_band_default=boundaries[2],
@@ -307,6 +310,7 @@ def create_index(index_name, index_type, boundaries):
     elif index_type in ['RABA', 'Ratio', 'RMean']:
         new_index = SpectralIndex(index_name=index_name,
                             index_type=index_type,
+                            index_description=index_description,
                             left_band_default=boundaries[0],
                             right_band_default=boundaries[1],
                             )
