@@ -780,7 +780,11 @@ class SpectralIndexWidget(QWidget):
         if self.em_boundary_lines is not None:
             num_lines = len(self.em_boundary_lines)
             for i in range(num_lines):
-                self.em_boundary_lines.pop(0).remove()
+                # sometimes line is not drawn and can't be removed
+                try:
+                    self.em_boundary_lines.pop(0).remove()
+                except:
+                    pass
 
         if self.end_members is not None:
             ymin = self.end_members.min()

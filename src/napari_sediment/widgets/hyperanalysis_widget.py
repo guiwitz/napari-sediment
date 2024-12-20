@@ -372,6 +372,8 @@ class HyperAnalysisWidget(QWidget):
         self.slider_corr_limit.setRange(0,len(self.all_coef))
         if self.params_endmembers.corr_limit is not None:
             self.slider_corr_limit.setValue(self.params_endmembers.corr_limit)
+        else:
+            self.slider_corr_limit.setValue(len(self.all_coef)-10)
 
         # add plots
         self.plot_eigenvals()
@@ -790,7 +792,11 @@ class HyperAnalysisWidget(QWidget):
         """Set a limit to the last band to consider for when using the correlation threshold."""
 
         if self.corr_limit_line is not None:
-            self.corr_limit_line.pop(0).remove()
+            # sometimes line is not drawn and can't be removed
+            try:
+                self.corr_limit_line.pop(0).remove()
+            except:
+                pass
         
         self.corr_limit_line = self.corr_plot.axes.plot(
             self.slider_corr_limit.value()*np.ones(2), [self.all_coef.min(), self.all_coef.max()], 'b')
