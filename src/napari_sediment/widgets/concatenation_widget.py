@@ -199,8 +199,9 @@ class ConcatenationWidget(QWidget):
         """
 
         if self.file_list.count() == 0:
-            self.table_widget = DragDropTable(1, 2)
-            self.table_widget.setHorizontalHeaderLabels(["Dataset", "Shift in unit"])
+            self.table_widget = DragDropTable(1, 4)
+            self.table_widget.setHorizontalHeaderLabels(
+                ["Dataset", "Shift in unit", "Top", "Bottom"])
 
             self.table_widget.setDragDropMode(QTableWidget.InternalMove)  # Enable drag-and-drop
             self.table_widget.setSelectionBehavior(QTableWidget.SelectRows)  # Select entire rows
@@ -216,6 +217,12 @@ class ConcatenationWidget(QWidget):
             file = self.file_list.item(row).text()
             self.table_widget.setItem(row, 0, QTableWidgetItem(file))
             self.table_widget.setItem(row, 1, QTableWidgetItem(str(0)))
+            self.table_widget.setCellWidget(row, 2, QCheckBox())
+            self.table_widget.setCellWidget(row, 3, QCheckBox())
+            self.table_widget.cellWidget(row,2).setChecked(True)
+
+        self.table_widget.cellWidget(row,3).setChecked(True)
+
 
 
     def add_connections(self):
@@ -281,7 +288,7 @@ class ConcatenationWidget(QWidget):
                 #else:
                 #    raise ValueError('Select an index yml file')
             else:
-                self.indices = load_index_series(self.params_plots_path.value)
+                self.indices = load_index_series(self.index_yml_path.value)
             
             # load plots params
             if self.params_plots_path.value == Path('.'):
@@ -629,10 +636,37 @@ class ConcatenationWidget(QWidget):
             to_pad = max_cols - cols
             for i in range(len(all_cubes)):
                 all_cubes[i] = np.pad(all_cubes[i], ((0,0), (0,0), (0, to_pad[i])))
-                if i < len(all_cubes) - 1:
-                    shift_pix = int(all_shifts[i+1] / self.spinbox_metadata_scale.value())
-                    all_cubes[i] = all_cubes[i][:, 0:shift_pix, :]
-                    all_projections[i] = all_projections[i][0:shift_pix]
+                #if i < len(all_cubes) - 1:
+
+                shift_pix = int(all_shifts[i] / self.spinbox_metadata_scale.value())
+
+                if i==0:
+                    print(f'{i}: here1')
+                    top_lim = 0
+                else:
+                    if (self.table_widget.cellWidget(i, 2).isChecked()):
+                        print(f'{i}: here2')
+                        top_lim = 0
+                    else:
+                        print(f'{i}: here3')
+                        top_lim = all_cubes[i-1].shape[1] - shift_pix
+                
+                if i==len(all_cubes)-1:
+                    print(f'{i}: here4')
+                    bottom_lim = all_cubes[i].shape[1]
+                else:
+                    shift_pix_next = int(all_shifts[i+1] / self.spinbox_metadata_scale.value())
+                    if (self.table_widget.cellWidget(i, 3).isChecked()):
+                        print(f'{i}: here5')
+                        bottom_lim = all_cubes[i].shape[1]
+                    else:
+                        print(f'{i}: here6')
+                        if not self.table_widget.cellWidget(i+1, 2).isChecked():
+                            raise ValueError('Either bottom of the current layer or top of the next layer must be selected')
+                        bottom_lim = shift_pix_next
+                print(f'top_lim: {top_lim}, bottom_lim: {bottom_lim}')
+                all_cubes[i] = all_cubes[i][:, top_lim:bottom_lim, :]
+                all_projections[i] = all_projections[i][top_lim:bottom_lim]
             full_map = np.concatenate(all_cubes, axis=1)
             full_proj = np.concatenate(all_projections, axis=0)
 
@@ -701,7 +735,12 @@ class DragDropTable(QTableWidget):
             return  # No need to move if source and target are the same
         
         # Save the row data from the source row
-        source_row_data = [self.item(source_row, col).text() for col in range(self.columnCount())]
+        source_row_data = []
+        for col in range(self.columnCount()):
+            if isinstance(self.cellWidget(source_row, col), QCheckBox):
+                source_row_data.append(self.cellWidget(source_row, col).isChecked())
+            else:
+                source_row_data.append(self.item(source_row, col).text())
 
         # Remove the source row
         self.removeRow(source_row)
@@ -713,7 +752,11 @@ class DragDropTable(QTableWidget):
         # Insert the saved row data at the target row
         self.insertRow(target_row)
         for col, data in enumerate(source_row_data):
-            self.setItem(target_row, col, QTableWidgetItem(data))
+            if isinstance(data, str):
+                self.setItem(target_row, col, QTableWidgetItem(data))
+            elif isinstance(data, bool):
+                self.setCellWidget(target_row, col, QCheckBox())
+                self.cellWidget(target_row, col).setChecked(data)
 
         event.accept()
 
