@@ -91,6 +91,10 @@ def test_load_preprocess_workflow(make_napari_viewer):
                     image_mean=1000, image_std=5, min_val=300, max_val=400, height=130, width=120,
                     ref_height=20, channels=80, white_ref_added_signal=2000, pattern_weight=10,
                     pattern_width=10, random_seed=1)
+    save_test_dataset(data_name='Demo3', save_path=synth_path.joinpath('sediment_data'),
+                    image_mean=1500, image_std=5, min_val=300, max_val=400, height=130, width=120,
+                    ref_height=20, channels=80, white_ref_added_signal=2000, pattern_weight=10,
+                    pattern_width=10, random_seed=1)
 
     export_path = synth_path.joinpath('sediment_export')
     if not os.path.isdir(export_path):
