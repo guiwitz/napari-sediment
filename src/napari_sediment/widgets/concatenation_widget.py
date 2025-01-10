@@ -259,19 +259,27 @@ class ConcatenationWidget(QWidget):
         else:
             self.file_list.update_from_path(self.main_path_display.value)
 
-    def _on_load_index_yml(self, event=None):
+    def _on_load_index_yml(self, event=None, index_yml=None):
 
-        if self.index_yml_path.value == Path('.'):
-            self.indices = None
+        if index_yml is not None:
+            self.index_yml_path.value = index_yml
+            self.indices = load_index_series(index_yml)
         else:
-            self.indices = load_index_series(self.index_yml_path.value)
+            if self.index_yml_path.value == Path('.'):
+                self.indices = None
+            else:
+                self.indices = load_index_series(self.index_yml_path.value)
 
-    def _on_load_params_plots_yml(self, event=None):
+    def _on_load_params_plots_yml(self, event=None, params_plots_yml=None):
         
-        if self.params_plots_path.value == Path('.'):
-            self.params_plots = None
+        if params_plots_yml is not None:
+            self.params_plots_path.value = params_plots_yml
+            self.params_plots = load_plots_params(params_plots_yml)
         else:
-            self.params_plots = load_plots_params(self.params_plots_path.value)
+            if self.params_plots_path.value == Path('.'):
+                self.params_plots = None
+            else:
+                self.params_plots = load_plots_params(self.params_plots_path.value)
 
     def _on_click_load_all(self, event=None, init_load=True, indices=None):
         """Import all data from the selected folders
@@ -614,6 +622,7 @@ class ConcatenationWidget(QWidget):
             all_shifts.append(float(self.table_widget.item(i, 1).text()))
         
         index_list = list(self.indices.keys())
+        proj_pd = None
         for b in range(len(index_list) + 1):
             all_cubes = []
             all_projections = []
@@ -636,35 +645,27 @@ class ConcatenationWidget(QWidget):
             to_pad = max_cols - cols
             for i in range(len(all_cubes)):
                 all_cubes[i] = np.pad(all_cubes[i], ((0,0), (0,0), (0, to_pad[i])))
-                #if i < len(all_cubes) - 1:
 
                 shift_pix = int(all_shifts[i] / self.spinbox_metadata_scale.value())
 
                 if i==0:
-                    print(f'{i}: here1')
                     top_lim = 0
                 else:
                     if (self.table_widget.cellWidget(i, 2).isChecked()):
-                        print(f'{i}: here2')
                         top_lim = 0
                     else:
-                        print(f'{i}: here3')
                         top_lim = all_cubes[i-1].shape[1] - shift_pix
                 
                 if i==len(all_cubes)-1:
-                    print(f'{i}: here4')
                     bottom_lim = all_cubes[i].shape[1]
                 else:
                     shift_pix_next = int(all_shifts[i+1] / self.spinbox_metadata_scale.value())
                     if (self.table_widget.cellWidget(i, 3).isChecked()):
-                        print(f'{i}: here5')
                         bottom_lim = all_cubes[i].shape[1]
                     else:
-                        print(f'{i}: here6')
                         if not self.table_widget.cellWidget(i+1, 2).isChecked():
                             raise ValueError('Either bottom of the current layer or top of the next layer must be selected')
                         bottom_lim = shift_pix_next
-                print(f'top_lim: {top_lim}, bottom_lim: {bottom_lim}')
                 all_cubes[i] = all_cubes[i][:, top_lim:bottom_lim, :]
                 all_projections[i] = all_projections[i][top_lim:bottom_lim]
             full_map = np.concatenate(all_cubes, axis=1)
@@ -687,13 +688,17 @@ class ConcatenationWidget(QWidget):
                 self.viewer.layers[f'concat_RGB'].refresh()
 
             else:
+                if proj_pd is None:
+                    proj_pd = pd.DataFrame({'depth': np.arange(0,len(full_proj))})
+                proj_pd[index_name] = full_proj
+
                 full_map = full_map[0]
                 z1 = save_zarr(full_map, Path(self.export_path_display.value).joinpath(f'concat_{index_name}.zarr'))
                 save_tif_cmap(image=full_map,
                               image_path=Path(self.export_path_display.value).joinpath(f'concat_{index_name}.tiff'),
                               napari_cmap=self.indices[index_name].colormap,
                               contrast=self.indices[index_name].index_map_range, overwrite=False)
-
+            
                 cmap = Colormap(self.indices[index_name].colormap).identifier
 
                 if f'{index_name}_full' in self.viewer.layers:
@@ -711,6 +716,7 @@ class ConcatenationWidget(QWidget):
                         shape_type='path', edge_color='red', edge_width=0.5)
                     self.viewer.layers[f'{index_name}_full_proj'].refresh()
 
+        proj_pd.to_csv(Path(self.export_path_display.value).joinpath('concat_projections.csv'), index=False)
 
 class DragDropTable(QTableWidget):
     """Table widget with option to move rows by dragging and dropping"""
