@@ -448,8 +448,13 @@ class SedimentWidget(QWidget):
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
         #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
         ##### ConvPaintSpectralWidget #####
-        # creation of interface is delayed until first click on tab
-        self.mlwidget=None
+        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
+        self.mask_group_ml.glayout.addWidget(self.mlwidget)
+        ##### Subtab "ML" scroller ##### 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.mask_group_ml.gbox)
+        self.mask_tabs.add_named_tab('ML', scroll)
 
         # Align subtabs
         for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
@@ -1130,17 +1135,8 @@ class SedimentWidget(QWidget):
         """
         
         if self.mask_tabs.tabText(self.mask_tabs.currentIndex()) == 'ML':
-            if self.mlwidget is None:
-                self.mlwidget = ConvPaintSpectralWidget(self.viewer)
-                self.mask_group_ml.glayout.addWidget(self.mlwidget)
-                ##### Subtab "ML" scroller ##### 
-                scroll = QScrollArea()
-                scroll.setWidgetResizable(True)
-                scroll.setWidget(self.mask_group_ml.gbox)
-                self.mask_tabs.add_named_tab('ML', scroll)
-                if 'imcube' in self.viewer.layers:
-                    self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
-
+            if 'annotations' not in self.viewer.layers:
+                self.mlwidget._on_add_annot_seg_layers()
 
     def _on_select_layer_for_mask(self):
         """
@@ -1644,8 +1640,9 @@ class SedimentWidget(QWidget):
             self._update_threshold_limits()
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
-            if self.mlwidget is not None:
-                self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
+            self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
+            self.viewer.layers.remove(self.viewer.layers['annotations'])
+            self.viewer.layers.remove(self.viewer.layers['segmentation'])
 
             # adjust main roi size
             self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
