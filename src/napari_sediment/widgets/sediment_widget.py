@@ -448,14 +448,8 @@ class SedimentWidget(QWidget):
         self.mask_group_ml.gbox.setToolTip("Use a pixel classifier to generate a mask")
         #self.mask_tabs.add_named_tab('ML', self.mask_group_ml.gbox)
         ##### ConvPaintSpectralWidget #####
-        #from ..widget_utilities.classifier import ConvPaintSpectralWidget
-        self.mlwidget = ConvPaintSpectralWidget(self.viewer)
-        self.mask_group_ml.glayout.addWidget(self.mlwidget)
-        ##### Subtab "ML" scroller ##### 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.mask_group_ml.gbox)
-        self.mask_tabs.add_named_tab('ML', scroll)
+        # creation of interface is delayed until first click on tab
+        self.mlwidget=None
 
         # Align subtabs
         for g in [self.mask_group_border, self.mask_group_manual, self.mask_group_auto, self.mask_group_ml]:
@@ -645,6 +639,7 @@ class SedimentWidget(QWidget):
         self.btn_combine_masks.clicked.connect(self._on_click_combine_masks)
         self.btn_clean_mask.clicked.connect(self._on_click_clean_mask)
         self.combo_layer_mask.currentIndexChanged.connect(self._on_select_layer_for_mask)
+        self.mask_tabs.currentChanged.connect(self._on_change_mask_tab)
 
         # Elements of the "IO" tab
         self.btn_save_mask.clicked.connect(self._on_click_save_mask)
@@ -1129,6 +1124,24 @@ class SedimentWidget(QWidget):
 
 
     # Functions for "Mask" tab elements
+    def _on_change_mask_tab(self, event=None):
+        """
+        Called: "Mask" tab, change tab
+        """
+        
+        if self.mask_tabs.tabText(self.mask_tabs.currentIndex()) == 'ML':
+            if self.mlwidget is None:
+                self.mlwidget = ConvPaintSpectralWidget(self.viewer)
+                self.mask_group_ml.glayout.addWidget(self.mlwidget)
+                ##### Subtab "ML" scroller ##### 
+                scroll = QScrollArea()
+                scroll.setWidgetResizable(True)
+                scroll.setWidget(self.mask_group_ml.gbox)
+                self.mask_tabs.add_named_tab('ML', scroll)
+                if 'imcube' in self.viewer.layers:
+                    self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
+
+
     def _on_select_layer_for_mask(self):
         """
         Select layer to use
@@ -1631,7 +1644,8 @@ class SedimentWidget(QWidget):
             self._update_threshold_limits()
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
-            self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
+            if self.mlwidget is not None:
+                self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
 
             # adjust main roi size
             self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
