@@ -1,6 +1,6 @@
 import numpy as np
 
-from napari_convpaint.conv_paint import ConvPaintWidget
+from napari_convpaint.conv_paint_widget import ConvPaintWidget
 
 class ConvPaintSpectralWidget(ConvPaintWidget):
     """Widget for training a classifier on a spectral image stack. Adapted from 
@@ -12,27 +12,23 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         super().__init__(viewer, parent, project, third_party)
 
         self.viewer = viewer
-        self.check_use_project.hide()
-        self.prediction_all_btn.hide()
-        self.update_model_on_project_btn.hide()
-        self.tabs.setTabVisible(1, False)
+        #self.check_use_project.hide()
+        #self.prediction_all_btn.hide()
+        #self.update_model_on_project_btn.hide()
+        #self.tabs.setTabVisible(1, False)
 
-        self.prediction_btn.clicked.connect(self.update_ml_mask)
-        self.update_model_btn.clicked.connect(self.predict)
-        self.update_model_btn.clicked.connect(self.update_ml_mask)
-        self.update_model_btn.setText( 'Train + Segment')
+        self.train_classifier_btn.clicked.connect(self.update_ml_mask)
         self.check_tile_image.setChecked(True)
 
-        
         self.add_connections_local()
 
     def add_connections_local(self):
         
-        self.select_layer_widget.changed.connect(self.default_to_multi_channel)
+        self.image_layer_selection_widget.changed.connect(self.default_to_multi_channel)
 
     def default_to_multi_channel(self, event=None):
 
-        if self.select_layer_widget.value.ndim == 3:
+        if self.image_layer_selection_widget.value.ndim == 3:
             
             self.radio_multi_channel.setChecked(True)
         

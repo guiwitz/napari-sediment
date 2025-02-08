@@ -1631,7 +1631,7 @@ class SedimentWidget(QWidget):
             self._update_threshold_limits()
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
-            self.mlwidget.select_layer_widget.native.setCurrentText('imcube')
+            self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
 
             # adjust main roi size
             self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
