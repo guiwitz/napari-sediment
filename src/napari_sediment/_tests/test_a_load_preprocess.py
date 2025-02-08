@@ -409,12 +409,6 @@ def test_load_preprocess_workflow(make_napari_viewer):
     self.mlwidget.radio_multi_channel.setChecked(True)
 
 
-    # In[32]:
-
-
-    self.mlwidget.add_annotation_layer()
-
-
     # In[33]:
 
 
