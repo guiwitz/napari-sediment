@@ -405,14 +405,8 @@ def test_load_preprocess_workflow(make_napari_viewer):
     # In[31]:
 
 
-    self.mlwidget.select_layer_widget.value = self.viewer.layers['imcube']
+    self.mlwidget.image_layer_selection_widget.value = self.viewer.layers['imcube']
     self.mlwidget.radio_multi_channel.setChecked(True)
-
-
-    # In[32]:
-
-
-    self.mlwidget.add_annotation_layer()
 
 
     # In[33]:
@@ -443,7 +437,7 @@ def test_load_preprocess_workflow(make_napari_viewer):
 
 
     self.mlwidget.spin_downsample.setValue(1)
-    self.mlwidget.update_model_btn.clicked.emit()
+    self.mlwidget.train_classifier_btn.clicked.emit()
 
 
     # In[37]:
