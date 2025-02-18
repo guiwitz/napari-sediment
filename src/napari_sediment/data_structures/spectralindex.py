@@ -90,5 +90,8 @@ class SpectralIndex:
         for key in dict_to_save:
             if isinstance(dict_to_save[key], np.generic):
                 dict_to_save[key] = dict_to_save[key].item()
+            if isinstance(dict_to_save[key],(list, np.ndarray)):
+                if isinstance(dict_to_save[key][0], np.generic):
+                    dict_to_save[key] = [i.item() for i in dict_to_save[key]]
         return dict_to_save
     
