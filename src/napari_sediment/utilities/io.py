@@ -16,7 +16,7 @@ def save_mask(mask, filename):
     if not filename.parent.exists():
         os.makedirs(filename.parent, exist_ok=True)
    
-    tifffile.imsave(filename, mask.astype('uint8'))
+    tifffile.imwrite(filename, mask.astype('uint8'))
 
 def load_mask(filename):
     
