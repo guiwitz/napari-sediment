@@ -262,25 +262,25 @@ class SedimentWidget(QWidget):
         self.check_batch_destripe = QCheckBox("Destripe")
         self.check_batch_white.setChecked(True)
         self.check_batch_destripe.setChecked(False)
-        self.batch_group.glayout.addWidget(self.check_batch_white, 1, 0, 1, 1)
-        self.batch_group.glayout.addWidget(self.check_batch_destripe, 2, 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.check_batch_white, self.batch_group.glayout.rowCount(), 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.check_batch_destripe, self.batch_group.glayout.rowCount(), 0, 1, 1)
 
         ### Spinbox "Chunk size" ###
         self.spin_chunk_size = QSpinBox()
         self.spin_chunk_size.setRange(1, 10000)
         self.spin_chunk_size.setValue(500)
-        self.batch_group.glayout.addWidget(QLabel("Chunk size"), 3, 0, 1, 1)
-        self.batch_group.glayout.addWidget(self.spin_chunk_size, 3, 1, 1, 1)
+        self.batch_group.glayout.addWidget(QLabel("Chunk size"), self.batch_group.glayout.rowCount(), 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.spin_chunk_size, self.batch_group.glayout.rowCount()-1, 1, 1, 1)
 
         ### Checkbox "Convert to integer" ###
         self.check_save_as_float = QCheckBox("Save as floats")
         self.check_save_as_float.setChecked(True)
         self.check_save_as_float.setToolTip("Save data as floats. Otherwise convert to integers after multiplication by 4096.")
-        self.batch_group.glayout.addWidget(self.check_save_as_float, 4, 0, 1, 4)
+        self.batch_group.glayout.addWidget(self.check_save_as_float, self.batch_group.glayout.rowCount(), 0, 1, 4)
         
         ### Button "Correct and save data" ###
         self.btn_batch_correct = QPushButton("Correct and save data")
-        self.batch_group.glayout.addWidget(self.btn_batch_correct, 5, 0, 1, 4)
+        self.batch_group.glayout.addWidget(self.btn_batch_correct, self.batch_group.glayout.rowCount(), 0, 1, 4)
 
         # Group "Correct multiple data sets"
         self.multiexp_group = VHGroup('Correct multiple datasets', orientation='G')
