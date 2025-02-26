@@ -506,13 +506,15 @@ def correct_single_channel(
 
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
-                         min_max_bands=None, background_correction=True, destripe=True,
+                         min_max_bands=None, downsample_bands=1, background_correction=True, destripe=True,
                          use_dask=False, chunk_size=500, use_float=True):
 
     img = open_image(imhdr_path)
 
     samples = img.ncols
     lines = img.nrows
+
+    downsample_bands = int(downsample_bands)
 
     if band_indices is not None:
         band_indices = np.array(band_indices)
@@ -522,11 +524,12 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
     elif min_max_bands is not None:
         min_band = np.argmin(np.abs(np.array(img.bands.centers) - min_max_bands[0]))
         max_band = np.argmin(np.abs(np.array(img.bands.centers) - min_max_bands[1]))
-        band_indices = np.arange(min_band, max_band+1)
+        band_indices = np.arange(min_band, max_band+1, downsample_bands)
         bands = len(band_indices)
     else:
         bands = img.nbands
-        band_indices = np.arange(bands)
+        band_indices = np.arange(0, bands, downsample_bands)
+        bands = len(band_indices)
     
     if use_float:
         dtype = 'f4'

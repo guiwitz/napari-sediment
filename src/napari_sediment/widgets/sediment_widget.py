@@ -257,6 +257,13 @@ class SedimentWidget(QWidget):
         self.spin_batch_wavelengths_max.setSingleStep(1)
         self.batch_group.glayout.addWidget(self.spin_batch_wavelengths_max, 0, 3, 1, 1)
 
+        ### Downsample ###
+        self.spin_downsample_bands = QSpinBox()
+        self.spin_downsample_bands.setRange(1, 100)
+        self.spin_downsample_bands.setValue(1)
+        self.batch_group.glayout.addWidget(QLabel("Downsample bands"), self.batch_group.glayout.rowCount(), 0, 1, 1)
+        self.batch_group.glayout.addWidget(self.spin_downsample_bands, self.batch_group.glayout.rowCount()-1, 1, 1, 1)
+
         ### Checkboxes "White correct" and "Destripe" ###
         self.check_batch_white = QCheckBox("White correct")
         self.check_batch_destripe = QCheckBox("Destripe")
@@ -1017,6 +1024,7 @@ class SedimentWidget(QWidget):
                 zarr_path=self.export_folder.joinpath('corrected.zarr'),
                 band_indices=None,
                 min_max_bands=min_max_band,
+                downsample_bands=self.spin_downsample_bands.value(),
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
                 use_dask=self.check_use_dask.isChecked(),

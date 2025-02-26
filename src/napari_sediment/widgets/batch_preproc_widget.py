@@ -121,6 +121,14 @@ class BatchPreprocWidget(QWidget):
         self.options_group.glayout.addWidget(QLabel('Bands'), 4, 0, 1, 1)
         self.options_group.glayout.addWidget(self.slider_batch_wavelengths, 4, 1, 1, 1)
 
+        ### Downsample ###
+        self.spin_downsample_bands = QSpinBox()
+        self.spin_downsample_bands.setRange(1, 100)
+        self.spin_downsample_bands.setValue(1)
+        self.options_group.glayout.addWidget(QLabel("Downsample bands"), 5, 0, 1, 1)
+        self.options_group.glayout.addWidget(self.spin_downsample_bands, 5, 1, 1, 1)
+
+
         self.spin_chunksize = QSpinBox()
         self.spin_chunksize.setRange(1, 10000)
         self.spin_chunksize.setValue(chunk_size)
@@ -266,6 +274,7 @@ class BatchPreprocWidget(QWidget):
                     export_folder=self.preproc_export_path_display.value,
                     background_text=background_text,
                     min_max_band=min_max_band,
+                    downsample_bands=self.spin_downsample_bands.value(),
                     background_correction=self.check_do_background_correction.isChecked(),
                     destripe=self.check_do_destripe.isChecked(),
                     use_dask=self.check_use_dask.isChecked(),
