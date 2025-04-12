@@ -6,7 +6,8 @@ from ..data_structures.imchannels import ImChannels
 from ..data_structures.parameters import Param
 
 def batch_preprocessing(folder_to_analyze, export_folder, background_text='_WR_',
-                        min_max_band=None, downsample_bands=1, background_correction=True, destripe=True,
+                        min_max_band=None, downsample_bands=1, background_correction=True,
+                        destripe=True, savgol_width=100, savgol_order=2,
                         use_dask=True, chunk_size=1000, use_float=True):
 
     export_folder = Path(export_folder)
@@ -37,6 +38,8 @@ def batch_preprocessing(folder_to_analyze, export_folder, background_text='_WR_'
         downsample_bands=downsample_bands,
         background_correction=background_correction,
         destripe=destripe,
+        savgol_width=savgol_width,
+        savgol_order=savgol_order,
         use_dask=use_dask,
         chunk_size=chunk_size,
         use_float=use_float

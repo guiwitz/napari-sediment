@@ -1027,6 +1027,8 @@ class SedimentWidget(QWidget):
                 downsample_bands=self.spin_downsample_bands.value(),
                 background_correction=self.check_batch_white.isChecked(),
                 destripe=self.check_batch_destripe.isChecked(),
+                savgol_width=self.qspin_destripe_width.value(),
+                savgol_order=2,
                 use_dask=self.check_use_dask.isChecked(),
                 chunk_size=self.spin_chunk_size.value(),
                 use_float=self.check_save_as_float.isChecked(),

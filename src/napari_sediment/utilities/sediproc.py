@@ -433,8 +433,8 @@ def savgol_destripe(image, width=100, order=2):
 
 def correct_single_channel(
         im_path, white_path, dark_for_im_path, dark_for_white_path, im_zarr,
-        zarr_ind, band, background_correction=True, destripe=False, use_float=False,
-        exposure_correct=True
+        zarr_ind, band, background_correction=True, destripe=False, savgol_width=100,
+        savgol_order=2, use_float=False, exposure_correct=True
         ):
     """White dark correction and save to zarr
     
@@ -458,6 +458,10 @@ def correct_single_channel(
         Whether to perform white correction. Default is True.
     destripe : bool, optional
         Whether to perform destriping. Default is True.
+    savgol_width : int, optional
+        Width of Savitzky-Golay filter. Default is 100.
+    savgol_order : int, optional
+        Order of Savitzky-Golay filter. Default is 2.
     use_float : bool, optional
         Whether to use float data type. Default is False.
     exposure_correct : bool, optional
@@ -496,7 +500,7 @@ def correct_single_channel(
     if destripe:
     #    import pystripe
     #    corrected = pystripe.filter_streaks(corrected.T, sigma=[128, 256], level=7, wavelet='db2').T
-        corrected = savgol_destripe(corrected, width=100, order=2)
+        corrected = savgol_destripe(corrected, width=savgol_width, order=2)
         if not use_float:
             corrected = corrected.astype(np.uint16)
 
@@ -506,7 +510,8 @@ def correct_single_channel(
 
 def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                          dark_for_white_file_path , zarr_path, band_indices=None,
-                         min_max_bands=None, downsample_bands=1, background_correction=True, destripe=True,
+                         min_max_bands=None, downsample_bands=1, background_correction=True,
+                         destripe=True, savgol_width=100, savgol_order=2,
                          use_dask=False, chunk_size=500, use_float=True):
 
     img = open_image(imhdr_path)
@@ -547,7 +552,8 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
                 correct_single_channel,
                 imhdr_path, white_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
-                z1, ind, c, background_correction, destripe, use_float))
+                z1, ind, c, background_correction, 
+                destripe, savgol_width, savgol_order, use_float))
         
         #for k in tqdm(range(len(process)), "correcting and saving to zarr"):
         with progress(range(len(process))) as pbr2:
@@ -562,7 +568,8 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
             correct_single_channel(
                 imhdr_path, white_file_path,
                 dark_for_im_file_path, dark_for_white_file_path,
-                z1, ind, c, background_correction, destripe, use_float)
+                z1, ind, c, background_correction,
+                destripe, savgol_width, savgol_order, use_float)
 
     z1.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])[band_indices]),
