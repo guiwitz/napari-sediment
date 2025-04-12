@@ -158,6 +158,10 @@ class ConcatenationWidget(QWidget):
         self.btn_apply_shifts.setToolTip("Apply shifts in the table to the data")
         self.data_order_group.glayout.addWidget(self.btn_apply_shifts, 2, 0, 1, 2)
 
+        self.btn_apply_default_shifts = QPushButton("Apply default shifts")
+        self.btn_apply_default_shifts.setToolTip("Shift dataset by their full height")
+        self.data_order_group.glayout.addWidget(self.btn_apply_default_shifts, 3, 0, 1, 2)
+
         self.proj_group = VHGroup('Projection', orientation='G')
         self.proj_group.glayout.setAlignment(Qt.AlignTop)
         self.tabs.add_named_tab('Concatenation', self.proj_group.gbox, (3, 0, 1, 2))
@@ -233,6 +237,7 @@ class ConcatenationWidget(QWidget):
         self.file_list.model().rowsInserted.connect(self._create_data_order_widget)
         self.btn_update_channels.clicked.connect(self.update_loaded_channels)
         self.btn_apply_shifts.clicked.connect(self._on_click_apply_shifts)
+        self.btn_apply_default_shifts.clicked.connect(self._on_click_apply_default_shifts)
         self.spinbox_proj_factor.valueChanged.connect(self._on_update_projection)
         self.spinbox_proj_shift.valueChanged.connect(self._on_update_projection)
         self.btn_export_shifts.clicked.connect(self._on_click_export_shifts)
@@ -335,9 +340,13 @@ class ConcatenationWidget(QWidget):
 
             # load index map
             if self.radio_maps.isChecked():
-
+                
+                if self.indices is None:
+                    raise ValueError('Select an index yml file')
                 index_name = self.bands_to_load_list.item(map_ind).text()
                 cube = load_index_zarr(project_folder=current_folder, main_roi_index=0, index_name=index_name)
+                if cube is None:
+                    raise ValueError(f'Index {index_name} map not found in {current_folder}')
                 cube = cube[np.newaxis, ...]
                 self.proj.append(load_projection(project_folder=current_folder, main_roi_index=0, index_name=index_name))
                 
@@ -543,7 +552,30 @@ class ConcatenationWidget(QWidget):
                 self.viewer.layers[f].affine.translate = (total_shift, 0)
             else:
                 self.viewer.layers[f].affine.translate = (0, total_shift, 0)
-            self.viewer.layers[f].refresh()
+        self.viewer.layers[f].refresh()
+
+        # move the projections
+        self._on_update_projection()
+
+    def _on_click_apply_default_shifts(self, event=None):
+        """Apply the default shifts to the data.
+        Uses the affine.translate property of the layers to shift the data. Uses
+        the full height of the data to shift the data"""
+        total_shift = 0
+        for i in range(1, self.table_widget.rowCount()):
+            f = self.table_widget.item(i, 0).text()
+            f_previous = self.table_widget.item(i-1, 0).text()
+            if self.viewer.layers[f].rgb:
+                shift = self.viewer.layers[f_previous].data.shape[0]
+                total_shift += shift
+                self.viewer.layers[f].affine.translate = (total_shift, 0)
+            else:
+                shift = self.viewer.layers[f_previous].data.shape[1]
+                total_shift += shift
+                self.viewer.layers[f].affine.translate = (0, total_shift, 0)
+            self.table_widget.item(i, 1).setText(str(shift))
+            
+        self.viewer.layers[f].refresh()
 
         # move the projections
         self._on_update_projection()
