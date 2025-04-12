@@ -1366,7 +1366,7 @@ class SedimentWidget(QWidget):
             image_widht = self.col_bounds[1] - self.col_bounds[0]
             image_height = self.row_bounds[1] - self.row_bounds[0]
             line = np.array([[self.row_bounds[0] + image_height//3, self.col_bounds[0]],
-                             [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]]])
+                             [self.row_bounds[0] + 2*image_height//3, self.col_bounds[0]+0.00001]])
             self.viewer.add_shapes(
                 data=line,
                 shape_type='line',
