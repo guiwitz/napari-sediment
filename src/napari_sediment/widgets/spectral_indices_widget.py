@@ -1479,8 +1479,8 @@ class SpectralIndexWidget(QWidget):
         Called: "Index Compute" tab, button "Import index settings"
         """
         
-        if self.index_file is None:
-            self._on_click_select_index_file()
+        #if self.index_file is None:
+        self._on_click_select_index_file()
         # clear existing state
         self.qcom_indices.clear()
         self.index_pick_boxes = {}
