@@ -7,7 +7,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt
 from superqt import QDoubleSlider
 
-from napari.utils import progress, DirectLabelColormap
+from napari.utils import progress, DirectLabelColormap, notifications
 from superqt import QLabeledDoubleRangeSlider
 from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
 from scipy.signal import savgol_filter
@@ -406,6 +406,8 @@ class HyperAnalysisWidget(QWidget):
         self.params_endmembers.save_parameters()
         self.save_stacks()
         self.save_plots()
+
+        notifications.show_info("Your project has been saved")
 
     def save_stacks(self):
         """Save denoised and reduced staks to zarr"""
