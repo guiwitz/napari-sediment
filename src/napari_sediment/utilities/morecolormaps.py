@@ -70,4 +70,5 @@ def get_cmap_catalogue():
     cmap_names = catalog.unique_keys(prefer_short_names=False, categories='sequential', normalized_names=True)
     NapariColormaps = {}
     for cn in natsorted(cmap_names):
-        NapariColormaps[cn] = ensure_colormap(Colormap(cn).to_napari())
+        if not Colormap(cn).interpolation == 'nearest':
+            NapariColormaps[cn] = ensure_colormap(Colormap(cn).to_napari())
