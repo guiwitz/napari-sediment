@@ -540,8 +540,8 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
         dtype = 'f4'
     else:
         dtype = 'u2'
-    z1 = zarr.open(zarr_path, mode='w', shape=(bands, lines,samples),
-               #chunks=(1, lines, samples), dtype='u2')
+    z1 = zarr.create_array(zarr_path, shape=(bands, lines,samples),
+                   shards=(1, chunk_size * (1 + lines // chunk_size), chunk_size * (1 + samples // chunk_size)),
                    chunks=(1, chunk_size, chunk_size), dtype=dtype)
 
     if use_dask:
@@ -607,11 +607,12 @@ def convert_bil_raw_to_zarr(hdr_path, export_folder, num_rows_chunk=2000, force=
     #num_rows_chunk = 2000
     shape = (img.shape[2], img.shape[0], img.shape[1])
     chunks = (1, num_rows_chunk, img.shape[1])
+    shards = (1, num_rows_chunk * (1 + img.shape[0] // num_rows_chunk), img.shape[1] * (1 + img.shape[1] // img.shape[1]))
 
     new_name = hdr_path.with_suffix('.zarr').name
     zarr_path = Path(export_folder).joinpath(new_name)
-    im_zarr = zarr.open(zarr_path, mode='w', shape=shape,
-                chunks=chunks, dtype=img.dtype)
+    im_zarr = zarr.create_array(zarr_path, shape=shape,
+                          shards=shards, chunks=chunks, dtype=img.dtype)
     
     im_zarr.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])),
