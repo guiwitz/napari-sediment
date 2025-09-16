@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/guiwitz/napari-sediment/branch/main/graph/badge.svg)](https://codecov.io/gh/guiwitz/napari-sediment)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-sediment)](https://napari-hub.org/plugins/napari-sediment)
 
-This napari plugin is designed to hpyerspectral images of sediment cores. It is composed of three interfaces allowing the user to:
+This napari plugin is designed to hyper-spectral images of sediment cores. It is composed of three interfaces allowing the user to:
 
 - import HDR images
 - normalize the images using white and dark references
