@@ -28,7 +28,7 @@ You can find a detailed documentation [here](https://guiwitz.github.io/napari-se
 
 Create a conda environment and activate it. We highly recommend to use the new conda version called mamba to speed up the installation process. You can install it from [here](https://github.com/conda-forge/miniforge#mambaforge). If you don't use mamba, replace the mamba command by conda in the following instructions:
 
-    mamba create -n sediment python=3.9 napari pyqt -c conda-forge
+    mamba create -n sediment python=3.12 napari pyqt -c conda-forge
     mamba activate sediment
 
 Then you can install `napari-sediment` use:
