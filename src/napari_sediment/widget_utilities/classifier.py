@@ -18,6 +18,7 @@ class ConvPaintSpectralWidget(ConvPaintWidget):
         #self.tabs.setTabVisible(1, False)
 
         self.train_classifier_btn.clicked.connect(self.update_ml_mask)
+        self.segment_btn.clicked.connect(self.update_ml_mask)
         self.check_tile_image.setChecked(True)
         self.fe_scaling_factors.setCurrentText('[1,2]')
         self._on_set_fe_model()

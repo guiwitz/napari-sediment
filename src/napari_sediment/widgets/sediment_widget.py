@@ -419,6 +419,7 @@ class SedimentWidget(QWidget):
         self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
         ##### "Min/Max" Slider and label #####
         self.slider_mask_threshold = QLabeledDoubleRangeSlider(Qt.Horizontal)
+        self.slider_mask_threshold.setFixedWidth(200)
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
