@@ -17,7 +17,7 @@ def test_convert():
         export_folder=data_folder)
 
     assert data_folder.joinpath('Demo.zarr').is_dir()
-    assert data_folder.joinpath('Demo.zarr').joinpath('0.0.0').exists()
+    assert data_folder.joinpath('Demo.zarr').joinpath('c', '0', '0', '0').exists()
 
 def test_reader_hdr():
     data, metadata = read_spectral(data_folder.joinpath('Demo.hdr'), bands=[1,2])

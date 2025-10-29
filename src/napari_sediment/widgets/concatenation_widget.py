@@ -7,6 +7,8 @@ from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout,
                             QTableWidget, QTableWidgetItem, QDoubleSpinBox,
                             QListWidget, QAbstractItemView, QRadioButton, QButtonGroup)
 from qtpy.QtCore import Qt
+from napari._vispy.utils.gl import get_max_texture_sizes
+
 from cmap import Colormap
 import tifffile
 from magicgui.widgets import FileEdit
@@ -395,17 +397,20 @@ class ConcatenationWidget(QWidget):
                     cube, red_contrast_limits=self.params_plots.red_contrast_limits, 
                     green_contrast_limits=self.params_plots.green_contrast_limits,
                     blue_contrast_limits=self.params_plots.blue_contrast_limits)
-                
+                max_scale = np.ceil(np.log2(np.max(rgb_to_plot.shape) / get_max_texture_sizes()[0]))
+
                 if f in self.viewer.layers:
                     if self.viewer.layers[f].rgb:
-                        self.viewer.layers[f].data = [rgb_to_plot, rgb_to_plot[::2,::2,:], rgb_to_plot[::4,::4,:]]
+                        self.viewer.layers[f].data = [rgb_to_plot[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)]
                         self.viewer.layers[f].refresh()
                     else:
                         self.viewer.layers.remove(f)
                 
                 if f not in self.viewer.layers:
-                    self.viewer.add_image([
-                        rgb_to_plot, rgb_to_plot[::2,::2, :], rgb_to_plot[::4,::4, :]],
+                    self.viewer.add_image(
+                        [
+                            rgb_to_plot[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)
+                        ],
                         name=f, rgb=True)
                     self.viewer.layers[f].events.affine.connect(self._on_interactive_translate)
             
@@ -713,10 +718,12 @@ class ConcatenationWidget(QWidget):
                 tifffile.imwrite(Path(self.export_path_display.value).joinpath(f'concat_rgb.tiff'), 
                                  (255 * rgb_map).astype(np.uint8))
                 
+                max_scale = np.ceil(np.log2(np.max(rgb_map.shape) / get_max_texture_sizes()[0]))
+                    
                 if f'concat_RGB' in self.viewer.layers:
-                    self.viewer.layers[f'concat_RGB'].data = [rgb_map, rgb_map[::2,::2,:], rgb_map[::4,::4,:]]
+                    self.viewer.layers[f'concat_RGB'].data = [rgb_map[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)]
                 else:
-                    self.viewer.add_image([rgb_map, rgb_map[::2,::2,:], rgb_map[::4,::4,:]], name='concat_RGB', rgb=True)
+                    self.viewer.add_image([rgb_map[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)], name='concat_RGB', rgb=True)
                 self.viewer.layers[f'concat_RGB'].refresh()
 
             else:
@@ -733,10 +740,12 @@ class ConcatenationWidget(QWidget):
             
                 cmap = Colormap(self.indices[index_name].colormap).identifier
 
+                max_scale = np.ceil(np.log2(np.max(full_map.shape) / get_max_texture_sizes()[0]))
                 if f'{index_name}_full' in self.viewer.layers:
-                    self.viewer.layers[f'{index_name}_full'].data = full_map
+                    self.viewer.layers[f'{index_name}_full'].data = [full_map[::int(2**i),::int(2**i)] for i in np.arange(0, max_scale+1)]
                 else:
-                    self.viewer.add_image(full_map, name=f'{index_name}_full', colormap=cmap)
+                    self.viewer.add_image([full_map[::int(2**i),::int(2**i)] for i in np.arange(0, max_scale+1)],
+                                          name=f'{index_name}_full', colormap=cmap)
                 self.viewer.layers[f'{index_name}_full'].refresh()
 
                 if f'{index_name}_full_proj' in self.viewer.layers:
