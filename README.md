@@ -39,11 +39,13 @@ Or you can install the latest development version directly from the GitHub repos
 
     pip install git+https://github.com/guiwitz/napari-sediment.git
 
-On Windows, there is sometimes an issue installing PyTorch (needed for pixel classification). In this case we recommend the following:
+On Windows, there is sometimes an issue installing PyTorch (needed for pixel classification) leading to an error about loading a dependency (typically fbgemm.dll). In that case we recommend the following:
 
-    conda create -n sediment python=3.12 napari pyqt pytorch torchvision -c conda-forge
+    conda create -n sediment python=3.12 napari pyqt -c conda-forge
     conda activate sediment
-    pip install git+https://github.com/guiwitz/napari-sediment.git
+    pip install napari-sediment
+    pip uninstall torch
+    conda install -c conda-forge pytorch llvm-openmp
 
 
 ## Contributing
