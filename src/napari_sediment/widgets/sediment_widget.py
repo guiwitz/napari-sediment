@@ -75,7 +75,9 @@ class SedimentWidget(QWidget):
                           'Mas&k', 'I&O', 'P&lotting','Meta&data']
         self.tabs = TabSet(self.tab_names,
                            tab_layouts=[QVBoxLayout(), QVBoxLayout(), QVBoxLayout(), QVBoxLayout(),
-                                        QVBoxLayout(), QGridLayout(), QGridLayout()])
+                                        QVBoxLayout(), QGridLayout(), QGridLayout()],
+                            scrollable=True
+                            )
 
         self.main_layout.addWidget(self.tabs)
 
