@@ -1,14 +1,88 @@
+[project]
+name = "napari-sediment"
+dynamic = ["version"]
+description = "A plugin to process hyperspectral images of sediments"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Guillaume Witz"},
+  {email = "guillaume.witz@unibe.ch"},
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: napari",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Image Processing"
+]
+
+requires-python = ">=3.11"
+dependencies = [
+    "numpy<2.4.0",
+    "zarr==3.*",
+    "magicgui",
+    "qtpy",
+    "napari-guitils>0.1.0",
+    "napari-convpaint==0.6.0",
+    "torch<2.9.0",
+    "superqt",
+    "natsort",
+    "spectral",
+    "matplotlib",
+    "scikit-image",
+    "scikit-learn",
+    "PyYAML",
+    "microfilm",
+    "dask",
+    "distributed",
+    "tqdm",
+    "cmap",
+    "colour-science"
+]
+
+[project.optional-dependencies]
+testing = [
+    "tox",
+    "pytest",  # https://docs.pytest.org/en/latest/contents.html
+    "pytest-cov",  # https://pytest-cov.readthedocs.io/en/latest/
+    "pytest-qt",  # https://pytest-qt.readthedocs.io/en/latest/
+    "napari",
+    "pyqt5"
+]
+
+classifier = [
+    "torch",
+    "torchvision"
+]
+
+[project.entry-points."napari.manifest"]
+napari-sediment = "napari_sediment:napari.yaml"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/guiwitz/napari-sediment/issues"
+"Documentation" = "https://github.com/guiwitz/napari-sediment#README.md"
+"Source Code" = "https://github.com/guiwitz/napari-sediment"
+"User Support" = "https://github.com/guiwitz/napari-sediment/issues"
+
 [build-system]
 requires = ["setuptools>=42.0.0", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml"]
 
 [tool.setuptools_scm]
 write_to = "src/napari_sediment/_version.py"
-
-[tool.black]
-line-length = 79
-
-[tool.isort]
-profile = "black"
-line_length = 79
