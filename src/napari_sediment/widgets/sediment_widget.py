@@ -75,7 +75,9 @@ class SedimentWidget(QWidget):
                           'Mas&k', 'I&O', 'P&lotting','Meta&data']
         self.tabs = TabSet(self.tab_names,
                            tab_layouts=[QVBoxLayout(), QVBoxLayout(), QVBoxLayout(), QVBoxLayout(),
-                                        QVBoxLayout(), QGridLayout(), QGridLayout()])
+                                        QVBoxLayout(), QGridLayout(), QGridLayout()],
+                            scrollable=True
+                            )
 
         self.main_layout.addWidget(self.tabs)
 
@@ -419,15 +421,15 @@ class SedimentWidget(QWidget):
         self.mask_tabs.add_named_tab('Man. thresh.', self.mask_group_manual.gbox)
         ##### "Min/Max" Slider and label #####
         self.slider_mask_threshold = QLabeledDoubleRangeSlider(Qt.Horizontal)
-        self.slider_mask_threshold.setFixedWidth(200)
+        self.slider_mask_threshold.setFixedWidth(300)
         self.slider_mask_threshold.setRange(0, 1)
         self.slider_mask_threshold.setSingleStep(0.01)
         self.slider_mask_threshold.setSliderPosition([0, 1])
         self.mask_group_manual.glayout.addWidget(QLabel("Min/Max Threshold"), 0, 0, 1, 1)
-        self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 0, 1, 1, 1)
+        self.mask_group_manual.glayout.addWidget(self.slider_mask_threshold, 1, 0, 1, 1)
         ##### Button "Generate mask" #####
         self.btn_update_mask = QPushButton("Generate mask")
-        self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 1, 0, 1, 2)
+        self.mask_group_manual.glayout.addWidget(self.btn_update_mask, 2, 0, 1, 2)
 
         ### Subtab "Auto thresh" ##
         ##### Group "Auto Threshold" #####
@@ -833,8 +835,8 @@ class SedimentWidget(QWidget):
         im = self.get_summary_image_for_mask()
         if 'border-mask' in self.viewer.layers:
             im = im[self.viewer.layers['border-mask'].data == 0]
-        self.slider_mask_threshold.setRange(im.min(), im.max())
-        self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
+        self.slider_mask_threshold.setRange(np.around(im.min(), 2), np.around(im.max(), 2))
+        self.slider_mask_threshold.setSliderPosition([np.around(im.min(), 2), np.around(im.max(), 2)])
 
     def _on_click_save_rgb_contrast(self):
 
@@ -1159,9 +1161,9 @@ class SedimentWidget(QWidget):
             im = np.mean(self.viewer.layers[selected_layer].data, axis=0)
             if 'border-mask' in self.viewer.layers:
                 im = im[self.viewer.layers['border-mask'].data == 0]
-            self.slider_mask_threshold.setRange(im.min(), im.max())
-            self.slider_mask_threshold.setSliderPosition([im.min(), im.max()])
-    
+            self.slider_mask_threshold.setRange(np.around(im.min(), 2), np.around(im.max(), 2))
+            self.slider_mask_threshold.setSliderPosition([np.around(im.min(), 2), np.around(im.max(), 2)])
+
     def _add_manual_mask(self):
         """
         Add manual mask
