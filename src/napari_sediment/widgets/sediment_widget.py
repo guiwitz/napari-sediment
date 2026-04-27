@@ -1112,6 +1112,7 @@ class SedimentWidget(QWidget):
             contrast_limits=[self.params_plot.red_contrast_limits,
                       self.params_plot.green_contrast_limits,
                       self.params_plot.blue_contrast_limits])
+        self._update_threshold_limits()
         self.remove_masks()
         self._on_click_load_mask()
 
@@ -1129,7 +1130,7 @@ class SedimentWidget(QWidget):
             contrast_limits=[self.params_plot.red_contrast_limits,
                       self.params_plot.green_contrast_limits,
                       self.params_plot.blue_contrast_limits])
-
+        self._update_threshold_limits()
     def _on_click_import_roi(self, event=None):
         """
         Import ROI
@@ -1206,7 +1207,7 @@ class SedimentWidget(QWidget):
         max_th = self.slider_mask_threshold.value()[1]
         mask = ((data < self.slider_mask_threshold.value()[0]) | (data > self.slider_mask_threshold.value()[1])).astype(np.uint8)
         mask = np.asarray(mask)
-        self.update_mask(mask, 'intensity-mask')
+        self.update_mask(mask, 'intensity-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
 
         self.slider_mask_threshold.setSliderPosition([min_th, max_th])
 
@@ -1253,7 +1254,7 @@ class SedimentWidget(QWidget):
         if 'complete-mask' in self.viewer.layers:
             self.viewer.layers['complete-mask'].data = mask_complete
         else:
-            self.viewer.add_labels(mask_complete, name='complete-mask')
+            self.viewer.add_labels(mask_complete, name='complete-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
 
     def _on_click_clean_mask(self):
         """
@@ -1573,7 +1574,7 @@ class SedimentWidget(QWidget):
             if m in self.viewer.layers:
                 self.viewer.layers.remove(self.viewer.layers[m])
 
-    def update_mask(self, mask, name='mask'):
+    def update_mask(self, mask, name='mask', translate=None):
         """
         Helper function used in: 
         "_on_click_intensity_threshold" ("Mask" tab), 
@@ -1581,6 +1582,8 @@ class SedimentWidget(QWidget):
         """
         if name in self.viewer.layers:
             self.viewer.layers[name].data = mask
+            if translate is not None:
+                self.viewer.layers[name].translate = translate
         else:
             self.viewer.add_labels(mask, name=name)
 
