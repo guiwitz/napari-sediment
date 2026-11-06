@@ -542,7 +542,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
         dtype = 'u2'
     z1 = zarr.create_array(zarr_path, shape=(bands, lines,samples),
                    shards=(1, chunk_size * (1 + lines // chunk_size), chunk_size * (1 + samples // chunk_size)),
-                   chunks=(1, chunk_size, chunk_size), dtype=dtype)
+                   chunks=(1, chunk_size, chunk_size), dtype=dtype, overwrite=True)
 
     if use_dask:
         client = Client()
@@ -612,7 +612,7 @@ def convert_bil_raw_to_zarr(hdr_path, export_folder, num_rows_chunk=2000, force=
     new_name = hdr_path.with_suffix('.zarr').name
     zarr_path = Path(export_folder).joinpath(new_name)
     im_zarr = zarr.create_array(zarr_path, shape=shape,
-                          shards=shards, chunks=chunks, dtype=img.dtype)
+                          shards=shards, chunks=chunks, dtype=img.dtype, overwrite=True)
     
     im_zarr.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])),

@@ -1,4 +1,5 @@
 import numpy as np
+from qtpy.QtCore import QTimer
 
 from napari_convpaint.convpaint_widget import ConvpaintWidget
 
@@ -68,6 +69,23 @@ class ConvPaintSpectralWidget(ConvpaintWidget):
         if (img is not None and annot is not None
                 and not self._approve_annotations_layer_shape(annot, img)):
             self._on_add_annot_layer(force_add=True)
+
+    def _delayed_on_select_layer(self, event=None):
+        """Same as the base class, but with timers owned by the widget: Qt stops
+        them when the widget is destroyed, whereas the base class's unparented
+        QTimer.singleShot can fire on deleted widgets (e.g. on viewer close)."""
+
+        if not hasattr(self, '_select_layer_timer'):
+            self._select_layer_timer = QTimer(self)
+            self._select_layer_timer.setSingleShot(True)
+            self._select_layer_timer.timeout.connect(self._on_select_layer)
+            self._block_select_timer = QTimer(self)
+            self._block_select_timer.setSingleShot(True)
+            self._block_select_timer.timeout.connect(
+                lambda: setattr(self, '_block_layer_select', True))
+        self._block_layer_select = False
+        self._select_layer_timer.start(100)
+        self._block_select_timer.start(200)
 
     def add_connections_local(self):
 
