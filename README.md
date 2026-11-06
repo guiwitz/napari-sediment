@@ -28,7 +28,7 @@ You can find a detailed documentation [here](https://guiwitz.github.io/napari-se
 
 Create a conda environment and activate it. If you don't have conda installed you can for example install [miniforge](https://github.com/conda-forge/miniforge?tab=readme-ov-file#install).
 
-    conda create -n sediment python=3.12 napari pyqt -c conda-forge
+    conda create -n sediment python=3.13 napari pyqt6 -c conda-forge
     conda activate sediment
 
 Then you can install `napari-sediment` use:
@@ -41,7 +41,7 @@ Or you can install the latest development version directly from the GitHub repos
 
 On Windows, there is sometimes an issue installing PyTorch (needed for pixel classification) leading to an error about loading a dependency (typically fbgemm.dll). In that case we recommend the following:
 
-    conda create -n sediment python=3.12 napari pyqt -c conda-forge
+    conda create -n sediment python=3.13 napari pyqt6 -c conda-forge
     conda activate sediment
     pip install napari-sediment
     pip uninstall torch

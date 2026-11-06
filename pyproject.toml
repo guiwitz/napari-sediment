@@ -25,13 +25,13 @@ classifiers = [
 
 requires-python = ">=3.11"
 dependencies = [
-    "numpy<2.4.0",
-    "zarr==3.*",
+    "numpy",
+    "zarr>=3.0.0",
     "magicgui",
     "qtpy",
     "napari-guitils>0.1.0",
     "napari-convpaint==0.6.0",
-    "torch<2.9.0",
+    "torch",
     "superqt",
     "natsort",
     "spectral",
