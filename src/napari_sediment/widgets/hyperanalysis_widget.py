@@ -9,7 +9,7 @@ from superqt import QDoubleSlider
 
 from napari.utils import progress, DirectLabelColormap, notifications
 from superqt import QLabeledDoubleRangeSlider
-from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
+from spectral.algorithms import calc_stats, noise_from_diffs, remove_continuum
 from scipy.signal import savgol_filter
 import zarr
 import pandas as pd
@@ -24,7 +24,7 @@ from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.io import load_mask, get_mask_path, load_plots_params
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..utilities.utils import wavelength_to_rgb
-from ..utilities.hyperanalysis import (compute_vertical_correlations, compute_end_members,
+from ..utilities.hyperanalysis import (mnf, compute_vertical_correlations, compute_end_members,
                             reduce_with_mnf, export_dim_reduction_data)
 from ..utilities.sediproc import custom_ppi
 from napari_guitils.gui_structures import TabSet, VHGroup

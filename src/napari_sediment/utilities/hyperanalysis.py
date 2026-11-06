@@ -1,6 +1,22 @@
 import numpy as np
 import pandas as pd
+from spectral.algorithms import mnf as spy_mnf
+from spectral.algorithms.algorithms import MNFResult, PrincipalComponents
 from .sediproc import spectral_clustering
+
+
+def mnf(signal, noise):
+    """Wrapper around spectral.algorithms.mnf returning a real-valued result.
+    spectral uses np.linalg.eig, which returns complex values with recent numpy
+    versions even for real symmetric matrices. The imaginary parts are then zero,
+    so only the real parts are kept."""
+
+    mnfr = spy_mnf(signal, noise)
+    napc = mnfr.napc
+    # Rebuild to also make the transform (created at init) real
+    napc_real = PrincipalComponents(
+        np.real(napc.eigenvalues), np.real(napc.eigenvectors), napc.stats)
+    return MNFResult(mnfr.signal, mnfr.noise, napc_real)
 
 
 
