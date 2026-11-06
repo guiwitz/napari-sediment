@@ -1149,8 +1149,8 @@ class SedimentWidget(QWidget):
         """
         
         if self.mask_tabs.tabText(self.mask_tabs.currentIndex()) == 'ML':
-            if 'annotations' not in self.viewer.layers:
-                self.mlwidget._on_add_annot_seg_layers()
+            if self.mlwidget.annot_tag not in self.viewer.layers:
+                self.mlwidget.add_annotation_layer()
 
     def _on_select_layer_for_mask(self):
         """
@@ -1657,8 +1657,9 @@ class SedimentWidget(QWidget):
             self._update_range_wavelength()
             self.viewer.layers['imcube'].visible = False
             self.mlwidget.image_layer_selection_widget.native.setCurrentText('imcube')
-            self.viewer.layers.remove(self.viewer.layers['annotations'])
-            self.viewer.layers.remove(self.viewer.layers['segmentation'])
+            for layer_name in [self.mlwidget.annot_tag, self.mlwidget.seg_tag]:
+                if layer_name in self.viewer.layers:
+                    self.viewer.layers.remove(layer_name)
 
             # adjust main roi size
             self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
