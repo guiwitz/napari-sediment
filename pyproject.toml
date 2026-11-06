@@ -30,7 +30,7 @@ dependencies = [
     "magicgui",
     "qtpy",
     "napari-guitils>0.1.0",
-    "napari-convpaint==0.6.0",
+    "napari-convpaint>=1.0.0",
     "torch",
     "superqt",
     "natsort",
