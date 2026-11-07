@@ -24,28 +24,43 @@ The sediment widget allows the user to import an HDR image and to normalize it u
 ## Documentation
 
 You can find a detailed documentation [here](https://guiwitz.github.io/napari-sediment).
+
 ## Installation
+
+### Conda Environment
+
+Installation instructions used to recommend creating an environment and installing napari via conda and then the plugin via pip. This often leads to issues with overlapping dependencies (tpyically with libopenblas or other low-level libraries) and to the plugin crashing. The newest environment setup avoids these issues by installing napari and the plugin entirely via pip within a clean conda environment.
 
 Create a conda environment and activate it. If you don't have conda installed you can for example install [miniforge](https://github.com/conda-forge/miniforge?tab=readme-ov-file#install).
 
-    conda create -n sediment python=3.13 napari pyqt6 -c conda-forge
+    conda create -n sediment python=3.13
     conda activate sediment
 
-Then you can install `napari-sediment` use:
+Then you can install `napari` and `napari-sediment` use:
 
-    pip install napari-sediment
+    pip install "napari[all]" napari-sediment
 
 Or you can install the latest development version directly from the GitHub repository:
 
     pip install git+https://github.com/guiwitz/napari-sediment.git
 
-On Windows, there is sometimes an issue installing PyTorch (needed for pixel classification) leading to an error about loading a dependency (typically fbgemm.dll). In that case we recommend the following:
+### uv installation
 
-    conda create -n sediment python=3.13 napari pyqt6 -c conda-forge
-    conda activate sediment
-    pip install napari-sediment
-    pip uninstall torch
-    conda install -c conda-forge pytorch llvm-openmp
+To create an environment using [uv](https://docs.astral.sh/uv/), create a project folder and add `napari` and `napari-sediment` to it:
+
+    uv init sediment --python 3.13
+    cd sediment
+    uv add "napari[all]" napari-sediment
+
+To instead get the latest development version from the `main` branch on GitHub, replace the last command with:
+
+    uv add "napari[all]" "git+https://github.com/guiwitz/napari-sediment@main"
+
+To later update to the newest commit on `main`, run `uv lock --upgrade-package napari-sediment` followed by `uv sync`.
+
+You can then start napari from within that folder with:
+
+    uv run napari
 
 
 ## Contributing
