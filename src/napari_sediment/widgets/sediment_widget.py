@@ -11,7 +11,7 @@ from pathlib import Path
 import warnings
 import os
 import napari
-from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
+from qtpy.QtWidgets import (QPushButton, QWidget,
                             QLabel, QFileDialog, QComboBox,
                             QCheckBox, QLineEdit, QSpinBox, QDoubleSpinBox,
                             QScrollArea, QGridLayout, QVBoxLayout)
@@ -43,7 +43,7 @@ from ..widget_utilities.classifier import ConvPaintSpectralWidget
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.images import save_rgb_tiff_image
 from ..widget_utilities.rgb_widget import RGBWidget
-from ..utilities.utils import update_contrast_on_layer
+from ..utilities.utils import update_contrast_on_layer, toggle_activity_dock
 from .batch_preproc_widget import BatchPreprocWidget
 from ..data_structures.parameters_plots import Paramplot
 
@@ -889,7 +889,7 @@ class SedimentWidget(QWidget):
         White correct image
         Called: "Processing" tab, button "Correct"
         """
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("White correcting image")
 
@@ -943,14 +943,14 @@ class SedimentWidget(QWidget):
                     update_contrast_on_layer(self.viewer.layers[c])
                     self.viewer.layers[c].refresh()
 
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_click_destripe(self):
         """
         Destripe image
         Called: "Processing" tab, button "Destripe"
         """
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Destriping image")
 
@@ -979,7 +979,7 @@ class SedimentWidget(QWidget):
             else:
                 self.viewer.add_image(data_destripe, name='imcube_destripe', rgb=False)
                 self.viewer.layers['imcube_destripe'].visible = False
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_change_batch_wavelengths(self, event):
         """
@@ -1015,7 +1015,7 @@ class SedimentWidget(QWidget):
 
         min_max_band = [self.slider_batch_wavelengths.value()[0], self.slider_batch_wavelengths.value()[1]]
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Preprocessing full image")
         
@@ -1043,7 +1043,7 @@ class SedimentWidget(QWidget):
             self.open_file()
             self._on_click_add_main_roi()
             
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_click_multiexp_batch(self):
         """
@@ -1603,7 +1603,7 @@ class SedimentWidget(QWidget):
             return False
         
         # open image
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Opening image")
             image_name = self.imhdr_path.name
@@ -1665,7 +1665,7 @@ class SedimentWidget(QWidget):
             self.spin_main_roi_width.setRange(1, self.col_bounds[1]-self.col_bounds[0])
             self.spin_main_roi_width.setValue(self.col_bounds[1]-self.col_bounds[0])
             
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
         return True
 
     
