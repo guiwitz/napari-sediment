@@ -7,8 +7,7 @@ import warnings
 import yaml
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
-                            QComboBox, QLineEdit, QSizePolicy,
-                            QGridLayout, QCheckBox, QDoubleSpinBox,
+                            QComboBox, QLineEdit, QGridLayout, QCheckBox, QDoubleSpinBox,
                             QColorDialog, QScrollArea, QSizePolicy)
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
@@ -36,7 +35,7 @@ from ..utilities.spectralindex_compute import (compute_index_projection,
                             save_index_zarr, compute_normalized_index_params, built_in_indices)
 from ..utilities.spectralplot import (batch_create_plots, save_tif_cmap,
                                       plot_spectral_profile, plot_multi_spectral_profile)
-from ..utilities.utils import wavelength_to_rgb
+from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
 from ..utilities.morecolormaps import get_cmap_catalogue
 get_cmap_catalogue()
 
@@ -1322,7 +1321,7 @@ class SpectralIndexWidget(QWidget):
         if force_recompute is None:
             force_recompute = self.check_force_recompute.isChecked()
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Computing index")
 
@@ -1345,7 +1344,7 @@ class SpectralIndexWidget(QWidget):
                         blending='additive', contrast_limits=contrast_limits)
                     layer.events.contrast_limits.connect(self._on_change_index_map_rendering)
                     layer.events.colormap.connect(self._on_change_index_map_rendering)
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_change_index_map_rendering(self, event=None):
         """Update the contrast limits of the index layers."""
