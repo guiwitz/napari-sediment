@@ -12,6 +12,7 @@ from napari_guitils.gui_structures import VHGroup
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.folder_list_widget import FolderListWidget
 from ..utilities.io import get_data_background_path
+from ..utilities.utils import toggle_activity_dock
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.batch_preproc import batch_preprocessing
 
@@ -256,7 +257,7 @@ class BatchPreprocWidget(QWidget):
 
         main_folder = Path(self.file_list.folder_path)
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(range(self.file_list.count())) as pbr:
             pbr.set_description("Batch processing folder")
             for c in pbr:
@@ -283,4 +284,4 @@ class BatchPreprocWidget(QWidget):
                     chunk_size=self.spin_chunksize.value(),
                     use_float=self.check_save_as_float.isChecked()
                 )
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)

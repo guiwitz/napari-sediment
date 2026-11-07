@@ -16,6 +16,7 @@ from ..data_structures.spectralindex import SpectralIndex
 from ..utilities.spectralplot import plot_spectral_profile  
 from ..data_structures.imchannels import ImChannels
 from ..utilities.io import load_project_params, load_plots_params, load_endmember_params
+from ..utilities.utils import toggle_activity_dock
 from ..widget_utilities.folder_list_widget import FolderListWidget
 from ..widget_utilities.channel_widget import ChannelWidget
 
@@ -190,7 +191,7 @@ class BatchIndexWidget(QWidget):
 
         folders = list(self.data_folder.iterdir())
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(range(len(folders))) as pbr:
             for ind_f in pbr:
                 f = folders[ind_f]

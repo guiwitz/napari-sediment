@@ -4,6 +4,7 @@ from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
 from qtpy.QtCore import Qt
 import numpy as np
 from napari.utils import progress
+from ..utilities.utils import toggle_activity_dock
 
 class ChannelWidget(QListWidget):
     """Widget to handle channel selection and display. Works only i parent widget
@@ -30,7 +31,7 @@ class ChannelWidget(QListWidget):
         """Load images upon of change in channel selection.
         Considers crop bounds.
         """
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Updating channel selection")
             # get selected channels
@@ -67,7 +68,7 @@ class ChannelWidget(QListWidget):
             if 'mask' in self.viewer.layers:
                 mask_ind = [x.name for x in self.viewer.layers].index('mask')
                 self.viewer.layers.move(mask_ind, len(self.viewer.layers))
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
         
 
     def get_selected_channel_bands(self):
