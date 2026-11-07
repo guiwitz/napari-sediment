@@ -23,7 +23,7 @@ from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.io import load_mask, get_mask_path, load_plots_params
 from ..widget_utilities.rgb_widget import RGBWidget
-from ..utilities.utils import wavelength_to_rgb
+from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
 from ..utilities.hyperanalysis import (mnf, compute_vertical_correlations, compute_end_members,
                             reduce_with_mnf, export_dim_reduction_data)
 from ..utilities.sediproc import custom_ppi
@@ -499,7 +499,7 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_mnfr(self):
         """Compute MNF transform and compute vertical correlation. Keep all bands."""
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Computing MNF")
             data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
@@ -514,7 +514,7 @@ class HyperAnalysisWidget(QWidget):
             self._compute_mnfr_bands()
             self._compute_vert_correlation()
             self.plot_eigenvals()
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def plot_eigenvals(self):
         """Display eigenvalues from MNFR transform"""
@@ -591,7 +591,7 @@ class HyperAnalysisWidget(QWidget):
         if self.selected_bands is None:
             raise ValueError('Must reduce bands first')
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Pure pixel detection")
             # create image where masked pixels are set to 0. This avoids detecting masked pixels as pure pixels.
@@ -612,7 +612,7 @@ class HyperAnalysisWidget(QWidget):
                 self.viewer.add_labels(pure, name='pure')
             
             self._on_click_update_endmembers()
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_click_update_endmembers(self, event=None):
         """Update end-members based on threshold."""
@@ -624,7 +624,7 @@ class HyperAnalysisWidget(QWidget):
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Compute end-members")
         
@@ -648,7 +648,7 @@ class HyperAnalysisWidget(QWidget):
                 self.viewer.add_labels(self.pure_members, name='pure_members')
             self.viewer.layers['pure_members'].refresh()
             
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def map_colors_endmembers_ppi(self):
 
