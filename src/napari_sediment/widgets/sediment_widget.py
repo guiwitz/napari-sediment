@@ -36,7 +36,8 @@ from ..utilities.sediproc import (white_dark_correct, load_white_dark,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
                        savgol_destripe, get_exposure_ratio)
 from ..data_structures.imchannels import ImChannels
-from ..utilities.io import save_mask, load_mask, load_project_params, load_plots_params
+from ..utilities.io import (save_mask, load_mask, load_project_params, load_plots_params,
+                             crop_mask_to_bounds, mask_to_main_roi)
 from ..data_structures.parameters import Param
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.classifier import ConvPaintSpectralWidget
@@ -1097,10 +1098,9 @@ class SedimentWidget(QWidget):
         Called: "ROI" tab, button "Crop with main"
         """
         #if self.check_main_crop.isChecked():
-        if 'main-roi' in self.viewer.layers:
-            main_roi = self.viewer.layers['main-roi'].data[self.spin_selected_roi.value()]
-            self.row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
-            self.col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
+        main_bounds = self._get_main_roi_bounds()
+        if main_bounds is not None:
+            self.row_bounds, self.col_bounds = main_bounds
         else:
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
@@ -1284,16 +1284,21 @@ class SedimentWidget(QWidget):
         if self.export_folder is None: 
             self._on_click_select_export_folder()
 
-        mask = None
+        mask_layer = None
         if 'clean-mask' in self.viewer.layers:
-            mask = self.viewer.layers['clean-mask'].data
+            mask_layer = self.viewer.layers['clean-mask']
         elif 'complete-mask' in self.viewer.layers:
-            mask = self.viewer.layers['complete-mask'].data
+            mask_layer = self.viewer.layers['complete-mask']
         elif mask_present:
             self._on_click_combine_masks()
-            mask = self.viewer.layers['complete-mask'].data
+            mask_layer = self.viewer.layers['complete-mask']
         
-        if mask is not None:
+        if mask_layer is not None:
+            mask = mask_layer.data
+            # always save the mask with the extent of the main roi, independently of the current crop
+            main_bounds = self._get_main_roi_bounds()
+            if main_bounds is not None:
+                mask = crop_mask_to_bounds(mask, mask_layer.translate[-2:], *main_bounds)
             save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
 
         
@@ -1307,9 +1312,28 @@ class SedimentWidget(QWidget):
         mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
         if mask_path.exists():
             mask = load_mask(mask_path)
-            self.update_mask(mask, 'complete-mask')
+            main_bounds = self._get_main_roi_bounds()
+            if main_bounds is not None:
+                # saved masks cover the main roi: place them in the current crop
+                mask = mask_to_main_roi(mask, *main_bounds)
+                mask = crop_mask_to_bounds(
+                    mask, (main_bounds[0][0], main_bounds[1][0]), self.row_bounds, self.col_bounds)
+            self.update_mask(mask, 'complete-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
         else:
             warnings.warn('No mask found')
+
+    def _get_main_roi_bounds(self):
+        """Return (row_bounds, col_bounds) of the selected main roi, or None if there is none."""
+
+        if 'main-roi' not in self.viewer.layers:
+            return None
+        main_rois = self.viewer.layers['main-roi'].data
+        if len(main_rois) <= self.spin_selected_roi.value():
+            return None
+        main_roi = main_rois[self.spin_selected_roi.value()]
+        row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
+        col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
+        return row_bounds, col_bounds
 
     def _on_click_snapshot(self):
         """

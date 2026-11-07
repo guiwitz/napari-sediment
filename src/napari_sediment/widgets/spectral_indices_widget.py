@@ -28,7 +28,7 @@ from ..widget_utilities.channel_widget import ChannelWidget
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..widget_utilities.folder_list_widget import FolderListWidget
 from ..utilities.io import (load_project_params, load_plots_params,
-                            load_mask, get_mask_path)
+                            load_mask, get_mask_path, get_mask_roi)
 from ..utilities.spectralindex_compute import (compute_index_projection,
                             clean_index_map, create_index, export_index_series,
                             compute_and_clean_index, load_index_zarr, load_projection,
@@ -661,15 +661,7 @@ class SpectralIndexWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        mask_path = get_mask_path(export_path_roi)
-
-        if mask_path.is_file():
-            mask = load_mask(mask_path)
-        else:
-            mask = np.zeros(
-                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
-                dtype=np.uint8)
+        mask = get_mask_roi(self.export_folder, self.spin_selected_roi.value())
 
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask

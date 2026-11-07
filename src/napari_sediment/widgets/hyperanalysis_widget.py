@@ -21,7 +21,7 @@ from ..utilities.io import load_project_params, load_endmember_params, save_imag
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
-from ..utilities.io import load_mask, get_mask_path, load_plots_params
+from ..utilities.io import load_mask, get_mask_path, load_plots_params, get_mask_roi, crop_mask_to_bounds
 from ..widget_utilities.rgb_widget import RGBWidget
 from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
 from ..utilities.hyperanalysis import (mnf, compute_vertical_correlations, compute_end_members,
@@ -473,15 +473,10 @@ class HyperAnalysisWidget(QWidget):
         main_roi_row_min = self.mainroi[self.spin_selected_roi.value()][:,0].min()
         main_roi_col_min = self.mainroi[self.spin_selected_roi.value()][:,1].min()
 
-        mask_path = get_mask_path(self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}'))
-        if mask_path.is_file():
-            mask = load_mask(mask_path)
-            mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
-                        self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
-        else:
-            mask = np.zeros(
-                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
-                dtype=np.uint8)
+        # the mask covers the main roi, crop it to the current sub-roi
+        main_mask = get_mask_roi(self.export_folder, self.spin_selected_roi.value())
+        mask = crop_mask_to_bounds(
+            main_mask, (main_roi_row_min, main_roi_col_min), self.row_bounds, self.col_bounds)
 
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
