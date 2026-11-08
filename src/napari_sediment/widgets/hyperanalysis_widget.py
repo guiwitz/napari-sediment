@@ -46,7 +46,7 @@ class HyperAnalysisWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ['Main', 'Reduction', 'PPI','End Members', 'Plotting']
-        self.tabs = TabSet(self.tab_names)
+        self.tabs = TabSet(self.tab_names, scrollable=True)
 
         self.main_layout.addWidget(self.tabs)
 

@@ -98,7 +98,7 @@ class SpectralIndexWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["&Main", "&Index Definition", "Index C&ompute", "P&lots", "Batch"]#, "Plotslive"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout(), None])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout(), None], scrollable=True)
 
         self.main_layout.addWidget(self.tabs)
 

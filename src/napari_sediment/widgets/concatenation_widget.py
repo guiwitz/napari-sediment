@@ -92,7 +92,7 @@ class ConcatenationWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["Data", "Concatenation", "Export"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout(), QGridLayout(), QGridLayout()])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout(), QGridLayout(), QGridLayout()], scrollable=True)
 
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
         self.tabs.widget(1).layout().setAlignment(Qt.AlignTop)
