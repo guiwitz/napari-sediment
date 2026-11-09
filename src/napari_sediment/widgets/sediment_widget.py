@@ -20,6 +20,7 @@ from superqt import QDoubleRangeSlider, QLabeledDoubleRangeSlider, QDoubleSlider
 from magicgui.widgets import FileEdit
 from napari.qt import get_current_stylesheet
 from napari.utils import progress
+from napari.utils.notifications import show_info
 
 import numpy as np
 #import pystripe
@@ -34,7 +35,7 @@ from ..utilities._reader import read_spectral
 from ..utilities.sediproc import (white_dark_correct, load_white_dark,
                        phasor, remove_top_bottom, remove_left_right,
                        fit_1dgaussian_without_outliers, correct_save_to_zarr,
-                       savgol_destripe, get_exposure_ratio)
+                       savgol_destripe, get_exposure_ratio, clean_mask)
 from ..data_structures.imchannels import ImChannels
 from ..utilities.io import (save_mask, load_mask, load_project_params, load_plots_params,
                              crop_mask_to_bounds, mask_to_main_roi)
@@ -64,6 +65,11 @@ class SedimentWidget(QWidget):
         self.row_bounds = None
         self.col_bounds = None
         self.imagechannels = None
+        # main roi the current crop and masks belong to, and flag to ignore roi selection changes
+        self._current_roi = 0
+        self._block_roi_switch = False
+        # full image copies of mask layers, so that cropping doesn't lose mask regions
+        self._mask_store = {}
         self.viewer2 = None
         #self.pixclass = None
         self.export_folder = None
@@ -350,6 +356,15 @@ class SedimentWidget(QWidget):
         self.spin_selected_roi.setValue(0)
         self.roicrop_group.glayout.addWidget(QLabel('Selected main ROI'), 1, 0, 1, 1)
         self.roicrop_group.glayout.addWidget(self.spin_selected_roi, 1, 1, 1, 1)
+
+        ### Combobox "Masks" ###
+        self.combo_mask_mode = QComboBox()
+        self.combo_mask_mode.addItems(['Separate per main ROI', 'Shared by all main ROIs'])
+        self.combo_mask_mode.setToolTip(
+            'Separate: each main ROI has its own masks, saved and loaded when changing the selected main ROI.\n'
+            'Shared: one set of masks for the whole image, cropped with each main ROI and saved for all main ROIs.')
+        self.roicrop_group.glayout.addWidget(QLabel('Masks'), 2, 0, 1, 1)
+        self.roicrop_group.glayout.addWidget(self.combo_mask_mode, 2, 1, 1, 1)
 
         # Group "Import Main ROI"
         self.roiimport_group = VHGroup('Import Main ROI', orientation='G')
@@ -645,6 +660,7 @@ class SedimentWidget(QWidget):
         self.btn_add_main_roi.clicked.connect(self._on_click_add_main_roi)
         self.btn_main_crop.clicked.connect(self._on_crop_with_main)
         self.btn_main_crop_reset.clicked.connect(self._on_reset_crop)
+        self.spin_selected_roi.valueChanged.connect(self._on_change_selected_roi)
         self.btn_import_roi.clicked.connect(self._on_click_import_roi)
         
         # Elements of the "Mask" tab
@@ -684,6 +700,7 @@ class SedimentWidget(QWidget):
         self.viewer.layers.events.inserted.connect(self._update_combo_layers_background)
         self.viewer.layers.events.removed.connect(self._update_combo_layers_background)
         self.viewer.layers.events.inserted.connect(self.translate_layer_on_add)
+        self.viewer.layers.events.removed.connect(self._on_layer_removed_mask_store)
 
 
     # Functions for "Main" tab elements
@@ -756,6 +773,7 @@ class SedimentWidget(QWidget):
         self.metadata_scale_unit.setText(self.params.scale_units)
 
         # rois
+        self._block_roi_switch = True
         self._add_roi_layer()
         mainroi = [np.array(x).reshape(4,2) for x in self.params.main_roi]
         if mainroi:
@@ -771,6 +789,7 @@ class SedimentWidget(QWidget):
             self.viewer.layers[f'rois_{ind}'].add_rectangles(roi, edge_color='r')
 
         self.spin_selected_roi.setValue(0)
+        self._block_roi_switch = False
 
         # crop if needed
         self._on_crop_with_main()
@@ -1104,6 +1123,9 @@ class SedimentWidget(QWidget):
         else:
             self.row_bounds = [0, self.imagechannels.nrows]
             self.col_bounds = [0, self.imagechannels.ncols]
+        self._current_roi = self.spin_selected_roi.value()
+        # keep existing masks, adjusted to the new crop
+        self._refit_masks_to_crop()
 
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
         self.rgb_widget.row_bounds = self.row_bounds
@@ -1113,8 +1135,9 @@ class SedimentWidget(QWidget):
                       self.params_plot.green_contrast_limits,
                       self.params_plot.blue_contrast_limits])
         self._update_threshold_limits()
-        self.remove_masks()
-        self._on_click_load_mask()
+        self.mlwidget.on_image_cropped()
+        if not self._has_mask_layers():
+            self._on_click_load_mask()
 
     def _on_reset_crop(self, event=None):
         """
@@ -1122,6 +1145,8 @@ class SedimentWidget(QWidget):
         """    
         self.row_bounds = [0, self.imagechannels.nrows]
         self.col_bounds = [0, self.imagechannels.ncols]
+        # keep existing masks, adjusted to the new crop
+        self._refit_masks_to_crop()
 
         self.qlist_channels._on_change_channel_selection(self.row_bounds, self.col_bounds)
         self.rgb_widget.row_bounds = self.row_bounds
@@ -1131,6 +1156,38 @@ class SedimentWidget(QWidget):
                       self.params_plot.green_contrast_limits,
                       self.params_plot.blue_contrast_limits])
         self._update_threshold_limits()
+        self.mlwidget.on_image_cropped()
+
+    def _on_change_selected_roi(self, roi_index):
+        """
+        Crop with the newly selected main ROI. With separate masks per main ROI, the masks of
+        the previous main ROI are saved and removed, and the saved mask of the new one is loaded.
+        With shared masks, masks are only cropped with the new main ROI.
+        Called: "ROI" tab, spinbox "Selected main ROI"
+        """
+        if self._block_roi_switch or self.imagechannels is None or roi_index == self._current_roi:
+            return
+        if self._get_main_roi_bounds(roi_index) is None:
+            return
+
+        if self._shared_masks():
+            self._on_crop_with_main()
+            if 'clean-mask' in self.viewer.layers:
+                self._on_click_clean_mask()
+            return
+
+        previous_roi = self._current_roi
+        if self._has_mask_layers():
+            saved = False
+            if self._get_main_roi_bounds(previous_roi) is not None:
+                saved = self._on_click_save_mask(roi_index=previous_roi)
+            if saved:
+                show_info(f'Masks of main ROI {previous_roi} saved.')
+            else:
+                warnings.warn(f'Masks of main ROI {previous_roi} could not be saved and are discarded.')
+        self.remove_masks()
+        self._on_crop_with_main()
+
     def _on_click_import_roi(self, event=None):
         """
         Import ROI
@@ -1233,26 +1290,44 @@ class SedimentWidget(QWidget):
 
     def _on_click_combine_masks(self):
         """
-        Combine masks from border removel, phasor and thresholding
+        Combine masks from border removel, phasor and thresholding. With shared masks,
+        masks are combined over the full image.
         Called: "Mask" tab, button "Combine masks"
         """
-        mask_complete = np.zeros((self.row_bounds[1]-self.row_bounds[0],
-                                  self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8)
-        if 'manual-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
-        if 'intensity-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['intensity-mask'].data
-        if 'phasor-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
-        if 'border-mask' in self.viewer.layers:
-            mask_complete = mask_complete + self.viewer.layers['border-mask'].data
-        if 'ml-mask' in self.viewer.layers:
-            mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
-        
-        mask_complete = np.asarray((mask_complete > 0), np.uint8)
+        if self._shared_masks():
+            self._sync_mask_store()
+            image_shape = (self.imagechannels.nrows, self.imagechannels.ncols)
+            full = np.zeros(image_shape, dtype=np.uint8)
+            for m in ['manual-mask', 'intensity-mask', 'border-mask', 'ml-mask']:
+                if m in self._mask_store:
+                    full = full + ((self._mask_store[m] == 1) if m == 'ml-mask' else self._mask_store[m])
+            if 'phasor-mask' in self.viewer.layers:
+                phasor = crop_mask_to_bounds(
+                    np.asarray(self.viewer.layers['phasor-mask'].data, dtype=np.uint8),
+                    (self.row_bounds[0], self.col_bounds[0]), [0, image_shape[0]], [0, image_shape[1]])
+                full = full + phasor
+            full = np.asarray(full > 0, np.uint8)
+            self._mask_store['complete-mask'] = full
+            mask_complete = crop_mask_to_bounds(full, (0, 0), self.row_bounds, self.col_bounds)
+        else:
+            mask_complete = np.zeros((self.row_bounds[1]-self.row_bounds[0],
+                                    self.col_bounds[1]-self.col_bounds[0]), dtype=np.uint8)
+            if 'manual-mask' in self.viewer.layers:
+                mask_complete = mask_complete + self.viewer.layers['manual-mask'].data
+            if 'intensity-mask' in self.viewer.layers:
+                mask_complete = mask_complete + self.viewer.layers['intensity-mask'].data
+            if 'phasor-mask' in self.viewer.layers:
+                mask_complete = mask_complete + self.viewer.layers['phasor-mask'].data
+            if 'border-mask' in self.viewer.layers:
+                mask_complete = mask_complete + self.viewer.layers['border-mask'].data
+            if 'ml-mask' in self.viewer.layers:
+                mask_complete = mask_complete + (self.viewer.layers['ml-mask'].data == 1)
+            
+            mask_complete = np.asarray((mask_complete > 0), np.uint8)
 
         if 'complete-mask' in self.viewer.layers:
             self.viewer.layers['complete-mask'].data = mask_complete
+            self.viewer.layers['complete-mask'].translate = (self.row_bounds[0], self.col_bounds[0])
         else:
             self.viewer.add_labels(mask_complete, name='complete-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
 
@@ -1262,27 +1337,33 @@ class SedimentWidget(QWidget):
         """
         if 'complete-mask' not in self.viewer.layers:
             self._on_click_combine_masks()
-        mask = self.viewer.layers['complete-mask'].data == 0
-        mask_lab = skimage.morphology.label(mask)
-        mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
-        final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
-        mask_filled = binary_fill_holes(final_mask)
-        mask_filled = (mask_filled == 0).astype(np.uint8)
-        self.viewer.add_labels(mask_filled, name='clean-mask')
+        mask_filled = clean_mask(np.asarray(self.viewer.layers['complete-mask'].data))
+        self.update_mask(mask_filled, 'clean-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
     
 
     # Functions for "IO" tab elements
-    def _on_click_save_mask(self):
+    def _on_click_save_mask(self, event=None, roi_index=None):
         """
-        Save mask to file
+        Save mask of the main roi roi_index (default: selected main roi) to file. With shared
+        masks and no roi_index, the mask of all main rois is saved.
+        Returns True if a mask was saved.
         Called: "IO" tab, button "Save mask" 
         """
+        shared_all = self._shared_masks() and roi_index is None
+        if roi_index is None:
+            roi_index = self.spin_selected_roi.value()
 
         mask_list = ['manual-mask','intensity-mask','border-mask','ml-mask']
         mask_present = any([m in self.viewer.layers for m in mask_list])
 
         if self.export_folder is None: 
             self._on_click_select_export_folder()
+        if self.export_folder is None:
+            warnings.warn('No project folder selected. Mask not saved.')
+            return False
+
+        if shared_all:
+            return self._save_shared_mask()
 
         mask_layer = None
         if 'clean-mask' in self.viewer.layers:
@@ -1296,10 +1377,12 @@ class SedimentWidget(QWidget):
         if mask_layer is not None:
             mask = mask_layer.data
             # always save the mask with the extent of the main roi, independently of the current crop
-            main_bounds = self._get_main_roi_bounds()
+            main_bounds = self._get_main_roi_bounds(roi_index)
             if main_bounds is not None:
                 mask = crop_mask_to_bounds(mask, mask_layer.translate[-2:], *main_bounds)
-            save_mask(mask, Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif'))
+            save_mask(mask, Path(self.export_folder).joinpath(f'roi_{roi_index}').joinpath('mask.tif'))
+            return True
+        return False
 
         
     def _on_click_load_mask(self):
@@ -1308,6 +1391,9 @@ class SedimentWidget(QWidget):
         Called: "IO" tab, button "Load mask"
         """
         if self.export_folder is None:
+            return
+        if self._shared_masks():
+            self._load_shared_mask()
             return
         mask_path = Path(self.export_folder).joinpath(f'roi_{self.spin_selected_roi.value()}').joinpath('mask.tif')
         if mask_path.exists():
@@ -1322,15 +1408,18 @@ class SedimentWidget(QWidget):
         else:
             warnings.warn('No mask found')
 
-    def _get_main_roi_bounds(self):
-        """Return (row_bounds, col_bounds) of the selected main roi, or None if there is none."""
+    def _get_main_roi_bounds(self, roi_index=None):
+        """Return (row_bounds, col_bounds) of the main roi roi_index (default: selected
+        main roi), or None if there is none."""
 
+        if roi_index is None:
+            roi_index = self.spin_selected_roi.value()
         if 'main-roi' not in self.viewer.layers:
             return None
         main_rois = self.viewer.layers['main-roi'].data
-        if len(main_rois) <= self.spin_selected_roi.value():
+        if len(main_rois) <= roi_index:
             return None
-        main_roi = main_rois[self.spin_selected_roi.value()]
+        main_roi = main_rois[roi_index]
         row_bounds = np.array([main_roi[:,0].min(), main_roi[:,0].max()], dtype=np.uint16)
         col_bounds = np.array([main_roi[:,1].min(), main_roi[:,1].max()], dtype=np.uint16)
         return row_bounds, col_bounds
@@ -1585,10 +1674,109 @@ class SedimentWidget(QWidget):
 
             roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
 
+    def _has_mask_layers(self):
+        """Check if any mask layer is present"""
+
+        mask_names = ['manual-mask', 'intensity-mask', 'border-mask', 'ml-mask',
+                      'complete-mask', 'clean-mask']
+        return any([m in self.viewer.layers for m in mask_names])
+
+    _refit_mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
+                         'complete-mask', 'clean-mask', 'manual-mask',
+                         'annotations', 'segmentation']
+
+    def _shared_masks(self):
+        """Whether one set of masks is shared by all main ROIs"""
+
+        return self.combo_mask_mode.currentIndex() == 1
+
+    def _sync_mask_store(self):
+        """Write mask and annotation layers at their position in their full image copy."""
+
+        image_shape = (self.imagechannels.nrows, self.imagechannels.ncols)
+        for m in self._refit_mask_names:
+            if m not in self.viewer.layers:
+                continue
+            layer = self.viewer.layers[m]
+            data = np.asarray(layer.data)
+            if data.ndim != 2:
+                continue
+            full = self._mask_store.get(m)
+            if full is None or full.shape != image_shape:
+                full = np.zeros(image_shape, dtype=data.dtype)
+            r0, c0 = [int(x) for x in layer.translate[-2:]]
+            rs, cs = max(r0, 0), max(c0, 0)
+            re, ce = min(r0 + data.shape[0], image_shape[0]), min(c0 + data.shape[1], image_shape[1])
+            if re > rs and ce > cs:
+                full[rs:re, cs:ce] = data[rs-r0:re-r0, cs-c0:ce-c0]
+            self._mask_store[m] = full
+
+    def _refit_masks_to_crop(self):
+        """Adjust mask and annotation layers to the current crop. Layers keep their
+        position in the image. Each layer is first written to a full image copy, from
+        which the new crop is then extracted, so that regions outside a crop are
+        recovered when the crop is enlarged again."""
+
+        self._sync_mask_store()
+        for m in self._refit_mask_names:
+            if m in self.viewer.layers and m in self._mask_store:
+                layer = self.viewer.layers[m]
+                layer.data = crop_mask_to_bounds(self._mask_store[m], (0, 0), self.row_bounds, self.col_bounds)
+                layer.translate = (self.row_bounds[0], self.col_bounds[0])
+
+    def _save_shared_mask(self):
+        """Save the shared mask for all main ROIs. The complete mask (or the combination
+        of masks) is cropped with each main ROI and cleaned per main ROI if a clean mask
+        was created."""
+
+        if not self._has_mask_layers():
+            return False
+        if 'complete-mask' not in self.viewer.layers:
+            self._on_click_combine_masks()
+        self._sync_mask_store()
+        full = self._mask_store['complete-mask']
+        num_rois = len(self.viewer.layers['main-roi'].data) if 'main-roi' in self.viewer.layers else 0
+        for i in range(num_rois):
+            row_bounds, col_bounds = self._get_main_roi_bounds(i)
+            mask = crop_mask_to_bounds(full, (0, 0), row_bounds, col_bounds)
+            if 'clean-mask' in self.viewer.layers:
+                mask = clean_mask(mask)
+            save_mask(mask, Path(self.export_folder).joinpath(f'roi_{i}').joinpath('mask.tif'))
+        return num_rois > 0
+
+    def _load_shared_mask(self):
+        """Rebuild the shared mask from the saved masks of all main ROIs."""
+
+        image_shape = (self.imagechannels.nrows, self.imagechannels.ncols)
+        full = np.zeros(image_shape, dtype=np.uint8)
+        found = False
+        num_rois = len(self.viewer.layers['main-roi'].data) if 'main-roi' in self.viewer.layers else 0
+        for i in range(num_rois):
+            mask_path = Path(self.export_folder).joinpath(f'roi_{i}').joinpath('mask.tif')
+            if not mask_path.exists():
+                continue
+            found = True
+            row_bounds, col_bounds = self._get_main_roi_bounds(i)
+            mask = mask_to_main_roi(load_mask(mask_path), row_bounds, col_bounds)
+            full[int(row_bounds[0]):int(row_bounds[1]), int(col_bounds[0]):int(col_bounds[1])] = mask
+        if not found:
+            warnings.warn('No mask found')
+            return
+        self.update_mask(crop_mask_to_bounds(full, (0, 0), self.row_bounds, self.col_bounds),
+                         'complete-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
+        self._mask_store['complete-mask'] = full
+
+    def _on_layer_removed_mask_store(self, event=None):
+        """Forget the full image copy of removed mask layers."""
+
+        for m in list(self._mask_store):
+            if m not in self.viewer.layers:
+                del self._mask_store[m]
+
     def remove_masks(self):
         """
         Remove all masks
-        Helper function used in "_on_crop_with_main" ("ROI" tab)
+        Helper function used in "_on_change_selected_roi" ("ROI" tab)
         """
 
         mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
@@ -1621,6 +1809,7 @@ class SedimentWidget(QWidget):
         # clear existing layers.
         while len(self.viewer.layers) > 0:
             self.viewer.layers.clear()
+        self._current_roi = 0
         
         # if file list is empty stop here
         if self.imhdr_path is None:
@@ -1710,7 +1899,9 @@ class SedimentWidget(QWidget):
         """
         Helper function used in "_add_roi_layer" (Helper function)
         """
-        self.spin_selected_roi.setRange(0, len(self.viewer.layers['main-roi'].data)-1)
+        self._block_roi_switch = True
+        self.spin_selected_roi.setRange(0, max(0, len(self.viewer.layers['main-roi'].data)-1))
+        self._block_roi_switch = False
 
     def _update_range_wavelength(self):
         """

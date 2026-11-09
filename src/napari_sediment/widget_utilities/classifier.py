@@ -100,6 +100,16 @@ class ConvPaintSpectralWidget(ConvpaintWidget):
         if img is not None and img.ndim == 3 and not getattr(img, 'rgb', False):
             self.radio_multi_channel.setChecked(True)
 
+    def on_image_cropped(self):
+        """Update after the data of the image layer were replaced by a crop with a
+        different extent (e.g. other main ROI). Annotations memorized for training refer
+        to the previous crop and are discarded. The trained classifier is kept."""
+
+        if not self._spectral_init_done:
+            return
+        self._reset_train_features()
+        self._on_select_layer()
+
     def add_annotation_layer(self):
         """Add an empty annotations layer for the selected image."""
 
