@@ -23,6 +23,7 @@ from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.io import load_mask, get_mask_path, load_plots_params, get_mask_roi, crop_mask_to_bounds
 from ..widget_utilities.rgb_widget import RGBWidget
+from ..widget_utilities.activation import activate_widget, is_active_widget
 from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
 from ..utilities.hyperanalysis import (mnf, compute_vertical_correlations, compute_end_members,
                             reduce_with_mnf, export_dim_reduction_data)
@@ -299,9 +300,8 @@ class HyperAnalysisWidget(QWidget):
         self.eigen_plot.axes.clear()
         self.ppi_plot.axes.clear()
         
-        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
-        for r in to_remove:
-            self.viewer.layers.remove(r)
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
         self.var_init()
         
         curremt_sub_roi = 0# to be used to select the correct sub-roi in future
@@ -696,6 +696,10 @@ class HyperAnalysisWidget(QWidget):
         If event contains 'Shift' and layer attribute contains napari layers the cursor position is written to the
         cursor_pos attribute and the _draw method is called afterwards.
         """
+        if not is_active_widget(self, self.viewer):
+            return
+        if 'imcube' not in self.viewer.layers:
+            return
 
         nrows = self.viewer.layers['imcube'].data.shape[1]
         ncols = self.viewer.layers['imcube'].data.shape[2]

@@ -16,6 +16,7 @@ from napari_guitils.gui_structures import VHGroup
 
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.folder_list_widget import FolderListWidget
+from ..widget_utilities.activation import activate_widget
 from ..utilities.io import get_im_main_roi
 from ..utilities.io import load_project_params, load_plots_params
 from ..utilities.spectralindex_compute import (load_index_zarr, load_projection,
@@ -332,6 +333,8 @@ class ConcatenationWidget(QWidget):
         main_folder = Path(self.file_list.folder_path)
 
         if init_load:
+            # claim the viewer: clear existing layers and deactivate other widgets
+            activate_widget(self, self.viewer)
             # load indices
             if self.index_yml_path.value == Path('.'):
                 if main_folder.joinpath(self.get_file_list()[0], 'index_settings.yml').exists():

@@ -26,6 +26,7 @@ from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..widget_utilities.rgb_widget import RGBWidget
+from ..widget_utilities.activation import activate_widget, is_active_widget
 from ..widget_utilities.folder_list_widget import FolderListWidget
 from ..utilities.io import (load_project_params, load_plots_params,
                             load_mask, get_mask_path, get_mask_roi)
@@ -543,9 +544,8 @@ class SpectralIndexWidget(QWidget):
         Called: "Main" tab, qspinbox "Selected ROI"
         """
         
-        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
-        for r in to_remove:
-            self.viewer.layers.remove(r)
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
 
         self.var_init()
 
@@ -599,7 +599,9 @@ class SpectralIndexWidget(QWidget):
 
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
-        
+        if not is_active_widget(self, self.viewer):
+            return
+
         if 'Shift' not in event.modifiers:
             min_row = 0
             max_row = self.row_bounds[1] - self.row_bounds[0]
@@ -638,6 +640,8 @@ class SpectralIndexWidget(QWidget):
 
     def pick_pixel(self, viewer, event, cursor_pos=None):
         """Pick pixel and plot spectral profile"""
+        if not is_active_widget(self, self.viewer):
+            return
 
         if 'Shift' in event.modifiers:
             if cursor_pos is None:

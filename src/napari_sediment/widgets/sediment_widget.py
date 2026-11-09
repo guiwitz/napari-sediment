@@ -45,6 +45,7 @@ from ..widget_utilities.classifier import ConvPaintSpectralWidget
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.images import save_rgb_tiff_image
 from ..widget_utilities.rgb_widget import RGBWidget
+from ..widget_utilities.activation import activate_widget, is_active_widget
 from ..utilities.utils import update_contrast_on_layer, toggle_activity_dock
 from .batch_preproc_widget import BatchPreprocWidget
 from ..data_structures.parameters_plots import Paramplot
@@ -1766,6 +1767,11 @@ class SedimentWidget(QWidget):
                          'complete-mask', translate=(self.row_bounds[0], self.col_bounds[0]))
         self._mask_store['complete-mask'] = full
 
+    def on_deactivated(self):
+        """Called when another widget loads data in the viewer."""
+
+        self._mask_store = {}
+
     def _on_layer_removed_mask_store(self, event=None):
         """Forget the full image copy of removed mask layers."""
 
@@ -1806,9 +1812,8 @@ class SedimentWidget(QWidget):
         "_on_click_batch_correct" ("Processing" tab),
         "_on_select_file" (Helper function)
         """
-        # clear existing layers.
-        while len(self.viewer.layers) > 0:
-            self.viewer.layers.clear()
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
         self._current_roi = 0
         
         # if file list is empty stop here
@@ -1925,6 +1930,8 @@ class SedimentWidget(QWidget):
     # Viewer callbacks for mouse behaviour
     def _add_analysis_roi(self, viewer=None, event=None, cursor_pos=None):
         """Add roi to layer"""
+        if not is_active_widget(self, self.viewer):
+            return
 
         if cursor_pos is None:
             cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
@@ -1951,6 +1958,8 @@ class SedimentWidget(QWidget):
         If event contains 'Shift' and layer attribute contains napari layers the cursor position is written to the
         cursor_pos attribute and the _draw method is called afterwards.
         """
+        if not is_active_widget(self, self.viewer):
+            return
 
         if 'Shift' in event.modifiers and self.viewer.layers:
             self.cursor_pos = np.rint(self.viewer.cursor.position).astype(int)
@@ -1988,6 +1997,8 @@ class SedimentWidget(QWidget):
 
     def translate_layer_on_add(self, mask_layer):
         """Translate mask"""
+        if not is_active_widget(self, self.viewer):
+            return
 
         mask_names = ['ml-mask', 'border-mask', 'intensity-mask',
                         'complete-mask', 'clean-mask', 'manual-mask',
