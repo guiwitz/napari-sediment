@@ -12,6 +12,7 @@ import zarr
 from dask.distributed import Client
 from tqdm import tqdm
 from scipy.signal import savgol_filter
+from scipy.ndimage import binary_fill_holes
 from napari.utils import progress
 #import pystripe
 
@@ -731,3 +732,17 @@ def custom_ppi(X, niters=1000, threshold=0, centered=False):
         total_ppi.append(np.sum(counts > 0))
     
     return counts.reshape(shape[:2]), total_ppi
+
+
+def clean_mask(mask):
+    """Clean a mask (1 = masked) by keeping only the largest unmasked region and
+    filling its holes. Returns the cleaned mask as uint8."""
+
+    unmasked = np.asarray(mask) == 0
+    mask_lab = skimage.morphology.label(unmasked)
+    mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
+    if len(mask_prop['label']) == 0:
+        return np.ones(unmasked.shape, dtype=np.uint8)
+    final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
+    mask_filled = binary_fill_holes(final_mask)
+    return (mask_filled == 0).astype(np.uint8)
