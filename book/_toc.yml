@@ -12,3 +12,4 @@ parts:
   - caption: Detailed explanations
     chapters:
     - file: Details_sediment
+    - file: ROI_and_masks
