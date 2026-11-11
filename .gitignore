@@ -1,3 +1,5 @@
+catboost_info/
+book-Copy*/
 _build/
 unused/
 src/napari_sediment/data/export/

@@ -11,7 +11,9 @@ from napari_guitils.gui_structures import VHGroup
 
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.folder_list_widget import FolderListWidget
+from ..widget_utilities.activation import activate_widget
 from ..utilities.io import get_data_background_path
+from ..utilities.utils import toggle_activity_dock
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..utilities.batch_preproc import batch_preprocessing
 
@@ -57,7 +59,7 @@ class BatchPreprocWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["&Preprocessing", "Paths"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout()])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout()], scrollable=True)
 
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
         self.tabs.widget(1).layout().setAlignment(Qt.AlignTop)
@@ -218,9 +220,8 @@ class BatchPreprocWidget(QWidget):
         self.dark_for_im_file_path_display.value = self.dark_for_im_file_path.as_posix()
         self.imhdr_path_display.value = self.imhdr_path.as_posix()
 
-        # clear existing layers.
-        while len(self.viewer.layers) > 0:
-            self.viewer.layers.clear()
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
         
         # if file list is empty stop here
         if self.imhdr_path is None:
@@ -256,7 +257,7 @@ class BatchPreprocWidget(QWidget):
 
         main_folder = Path(self.file_list.folder_path)
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(range(self.file_list.count())) as pbr:
             pbr.set_description("Batch processing folder")
             for c in pbr:
@@ -283,4 +284,4 @@ class BatchPreprocWidget(QWidget):
                     chunk_size=self.spin_chunksize.value(),
                     use_float=self.check_save_as_float.isChecked()
                 )
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)

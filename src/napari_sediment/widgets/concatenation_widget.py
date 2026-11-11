@@ -7,7 +7,6 @@ from qtpy.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QGridLayout,
                             QTableWidget, QTableWidgetItem, QDoubleSpinBox,
                             QListWidget, QAbstractItemView, QRadioButton, QButtonGroup)
 from qtpy.QtCore import Qt
-from napari._vispy.utils.gl import get_max_texture_sizes
 
 from cmap import Colormap
 import tifffile
@@ -17,6 +16,7 @@ from napari_guitils.gui_structures import VHGroup
 
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.folder_list_widget import FolderListWidget
+from ..widget_utilities.activation import activate_widget
 from ..utilities.io import get_im_main_roi
 from ..utilities.io import load_project_params, load_plots_params
 from ..utilities.spectralindex_compute import (load_index_zarr, load_projection,
@@ -24,6 +24,44 @@ from ..utilities.spectralindex_compute import (load_index_zarr, load_projection,
 from ..utilities.spectralplot import create_rgb_image, save_tif_cmap
 from ..utilities.morecolormaps import get_cmap_catalogue
 get_cmap_catalogue()
+
+
+def get_max_texture_size():
+    """Maximum 2D texture size supported by the GPU. Only available through
+    a private napari API, so fall back to the smallest size napari assumes."""
+
+    try:
+        from napari._vispy.utils.gl import get_max_texture_sizes
+        return int(get_max_texture_sizes()[0])
+    except Exception:
+        return 2048
+
+
+def make_pyramid(image):
+    """Create a multiscale list by downsampling the first two (spatial) axes by
+    factors of 2 until the image fits in a GPU texture. Contains at least the
+    full resolution image."""
+
+    num_levels = int(np.ceil(np.log2(max(image.shape[:2]) / get_max_texture_size())))
+    return [image[::2**i, ::2**i] for i in range(max(0, num_levels) + 1)]
+
+
+def add_or_update_pyramid_layer(viewer, name, image, **kwargs):
+    """Add image as (multiscale if needed) layer or update an existing one. As
+    napari cannot switch an existing layer between single and multiscale, the
+    layer is re-created in that case. Returns the layer."""
+
+    pyramid = make_pyramid(image)
+    multiscale = len(pyramid) > 1
+    data = pyramid if multiscale else pyramid[0]
+    if name in viewer.layers:
+        layer = viewer.layers[name]
+        if layer.multiscale == multiscale:
+            layer.data = data
+            layer.refresh()
+            return layer
+        viewer.layers.remove(name)
+    return viewer.add_image(data, name=name, **kwargs)
 
 
 class ConcatenationWidget(QWidget):
@@ -55,7 +93,7 @@ class ConcatenationWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["Data", "Concatenation", "Export"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout(), QGridLayout(), QGridLayout()])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout(), QGridLayout(), QGridLayout()], scrollable=True)
 
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
         self.tabs.widget(1).layout().setAlignment(Qt.AlignTop)
@@ -295,6 +333,8 @@ class ConcatenationWidget(QWidget):
         main_folder = Path(self.file_list.folder_path)
 
         if init_load:
+            # claim the viewer: clear existing layers and deactivate other widgets
+            activate_widget(self, self.viewer)
             # load indices
             if self.index_yml_path.value == Path('.'):
                 if main_folder.joinpath(self.get_file_list()[0], 'index_settings.yml').exists():
@@ -397,22 +437,13 @@ class ConcatenationWidget(QWidget):
                     cube, red_contrast_limits=self.params_plots.red_contrast_limits, 
                     green_contrast_limits=self.params_plots.green_contrast_limits,
                     blue_contrast_limits=self.params_plots.blue_contrast_limits)
-                max_scale = np.ceil(np.log2(np.max(rgb_to_plot.shape) / get_max_texture_sizes()[0]))
 
-                if f in self.viewer.layers:
-                    if self.viewer.layers[f].rgb:
-                        self.viewer.layers[f].data = [rgb_to_plot[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)]
-                        self.viewer.layers[f].refresh()
-                    else:
-                        self.viewer.layers.remove(f)
-                
-                if f not in self.viewer.layers:
-                    self.viewer.add_image(
-                        [
-                            rgb_to_plot[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)
-                        ],
-                        name=f, rgb=True)
-                    self.viewer.layers[f].events.affine.connect(self._on_interactive_translate)
+                if f in self.viewer.layers and not self.viewer.layers[f].rgb:
+                    self.viewer.layers.remove(f)
+                previous_layer = self.viewer.layers[f] if f in self.viewer.layers else None
+                layer = add_or_update_pyramid_layer(self.viewer, f, rgb_to_plot, rgb=True)
+                if layer is not previous_layer:
+                    layer.events.affine.connect(self._on_interactive_translate)
             
         if self.radio_bands.isChecked():
             self._on_update_contrast_limits()
@@ -637,6 +668,25 @@ class ConcatenationWidget(QWidget):
             self.table_widget.setItem(i, 0, QTableWidgetItem(f))
             self.table_widget.setItem(i, 1, QTableWidgetItem(str(shift)))
 
+    def _check_indices_available(self, main_folder, index_list):
+        """Check that index maps and projections exist in all projects for all
+        indices, as the index yml might not match what was last computed."""
+
+        missing = []
+        for i in range(self.table_widget.rowCount()):
+            f = self.table_widget.item(i, 0).text()
+            roi_folder = main_folder.joinpath(f, 'roi_0')
+            proj_file = roi_folder.joinpath('index_plots', 'index_projection.csv')
+            proj_columns = pd.read_csv(proj_file, nrows=0).columns if proj_file.is_file() else []
+            for index_name in index_list:
+                map_file = roi_folder.joinpath('index_maps', f'{index_name}.zarr')
+                if not map_file.is_dir() or index_name not in proj_columns:
+                    missing.append(f'{index_name} ({f})')
+        if missing:
+            raise ValueError(
+                f'Index maps/projections not found for: {", ".join(missing)}. '
+                f'Select the index yml used to compute the indices of all projects.')
+
     def _on_click_assemble(self, event=None):
         """Assemble the data and add it to the viewer. For sequential layers #1 and #2,
         for an overlap of the last N pixels of layer #1 and the first N pixels of layer #2,
@@ -658,7 +708,10 @@ class ConcatenationWidget(QWidget):
         for i in range(self.table_widget.rowCount()):
             all_shifts.append(float(self.table_widget.item(i, 1).text()))
         
+        if self.indices is None:
+            raise ValueError('Select an index yml file')
         index_list = list(self.indices.keys())
+        self._check_indices_available(main_folder, index_list)
         proj_pd = None
         for b in range(len(index_list) + 1):
             all_cubes = []
@@ -717,14 +770,8 @@ class ConcatenationWidget(QWidget):
                 
                 tifffile.imwrite(Path(self.export_path_display.value).joinpath(f'concat_rgb.tiff'), 
                                  (255 * rgb_map).astype(np.uint8))
-                
-                max_scale = np.ceil(np.log2(np.max(rgb_map.shape) / get_max_texture_sizes()[0]))
-                    
-                if f'concat_RGB' in self.viewer.layers:
-                    self.viewer.layers[f'concat_RGB'].data = [rgb_map[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)]
-                else:
-                    self.viewer.add_image([rgb_map[::int(2**i),::int(2**i),:] for i in np.arange(0, max_scale+1)], name='concat_RGB', rgb=True)
-                self.viewer.layers[f'concat_RGB'].refresh()
+
+                add_or_update_pyramid_layer(self.viewer, 'concat_RGB', rgb_map, rgb=True)
 
             else:
                 if proj_pd is None:
@@ -736,25 +783,19 @@ class ConcatenationWidget(QWidget):
                 save_tif_cmap(image=full_map,
                               image_path=Path(self.export_path_display.value).joinpath(f'concat_{index_name}.tiff'),
                               napari_cmap=self.indices[index_name].colormap,
-                              contrast=self.indices[index_name].index_map_range, overwrite=False)
+                              contrast=self.indices[index_name].index_map_range, overwrite=True)
             
                 cmap = Colormap(self.indices[index_name].colormap).identifier
 
-                max_scale = np.ceil(np.log2(np.max(full_map.shape) / get_max_texture_sizes()[0]))
-                if f'{index_name}_full' in self.viewer.layers:
-                    self.viewer.layers[f'{index_name}_full'].data = [full_map[::int(2**i),::int(2**i)] for i in np.arange(0, max_scale+1)]
-                else:
-                    self.viewer.add_image([full_map[::int(2**i),::int(2**i)] for i in np.arange(0, max_scale+1)],
-                                          name=f'{index_name}_full', colormap=cmap)
-                self.viewer.layers[f'{index_name}_full'].refresh()
+                add_or_update_pyramid_layer(self.viewer, f'{index_name}_full', full_map, colormap=cmap)
 
+                proj_path = np.array([np.arange(0,len(full_proj)), full_proj]).T
                 if f'{index_name}_full_proj' in self.viewer.layers:
-                    self.viewer.layers[f'{index_name}_full_proj'].data = [full_proj]
+                    self.viewer.layers[f'{index_name}_full_proj'].data = [proj_path]
                 else:
                     self.viewer.add_shapes(name=f'{index_name}_full_proj')
                     self.viewer.layers[f'{index_name}_full_proj'].add(
-                        np.array([np.arange(0,len(full_proj)), full_proj]).T,
-                        shape_type='path', edge_color='red', edge_width=0.5)
+                        proj_path, shape_type='path', edge_color='red', edge_width=0.5)
                     self.viewer.layers[f'{index_name}_full_proj'].refresh()
 
         proj_pd.to_csv(Path(self.export_path_display.value).joinpath('concat_projections.csv'), index=False)

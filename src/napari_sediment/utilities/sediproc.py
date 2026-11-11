@@ -12,6 +12,7 @@ import zarr
 from dask.distributed import Client
 from tqdm import tqdm
 from scipy.signal import savgol_filter
+from scipy.ndimage import binary_fill_holes
 from napari.utils import progress
 #import pystripe
 
@@ -542,7 +543,7 @@ def correct_save_to_zarr(imhdr_path, white_file_path, dark_for_im_file_path,
         dtype = 'u2'
     z1 = zarr.create_array(zarr_path, shape=(bands, lines,samples),
                    shards=(1, chunk_size * (1 + lines // chunk_size), chunk_size * (1 + samples // chunk_size)),
-                   chunks=(1, chunk_size, chunk_size), dtype=dtype)
+                   chunks=(1, chunk_size, chunk_size), dtype=dtype, overwrite=True)
 
     if use_dask:
         client = Client()
@@ -612,7 +613,7 @@ def convert_bil_raw_to_zarr(hdr_path, export_folder, num_rows_chunk=2000, force=
     new_name = hdr_path.with_suffix('.zarr').name
     zarr_path = Path(export_folder).joinpath(new_name)
     im_zarr = zarr.create_array(zarr_path, shape=shape,
-                          shards=shards, chunks=chunks, dtype=img.dtype)
+                          shards=shards, chunks=chunks, dtype=img.dtype, overwrite=True)
     
     im_zarr.attrs['metadata'] = {
         'wavelength': list(np.array(img.metadata['wavelength'])),
@@ -731,3 +732,17 @@ def custom_ppi(X, niters=1000, threshold=0, centered=False):
         total_ppi.append(np.sum(counts > 0))
     
     return counts.reshape(shape[:2]), total_ppi
+
+
+def clean_mask(mask):
+    """Clean a mask (1 = masked) by keeping only the largest unmasked region and
+    filling its holes. Returns the cleaned mask as uint8."""
+
+    unmasked = np.asarray(mask) == 0
+    mask_lab = skimage.morphology.label(unmasked)
+    mask_prop = skimage.measure.regionprops_table(mask_lab, properties=('label', 'area'))
+    if len(mask_prop['label']) == 0:
+        return np.ones(unmasked.shape, dtype=np.uint8)
+    final_mask = mask_lab == mask_prop['label'][np.argmax(mask_prop['area'])]
+    mask_filled = binary_fill_holes(final_mask)
+    return (mask_filled == 0).astype(np.uint8)

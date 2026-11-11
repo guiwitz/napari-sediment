@@ -1,4 +1,6 @@
 import os
+import shutil
+from pathlib import Path
 from dataclasses import asdict
 import numpy as np
 import pandas as pd
@@ -871,6 +873,12 @@ def batch_create_plots(project_list, index_params_file, plot_params_file,
 
             fig.savefig(roi_plot_folder.joinpath('multi_index_plot'), dpi=dpi)
             plt.close(fig)
+
+        # keep the project's index settings in sync with its index maps and projections
+        # (e.g. used by the concatenation widget)
+        project_index_file = ex.joinpath('index_settings.yml')
+        if not normalize and Path(index_params_file).resolve() != project_index_file.resolve():
+            shutil.copyfile(index_params_file, project_index_file)
 
 def save_tif_cmap(image, image_path, napari_cmap, contrast, overwrite=False):
     """Save image as tiff with colormap using specified contrast. The

@@ -39,3 +39,13 @@ def wavelength_to_rgb(min_wavelength, max_wavelength, width):
     all_cols = np.ones((width, all_cols.shape[0], all_cols.shape[1])) * all_cols
 
     return all_cols
+
+def toggle_activity_dock(viewer, visible=True):
+    """Show or hide the napari activity dock displaying progress bars. This
+    relies on a private napari API, so failures are ignored to avoid breaking
+    processing if napari changes."""
+
+    try:
+        viewer.window._status_bar._toggle_activity_dock(visible)
+    except Exception:
+        pass

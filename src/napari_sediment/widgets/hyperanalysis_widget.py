@@ -9,7 +9,7 @@ from superqt import QDoubleSlider
 
 from napari.utils import progress, DirectLabelColormap, notifications
 from superqt import QLabeledDoubleRangeSlider
-from spectral.algorithms import calc_stats, mnf, noise_from_diffs, remove_continuum
+from spectral.algorithms import calc_stats, noise_from_diffs, remove_continuum
 from scipy.signal import savgol_filter
 import zarr
 import pandas as pd
@@ -21,10 +21,11 @@ from ..utilities.io import load_project_params, load_endmember_params, save_imag
 from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
-from ..utilities.io import load_mask, get_mask_path, load_plots_params
+from ..utilities.io import load_mask, get_mask_path, load_plots_params, get_mask_roi, crop_mask_to_bounds
 from ..widget_utilities.rgb_widget import RGBWidget
-from ..utilities.utils import wavelength_to_rgb
-from ..utilities.hyperanalysis import (compute_vertical_correlations, compute_end_members,
+from ..widget_utilities.activation import activate_widget, is_active_widget
+from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
+from ..utilities.hyperanalysis import (mnf, compute_vertical_correlations, compute_end_members,
                             reduce_with_mnf, export_dim_reduction_data)
 from ..utilities.sediproc import custom_ppi
 from napari_guitils.gui_structures import TabSet, VHGroup
@@ -46,7 +47,7 @@ class HyperAnalysisWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ['Main', 'Reduction', 'PPI','End Members', 'Plotting']
-        self.tabs = TabSet(self.tab_names)
+        self.tabs = TabSet(self.tab_names, scrollable=True)
 
         self.main_layout.addWidget(self.tabs)
 
@@ -299,9 +300,8 @@ class HyperAnalysisWidget(QWidget):
         self.eigen_plot.axes.clear()
         self.ppi_plot.axes.clear()
         
-        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
-        for r in to_remove:
-            self.viewer.layers.remove(r)
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
         self.var_init()
         
         curremt_sub_roi = 0# to be used to select the correct sub-roi in future
@@ -473,15 +473,10 @@ class HyperAnalysisWidget(QWidget):
         main_roi_row_min = self.mainroi[self.spin_selected_roi.value()][:,0].min()
         main_roi_col_min = self.mainroi[self.spin_selected_roi.value()][:,1].min()
 
-        mask_path = get_mask_path(self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}'))
-        if mask_path.is_file():
-            mask = load_mask(mask_path)
-            mask = mask[self.row_bounds[0]-main_roi_row_min:self.row_bounds[1]-main_roi_row_min,
-                        self.col_bounds[0]-main_roi_col_min:self.col_bounds[1]-main_roi_col_min]
-        else:
-            mask = np.zeros(
-                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
-                dtype=np.uint8)
+        # the mask covers the main roi, crop it to the current sub-roi
+        main_mask = get_mask_roi(self.export_folder, self.spin_selected_roi.value())
+        mask = crop_mask_to_bounds(
+            main_mask, (main_roi_row_min, main_roi_col_min), self.row_bounds, self.col_bounds)
 
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
@@ -499,7 +494,7 @@ class HyperAnalysisWidget(QWidget):
     def _on_click_mnfr(self):
         """Compute MNF transform and compute vertical correlation. Keep all bands."""
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Computing MNF")
             data = np.asarray(np.moveaxis(self.viewer.layers['imcube'].data,0,2), np.float32)
@@ -514,7 +509,7 @@ class HyperAnalysisWidget(QWidget):
             self._compute_mnfr_bands()
             self._compute_vert_correlation()
             self.plot_eigenvals()
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def plot_eigenvals(self):
         """Display eigenvalues from MNFR transform"""
@@ -591,7 +586,7 @@ class HyperAnalysisWidget(QWidget):
         if self.selected_bands is None:
             raise ValueError('Must reduce bands first')
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Pure pixel detection")
             # create image where masked pixels are set to 0. This avoids detecting masked pixels as pure pixels.
@@ -612,7 +607,7 @@ class HyperAnalysisWidget(QWidget):
                 self.viewer.add_labels(pure, name='pure')
             
             self._on_click_update_endmembers()
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_click_update_endmembers(self, event=None):
         """Update end-members based on threshold."""
@@ -624,7 +619,7 @@ class HyperAnalysisWidget(QWidget):
     def compute_end_members(self):
         """"Cluster the pure pixels and compute average end-members."""
         
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Compute end-members")
         
@@ -648,7 +643,7 @@ class HyperAnalysisWidget(QWidget):
                 self.viewer.add_labels(self.pure_members, name='pure_members')
             self.viewer.layers['pure_members'].refresh()
             
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def map_colors_endmembers_ppi(self):
 
@@ -701,6 +696,10 @@ class HyperAnalysisWidget(QWidget):
         If event contains 'Shift' and layer attribute contains napari layers the cursor position is written to the
         cursor_pos attribute and the _draw method is called afterwards.
         """
+        if not is_active_widget(self, self.viewer):
+            return
+        if 'imcube' not in self.viewer.layers:
+            return
 
         nrows = self.viewer.layers['imcube'].data.shape[1]
         ncols = self.viewer.layers['imcube'].data.shape[2]

@@ -2,7 +2,6 @@ from pathlib import Path
 from napari_sediment.widgets.sediment_widget import SedimentWidget
 from napari_sediment.data.data_contribution import create_data
 
-from pathlib import Path
 
 def test_select_file(make_napari_viewer, capsys):
     # make viewer and add an image layer using our fixture

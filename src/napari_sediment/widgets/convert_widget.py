@@ -19,7 +19,7 @@ class ConvertWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ['raw2zarr']
-        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout()])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[QGridLayout()], scrollable=True)
         self.tabs.widget(0).layout().setAlignment(Qt.AlignTop)
 
         self.files_group = VHGroup('Files and folders', orientation='G')

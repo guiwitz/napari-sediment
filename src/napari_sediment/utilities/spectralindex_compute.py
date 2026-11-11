@@ -5,7 +5,6 @@ import pandas as pd
 from scipy.signal import savgol_filter
 import dask.array as da
 import yaml
-import dask.array as da
 import zarr
 from microfilm import colorify
 from cmap import Colormap

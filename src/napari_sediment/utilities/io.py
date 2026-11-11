@@ -95,14 +95,49 @@ def get_mask_path(export_folder):
     export_folder = Path(export_folder)
     return export_folder.joinpath('mask.tif')
 
-def get_mask_roi(main_folder, main_roi_index=0):
-    """Get mask from a given folder and roi index."""
+def crop_mask_to_bounds(mask, mask_origin, row_bounds, col_bounds):
+    """Extract the region [row_bounds, col_bounds] (in full image coordinates)
+    from a mask whose top-left corner is located at mask_origin (row, col).
+    Parts of the region not covered by the mask are set to 0."""
 
+    # plain ints: bounds may be unsigned numpy ints, which would wrap around when subtracted
+    row_bounds = [int(x) for x in row_bounds]
+    col_bounds = [int(x) for x in col_bounds]
+    mask_origin = [int(x) for x in mask_origin]
+    out_shape = (row_bounds[1] - row_bounds[0], col_bounds[1] - col_bounds[0])
+    out = np.zeros(out_shape, dtype=mask.dtype)
+    r0 = row_bounds[0] - mask_origin[0]
+    c0 = col_bounds[0] - mask_origin[1]
+    rs, re = max(r0, 0), min(r0 + out_shape[0], mask.shape[0])
+    cs, ce = max(c0, 0), min(c0 + out_shape[1], mask.shape[1])
+    if re > rs and ce > cs:
+        out[rs-r0:re-r0, cs-c0:ce-c0] = mask[rs:re, cs:ce]
+    return out
+
+def mask_to_main_roi(mask, row_bounds, col_bounds):
+    """Return a mask with the shape of the main roi defined by row_bounds and
+    col_bounds. Masks are saved with the main roi shape, but older versions
+    could save masks covering the full image, which are cropped here."""
+
+    row_bounds = [int(x) for x in row_bounds]
+    col_bounds = [int(x) for x in col_bounds]
+    roi_shape = (row_bounds[1] - row_bounds[0], col_bounds[1] - col_bounds[0])
+    if mask.shape == roi_shape:
+        return mask
+    if mask.shape[0] >= row_bounds[1] and mask.shape[1] >= col_bounds[1]:
+        return crop_mask_to_bounds(mask, (0, 0), row_bounds, col_bounds)
+    warn(f'Mask shape {mask.shape} does not match main roi shape {roi_shape}.')
+    return crop_mask_to_bounds(mask, (row_bounds[0], col_bounds[0]), row_bounds, col_bounds)
+
+def get_mask_roi(main_folder, main_roi_index=0):
+    """Get mask from a given folder and roi index, with the shape of the main roi."""
+
+    main_folder = Path(main_folder)
     params = load_project_params(main_folder)
     mask_path = get_mask_path(main_folder.joinpath(f'roi_{main_roi_index}'))
     row_bounds, col_bounds = params.get_formatted_col_row_bounds(main_roi_index)
     if mask_path.is_file():
-        mask = load_mask(mask_path)
+        mask = mask_to_main_roi(load_mask(mask_path), row_bounds, col_bounds)
     else:
         mask = np.zeros((row_bounds[1]-row_bounds[0], col_bounds[1]-col_bounds[0]), dtype=np.uint8)
     

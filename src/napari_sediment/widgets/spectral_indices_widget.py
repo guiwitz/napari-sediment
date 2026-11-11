@@ -7,8 +7,7 @@ import warnings
 import yaml
 from qtpy.QtWidgets import (QVBoxLayout, QPushButton, QWidget,
                             QLabel, QFileDialog, QSpinBox,
-                            QComboBox, QLineEdit, QSizePolicy,
-                            QGridLayout, QCheckBox, QDoubleSpinBox,
+                            QComboBox, QLineEdit, QGridLayout, QCheckBox, QDoubleSpinBox,
                             QColorDialog, QScrollArea, QSizePolicy)
 from qtpy.QtCore import Qt, QRect
 from qtpy.QtGui import QPixmap, QColor, QPainter
@@ -27,16 +26,17 @@ from ..data_structures.imchannels import ImChannels
 from ..widget_utilities.spectralplotter import SpectralPlotter
 from ..widget_utilities.channel_widget import ChannelWidget
 from ..widget_utilities.rgb_widget import RGBWidget
+from ..widget_utilities.activation import activate_widget, is_active_widget
 from ..widget_utilities.folder_list_widget import FolderListWidget
 from ..utilities.io import (load_project_params, load_plots_params,
-                            load_mask, get_mask_path)
+                            load_mask, get_mask_path, get_mask_roi)
 from ..utilities.spectralindex_compute import (compute_index_projection,
                             clean_index_map, create_index, export_index_series,
                             compute_and_clean_index, load_index_zarr, load_projection,
                             save_index_zarr, compute_normalized_index_params, built_in_indices)
 from ..utilities.spectralplot import (batch_create_plots, save_tif_cmap,
                                       plot_spectral_profile, plot_multi_spectral_profile)
-from ..utilities.utils import wavelength_to_rgb
+from ..utilities.utils import wavelength_to_rgb, toggle_activity_dock
 from ..utilities.morecolormaps import get_cmap_catalogue
 get_cmap_catalogue()
 
@@ -99,7 +99,7 @@ class SpectralIndexWidget(QWidget):
         self.setLayout(self.main_layout)
 
         self.tab_names = ["&Main", "&Index Definition", "Index C&ompute", "P&lots", "Batch"]#, "Plotslive"]
-        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout(), None])
+        self.tabs = TabSet(self.tab_names, tab_layouts=[None, QGridLayout(), None, QGridLayout(), None], scrollable=True)
 
         self.main_layout.addWidget(self.tabs)
 
@@ -544,9 +544,8 @@ class SpectralIndexWidget(QWidget):
         Called: "Main" tab, qspinbox "Selected ROI"
         """
         
-        to_remove = [l.name for l in self.viewer.layers if l.name not in ['imcube', 'red', 'green', 'blue']]
-        for r in to_remove:
-            self.viewer.layers.remove(r)
+        # claim the viewer: clear existing layers and deactivate other widgets
+        activate_widget(self, self.viewer)
 
         self.var_init()
 
@@ -600,7 +599,9 @@ class SpectralIndexWidget(QWidget):
 
     def _add_analysis_roi(self, viewer=None, event=None, roi_xpos=None):
         """Add roi to layer"""
-        
+        if not is_active_widget(self, self.viewer):
+            return
+
         if 'Shift' not in event.modifiers:
             min_row = 0
             max_row = self.row_bounds[1] - self.row_bounds[0]
@@ -639,6 +640,8 @@ class SpectralIndexWidget(QWidget):
 
     def pick_pixel(self, viewer, event, cursor_pos=None):
         """Pick pixel and plot spectral profile"""
+        if not is_active_widget(self, self.viewer):
+            return
 
         if 'Shift' in event.modifiers:
             if cursor_pos is None:
@@ -662,15 +665,7 @@ class SpectralIndexWidget(QWidget):
     def _on_click_load_mask(self):
         """Load mask from file"""
         
-        export_path_roi = self.export_folder.joinpath(f'roi_{self.spin_selected_roi.value()}')
-        mask_path = get_mask_path(export_path_roi)
-
-        if mask_path.is_file():
-            mask = load_mask(mask_path)
-        else:
-            mask = np.zeros(
-                shape=(self.row_bounds[1]-self.row_bounds[0], self.col_bounds[1]-self.col_bounds[0]),
-                dtype=np.uint8)
+        mask = get_mask_roi(self.export_folder, self.spin_selected_roi.value())
 
         if 'mask' in self.viewer.layers:
             self.viewer.layers['mask'].data = mask
@@ -1322,7 +1317,7 @@ class SpectralIndexWidget(QWidget):
         if force_recompute is None:
             force_recompute = self.check_force_recompute.isChecked()
 
-        self.viewer.window._status_bar._toggle_activity_dock(True)
+        toggle_activity_dock(self.viewer, True)
         with progress(total=0) as pbr:
             pbr.set_description("Computing index")
 
@@ -1345,7 +1340,7 @@ class SpectralIndexWidget(QWidget):
                         blending='additive', contrast_limits=contrast_limits)
                     layer.events.contrast_limits.connect(self._on_change_index_map_rendering)
                     layer.events.colormap.connect(self._on_change_index_map_rendering)
-        self.viewer.window._status_bar._toggle_activity_dock(False)
+        toggle_activity_dock(self.viewer, False)
 
     def _on_change_index_map_rendering(self, event=None):
         """Update the contrast limits of the index layers."""
