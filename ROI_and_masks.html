@@ -1,0 +1,739 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>ROIs and masks &#8212; napari-sediment</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=6a604523" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script data-sd-tabs-storage-prefix="sphinx-design-tab-id-" src="_static/design-tabs.js?v=fcb327ea"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'ROI_and_masks';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Function details: Sediment" href="Details_sediment.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="napari_sediment.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">napari-sediment</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="napari_sediment.html">
+                    napari-sediment
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="Installation.html">Installation</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="Load_preprocess.html">Loading and pre-processing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Dimensionality_reduction.html">Dimensionality reduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Spectral_indices.html">Spectral indices</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Detailed explanations</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="Details_sediment.html">Function details: Sediment</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">ROIs and masks</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/ROI_and_masks.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>ROIs and masks</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coordinates">Coordinates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#types-of-rois">Types of ROIs</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-rois-in-the-sediment-widget">Creating ROIs in the Sediment widget</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#saving-rois">Saving ROIs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cropping-in-the-sediment-widget">Cropping in the Sediment widget</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#masks">Masks</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#saving-and-loading-masks">Saving and loading masks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#masks-of-multiple-main-rois">Masks of multiple main ROIs</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#order-of-operations">Order of operations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-in-the-other-widgets">Use in the other widgets</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hyperanalysis">HyperAnalysis</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#spectralindices">SpectralIndices</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-plotting-and-concatenation">Batch plotting and Concatenation</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="rois-and-masks">
+<h1>ROIs and masks<a class="headerlink" href="#rois-and-masks" title="Link to this heading">#</a></h1>
+<p>This page explains how regions of interest (ROIs) and masks are defined in the <strong>Sediment</strong> widget, how they are stored in a project, and how they are used by the other widgets (<strong>HyperAnalysis</strong>, <strong>SpectralIndices</strong>, <strong>Concatenation</strong> and batch plotting). It also describes what happens depending on the order in which ROIs and masks are created.</p>
+<section id="coordinates">
+<h2>Coordinates<a class="headerlink" href="#coordinates" title="Link to this heading">#</a></h2>
+<p>All positions are given as <em>(row, column)</em> pixel coordinates, rows running along the length of the core (vertical in the viewer) and columns across it. A rectangular ROI is stored as its four corners, and is used through its <em>bounds</em>: <code class="docutils literal notranslate"><span class="pre">row_bounds</span> <span class="pre">=</span> <span class="pre">[row_min,</span> <span class="pre">row_max]</span></code> and <code class="docutils literal notranslate"><span class="pre">col_bounds</span> <span class="pre">=</span> <span class="pre">[col_min,</span> <span class="pre">col_max]</span></code>. Image regions are extracted as <code class="docutils literal notranslate"><span class="pre">image[row_min:row_max,</span> <span class="pre">col_min:col_max]</span></code>, so the maximum is excluded and the region has the shape <code class="docutils literal notranslate"><span class="pre">(row_max</span> <span class="pre">-</span> <span class="pre">row_min,</span> <span class="pre">col_max</span> <span class="pre">-</span> <span class="pre">col_min)</span></code>. ROI corners are rounded to integers when an ROI is drawn or moved.</p>
+</section>
+<section id="types-of-rois">
+<h2>Types of ROIs<a class="headerlink" href="#types-of-rois" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>ROI</p></th>
+<th class="head"><p>Layer (Sediment widget)</p></th>
+<th class="head"><p>Coordinates</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Main ROI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">main-roi</span></code> (blue)</p></td>
+<td><p>full image</p></td>
+<td><p>The part of the image that is analyzed. One project can contain several main ROIs (e.g. several sections of a core in one image).</p></td>
+</tr>
+<tr class="row-odd"><td><p>Sub-ROI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rois_0</span></code>, <code class="docutils literal notranslate"><span class="pre">rois_1</span></code>, … (red), one layer per main ROI</p></td>
+<td><p>full image</p></td>
+<td><p>Narrower regions within a main ROI. The first sub-ROI of each main ROI is used by the HyperAnalysis widget, and as default measurement ROI in the SpectralIndices widget.</p></td>
+</tr>
+<tr class="row-even"><td><p>Measurement ROI</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">rois</span></code> (red, SpectralIndices widget)</p></td>
+<td><p>relative to the main ROI</p></td>
+<td><p>Columns over which index maps are averaged to compute index projections.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="creating-rois-in-the-sediment-widget">
+<h3>Creating ROIs in the Sediment widget<a class="headerlink" href="#creating-rois-in-the-sediment-widget" title="Link to this heading">#</a></h3>
+<ul class="simple">
+<li><p><strong>When an image is selected</strong>, a main ROI covering the full image is added automatically.</p></li>
+<li><p><strong>Add main ROI</strong> adds a rectangle spanning all rows of the current crop (see below), centered on it, with the width set in <em>Main ROI width</em>.</p></li>
+<li><p>Main ROIs can be edited directly in the <code class="docutils literal notranslate"><span class="pre">main-roi</span></code> layer. <strong>Import main ROI from file</strong> replaces the main ROIs with the ones from another project’s <code class="docutils literal notranslate"><span class="pre">Parameters.yml</span></code>.</p></li>
+<li><p><strong>Sub-ROIs</strong> are added by double-clicking in the viewer: a rectangle of width <em>Sub-ROI width</em>, spanning all rows of the current crop, is added to the <code class="docutils literal notranslate"><span class="pre">rois_&lt;n&gt;</span></code> layer of the main ROI selected in <em>Selected main ROI</em>.</p></li>
+<li><p>If a main ROI has no sub-ROI when the project is exported, the main ROI itself is used as sub-ROI.</p></li>
+</ul>
+</section>
+<section id="saving-rois">
+<h3>Saving ROIs<a class="headerlink" href="#saving-rois" title="Link to this heading">#</a></h3>
+<p>ROIs are saved in <code class="docutils literal notranslate"><span class="pre">Parameters.yml</span></code> in the project folder when exporting the project (<strong>Export Project</strong>) and when correcting the full image (<strong>Correct and save data</strong>):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">main_roi</span></code>: list of main ROIs, each as 8 numbers (4 corners).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rois</span></code>: for each main ROI, a list of sub-ROIs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">measurement_roi</span></code>: for each main ROI, the measurement ROI (saved by the SpectralIndices widget, relative to the main ROI). If empty, the first sub-ROI is used.</p></li>
+</ul>
+<p>For each main ROI <code class="docutils literal notranslate"><span class="pre">n</span></code>, outputs are saved in a folder <code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;</span></code> (mask, index maps, plots, etc.).</p>
+</section>
+</section>
+<section id="cropping-in-the-sediment-widget">
+<h2>Cropping in the Sediment widget<a class="headerlink" href="#cropping-in-the-sediment-widget" title="Link to this heading">#</a></h2>
+<p>The Sediment widget always displays a <em>crop</em> of the image, defined by its current <code class="docutils literal notranslate"><span class="pre">row_bounds</span></code> and <code class="docutils literal notranslate"><span class="pre">col_bounds</span></code>:</p>
+<ul class="simple">
+<li><p>After selecting an image, the crop is the full image.</p></li>
+<li><p><strong>Crop with main</strong> sets the crop to the main ROI selected in <em>Selected main ROI</em>.</p></li>
+<li><p><strong>Reset crop</strong> sets the crop back to the full image.</p></li>
+<li><p>Changing <em>Selected main ROI</em> automatically crops with the newly selected main ROI (see <a class="reference internal" href="#multiple-rois"><span class="std std-ref">Masks of multiple main ROIs</span></a>).</p></li>
+<li><p><strong>Import Project</strong> loads the ROIs and crops with the first main ROI.</p></li>
+</ul>
+<p>Only the data of the crop are loaded. The image layers (<code class="docutils literal notranslate"><span class="pre">imcube</span></code>, <code class="docutils literal notranslate"><span class="pre">red</span></code>, <code class="docutils literal notranslate"><span class="pre">green</span></code>, <code class="docutils literal notranslate"><span class="pre">blue</span></code>, …) and mask layers have the size of the crop and are <em>translated</em> in the viewer to their position in the full image, so that the viewer coordinates always correspond to full image coordinates, whatever the crop.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The full image is always corrected and saved by <strong>Correct and save data</strong>, independently of the crop. The ROIs only define which part of <code class="docutils literal notranslate"><span class="pre">corrected.zarr</span></code> is used in the subsequent analysis.</p>
+</div>
+</section>
+<section id="masks">
+<h2>Masks<a class="headerlink" href="#masks" title="Link to this heading">#</a></h2>
+<p>A mask marks pixels to be <strong>excluded</strong> from the analysis (value 1), e.g. cracks, holes or borders. Masks are created in the <strong>Mask</strong> tab of the Sediment widget:</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mask layer</p></th>
+<th class="head"><p>Created by</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">manual-mask</span></code></p></td>
+<td><p><strong>Drawing</strong>: empty layer to paint on</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">border-mask</span></code></p></td>
+<td><p><strong>Border</strong>: automatic detection of the borders of the core</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">intensity-mask</span></code></p></td>
+<td><p><strong>Man. thresh.</strong> / <strong>Auto thresh.</strong>: pixels outside the intensity range</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">ml-mask</span></code></p></td>
+<td><p><strong>ML</strong>: pixels classified as class 1 by the pixel classifier</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">complete-mask</span></code></p></td>
+<td><p><strong>Combine masks</strong>: union of all the masks above</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">clean-mask</span></code></p></td>
+<td><p><strong>Clean mask</strong>: cleaned version of the complete mask</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>All masks are created with the size of the <strong>current crop</strong> and are placed at its position in the viewer. When the crop changes (<strong>Crop with main</strong>, <strong>Reset crop</strong>, change of <em>Selected main ROI</em>), existing masks are kept and adjusted to the new crop. A full image copy of each mask is kept in memory: the region of the current crop is updated in this copy, and the new crop is extracted from it. Masks thus keep their position in the image and nothing is lost when cropping: e.g. a mask created on the full image is restored by <strong>Reset crop</strong> after <strong>Crop with main</strong>. Regions that were never covered by a mask are not masked (0). All masks always have the size of the current crop and can be combined. The same applies to the <code class="docutils literal notranslate"><span class="pre">annotations</span></code> and <code class="docutils literal notranslate"><span class="pre">segmentation</span></code> layers of the pixel classifier. The copy of a mask is discarded when its layer is deleted (and when another image is opened).</p>
+<p>Note that editing a mask only changes the region of the current crop. For example, recomputing the <code class="docutils literal notranslate"><span class="pre">intensity-mask</span></code> while cropped with a main ROI keeps the previous intensity mask outside that main ROI.</p>
+<section id="saving-and-loading-masks">
+<h3>Saving and loading masks<a class="headerlink" href="#saving-and-loading-masks" title="Link to this heading">#</a></h3>
+<p><strong>Save mask</strong> (and <strong>Export Project</strong>) saves the mask to <code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;/mask.tif</span></code>, for the main ROI selected in <em>Selected main ROI</em> or for all main ROIs, depending on the mask mode (see <a class="reference internal" href="#multiple-rois"><span class="std std-ref">Masks of multiple main ROIs</span></a>). The saved mask is <code class="docutils literal notranslate"><span class="pre">clean-mask</span></code> if it exists, otherwise <code class="docutils literal notranslate"><span class="pre">complete-mask</span></code>, otherwise the combination of the existing masks.</p>
+<p>The saved mask <strong>always covers exactly the selected main ROI</strong>: whatever crop the mask was created on, the region corresponding to the main ROI is extracted using the mask position in the viewer. Parts of the mask outside the main ROI are discarded, and parts of the main ROI not covered by the mask are saved as not masked (0).</p>
+<p>When loading a mask (<strong>Load mask</strong>, <strong>Import Project</strong>, <strong>Crop with main</strong> if no mask layer is present, change of <em>Selected main ROI</em> with separate masks), <code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> is loaded as <code class="docutils literal notranslate"><span class="pre">complete-mask</span></code>, placed at the position of the main ROI and cropped or extended to the current crop.</p>
+</section>
+<section id="masks-of-multiple-main-rois">
+<span id="multiple-rois"></span><h3>Masks of multiple main ROIs<a class="headerlink" href="#masks-of-multiple-main-rois" title="Link to this heading">#</a></h3>
+<p>Each main ROI has its own mask file, <code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;/mask.tif</span></code>, used by the other widgets. In the Sediment widget, the <strong>Masks</strong> option of the ROI tab defines how masks are handled when there are several main ROIs:</p>
+<p><strong>Separate per main ROI</strong> (default): each main ROI has its own masks, and the Sediment widget displays the masks of a single main ROI at a time. When <em>Selected main ROI</em> is changed:</p>
+<ol class="arabic simple">
+<li><p>the current masks are <strong>automatically saved</strong> to the <code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> of the previously selected main ROI (a project folder is needed; if none is set you are asked to select one, otherwise the masks are discarded with a warning),</p></li>
+<li><p>all mask layers are removed,</p></li>
+<li><p>the image is cropped with the newly selected main ROI,</p></li>
+<li><p>the saved <code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> of the newly selected main ROI is loaded, if it exists.</p></li>
+</ol>
+<p>Switching back and forth between main ROIs thus keeps the masks of each main ROI. Note that the automatic saving overwrites the existing <code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> of the previous main ROI. <strong>Save mask</strong> and <strong>Export Project</strong> save the mask of the selected main ROI.</p>
+<p><strong>Shared by all main ROIs</strong>: one set of masks covers the whole image and applies to all main ROIs, e.g. a mask created on the full image is used for all main ROIs. When <em>Selected main ROI</em> is changed, the masks are only cropped with the newly selected main ROI: nothing is saved, removed or loaded.</p>
+<ul class="simple">
+<li><p><strong>Combine masks</strong> combines the masks over the full image.</p></li>
+<li><p><strong>Clean mask</strong> keeps the largest unmasked region and fills its holes. As this is done for a single sediment section, it is applied to the current crop for display and, when saving, to each main ROI separately.</p></li>
+<li><p><strong>Save mask</strong> and <strong>Export Project</strong> save the mask of <strong>all</strong> main ROIs, each cropped from the shared mask (and cleaned if a <code class="docutils literal notranslate"><span class="pre">clean-mask</span></code> exists).</p></li>
+<li><p><strong>Load mask</strong> and <strong>Import Project</strong> rebuild the shared mask from the saved masks of all main ROIs.</p></li>
+</ul>
+<p>The mode can be changed at any time. It only affects what happens when the selected main ROI changes and when saving or loading.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Older versions of the plugin saved masks with the extent of the crop active when saving. If a mask was saved without cropping, the file covers the full image. Such masks are detected when loading (the file is larger than the main ROI) and the main ROI region is extracted, so that they are displayed at the correct position in all widgets.</p>
+</div>
+</section>
+<section id="order-of-operations">
+<h3>Order of operations<a class="headerlink" href="#order-of-operations" title="Link to this heading">#</a></h3>
+<p><strong>Recommended order</strong>: correct the image (<strong>Correct and save data</strong>), define the main ROI(s), then:</p>
+<ul class="simple">
+<li><p>with <strong>separate</strong> masks: <strong>Crop with main</strong>, create the masks, <strong>Save mask</strong>/<strong>Export Project</strong>. For further main ROIs, change <em>Selected main ROI</em> (this saves the masks of the previous main ROI and crops with the new one), create the masks and save.</p></li>
+<li><p>with <strong>shared</strong> masks: create the masks on the full image or on any crop, check them by changing <em>Selected main ROI</em>, then <strong>Save mask</strong>/<strong>Export Project</strong> to save the mask of all main ROIs.</p></li>
+</ul>
+<p>The table below describes what happens in other cases.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Situation</p></th>
+<th class="head"><p>What happens</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Masks created on the full image (before <strong>Crop with main</strong> or after <strong>Reset crop</strong>), then saved</p></td>
+<td><p>The main ROI region is extracted and saved. Masked pixels outside the main ROI are discarded.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Masks created on the full image, then <strong>Crop with main</strong></p></td>
+<td><p>The masks are kept and cropped to the main ROI. The regions outside the main ROI are kept in memory and restored by <strong>Reset crop</strong>. The saved <code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> is not loaded, as mask layers are present (use <strong>Load mask</strong> to load it).</p></td>
+</tr>
+<tr class="row-even"><td><p>Masks created after <strong>Crop with main</strong>, then <strong>Reset crop</strong></p></td>
+<td><p>The masks are extended to the full image. Regions outside the main ROI are not masked, unless masks were created there before. New masks are created with the full image size and can be combined with the existing ones.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Masks created on the full image, used for several main ROIs</p></td>
+<td><p>Use <strong>shared</strong> masks: changing <em>Selected main ROI</em> crops the mask with each main ROI, and saving writes the mask of all main ROIs. With <strong>separate</strong> masks, the masks are saved for the selected main ROI and removed when changing <em>Selected main ROI</em>.</p></td>
+</tr>
+<tr class="row-even"><td><p>Main ROI modified after saving the mask</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">mask.tif</span></code> still corresponds to the old main ROI and is placed at the position of the new one. Masks of a different size are cropped/padded with a warning, but a moved main ROI of the same size gives a shifted mask without warning. Recreate and save the mask after changing a main ROI.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Main ROI modified after creating masks, before saving</p></td>
+<td><p>No problem: the mask is saved for the main ROI as defined at the time of saving.</p></td>
+</tr>
+<tr class="row-even"><td><p><em>Selected main ROI</em> changed after creating masks</p></td>
+<td><p>Separate masks: the masks are saved for the previously selected main ROI, and the image is cropped with the newly selected one, whose saved mask is loaded. Shared masks: the masks are cropped with the newly selected main ROI. See <a class="reference internal" href="#multiple-rois"><span class="std std-ref">Masks of multiple main ROIs</span></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Correct and save data</strong> after defining ROIs and masks</p></td>
+<td><p>The image is reopened from <code class="docutils literal notranslate"><span class="pre">corrected.zarr</span></code>: all layers, including ROIs and masks, are removed and a main ROI covering the full image is added. Define ROIs and masks after the correction.</p></td>
+</tr>
+<tr class="row-even"><td><p>ML mask</p></td>
+<td><p>The pixel classifier works on <code class="docutils literal notranslate"><span class="pre">imcube</span></code>, i.e. on the current crop, and <code class="docutils literal notranslate"><span class="pre">ml-mask</span></code> has the size of the crop like the other masks. When the crop changes, the annotations memorized for training are discarded, as they refer to the previous crop, but the trained classifier is kept: it can directly be used to segment the new crop or be trained further with new annotations.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="use-in-the-other-widgets">
+<h2>Use in the other widgets<a class="headerlink" href="#use-in-the-other-widgets" title="Link to this heading">#</a></h2>
+<p>All other widgets read the project from the project folder: the image from <code class="docutils literal notranslate"><span class="pre">corrected.zarr</span></code>, the ROIs from <code class="docutils literal notranslate"><span class="pre">Parameters.yml</span></code> and the masks from <code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;/mask.tif</span></code>. Contrary to the Sediment widget, layers are <strong>not</strong> translated: the viewer coordinates are relative to the top-left corner of the region that is loaded.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When several widgets are open in the same viewer, only the widget that last loaded data (opened an image, imported a project, loaded a series) is active. Loading data removes all layers of the viewer, and the other widgets are disabled (except their first tab used to load data) and ignore mouse interactions in the viewer until they load data again. This avoids that layers or settings of one widget interfere with another one, e.g. that masks are shifted or ROIs are added by the wrong widget.</p>
+</div>
+<section id="hyperanalysis">
+<h3>HyperAnalysis<a class="headerlink" href="#hyperanalysis" title="Link to this heading">#</a></h3>
+<p>For the main ROI selected in <em>Selected ROI</em>, the widget loads the region of the <strong>first sub-ROI</strong> of that main ROI (dimensionality reduction is computationally expensive, so a narrow region is typically used). The mask is cropped from the main ROI mask to the sub-ROI. All outputs (MNF, denoised data, end-members, etc.) correspond to the sub-ROI and are saved in <code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;</span></code>.</p>
+</section>
+<section id="spectralindices">
+<h3>SpectralIndices<a class="headerlink" href="#spectralindices" title="Link to this heading">#</a></h3>
+<p>The widget loads the <strong>main ROI</strong> region and its mask. Index maps are computed over the whole main ROI and are saved without masking. The mask is applied when computing index projections (masked pixels are ignored) and in plots (masked pixels are shown in black in the RGB image and left blank in index images). Index projections are computed by averaging the index map over the columns of the <strong>measurement ROI</strong> (layer <code class="docutils literal notranslate"><span class="pre">rois</span></code>). The measurement ROI is relative to the main ROI. By default, it corresponds to the first sub-ROI. It can be changed by double-clicking in the viewer and is saved in <code class="docutils literal notranslate"><span class="pre">Parameters.yml</span></code>. Index maps (<code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;/index_maps</span></code>), projections and plots (<code class="docutils literal notranslate"><span class="pre">roi_&lt;n&gt;/index_plots</span></code>) are saved per main ROI.</p>
+</section>
+<section id="batch-plotting-and-concatenation">
+<h3>Batch plotting and Concatenation<a class="headerlink" href="#batch-plotting-and-concatenation" title="Link to this heading">#</a></h3>
+<p>Batch plotting (SpectralIndices <strong>Batch</strong> tab) uses, for each project and main ROI, the main ROI region of the RGB image, the saved mask and the measurement ROI, as in the SpectralIndices widget. The Concatenation widget assembles the main ROI regions (RGB image and index maps of <code class="docutils literal notranslate"><span class="pre">roi_0</span></code>) of a series of projects.</p>
+</section>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./."
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="Details_sediment.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Function details: Sediment</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#coordinates">Coordinates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#types-of-rois">Types of ROIs</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#creating-rois-in-the-sediment-widget">Creating ROIs in the Sediment widget</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#saving-rois">Saving ROIs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cropping-in-the-sediment-widget">Cropping in the Sediment widget</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#masks">Masks</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#saving-and-loading-masks">Saving and loading masks</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#masks-of-multiple-main-rois">Masks of multiple main ROIs</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#order-of-operations">Order of operations</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#use-in-the-other-widgets">Use in the other widgets</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hyperanalysis">HyperAnalysis</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#spectralindices">SpectralIndices</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-plotting-and-concatenation">Batch plotting and Concatenation</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Guillaume Witz
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
